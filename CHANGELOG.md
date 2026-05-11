@@ -7,7 +7,37 @@ Pre-`v0.1.0` is breaking by default; we only call out highlights.
 
 ## [Unreleased]
 
-### Added (this push — v1.0.0 push: Solana, BM25 recall, multi-format charts, scaffolds, polish)
+### Changed (this push — UI/UX polish to v1-ready surface)
+
+- **CLI** gained `doctor`, `tools`, `metrics`, and `version` commands.
+  `chainq tools` and `chainq metrics` accept `--verbose` for full
+  descriptions / guardrails. `chainq mcp serve` now prints a stderr
+  startup banner (no more silent hang on launch) and rejects unknown
+  flags. `chainq init` output is shorter, with explicit next-steps
+  commands. Unknown commands trigger an edit-distance "did you mean"
+  suggestion. Help text uses consistent column alignment and documents
+  both `CHAINQ_DATA_DIR` and `CHAINQ_METRICS_DIR`.
+- **MCP tool descriptions** moved to a single source of truth
+  (`packages/mcp-server/src/tool-catalog.ts`). `server.ts` reads from it;
+  the `chainq tools` CLI renders the same data grouped by capability.
+  Exports: `TOOL_CATALOG`, `describeTool()`, `ToolDoc`.
+- **Playground** now supports `Cmd/Ctrl+Enter` to run, quick-sample
+  buttons (head / count / schema), a collapsible schema panel showing
+  `DESCRIBE` output after Load, horizontal-scroll on wide tables with
+  sticky header, button loading states, friendlier red error styling,
+  and SQL persistence in `localStorage`.
+- **Reports** unify section names (Notes / Gotchas / Caveats →
+  Caveats) so the gallery reads consistently.
+- **README** tool table refreshed (11 → 14 tools), now lists 12 metrics,
+  mentions structured error codes, `chainq tools` / `chainq metrics`,
+  multi-format `chart_render`, BM25 recall, Solana ingest, and the
+  `engine-clickhouse` scaffold.
+- `chainq.config.json` scaffold dropped the placeholder `$schema` URL
+  (it 404s — will be re-added when a real schema is hosted).
+- `chainq doctor` uses an isolated cache-DB path so it does not collide
+  with a running MCP server's DuckDB lock.
+
+### Added (previous push — v1.0.0 push: Solana, BM25 recall, multi-format charts, scaffolds, polish)
 
 - **Solana support (v0.3.0 unlocked)**: two new curated tables in the catalog
   (`solana.transfers`, `solana.dex.trades`) with lineage + sample queries +

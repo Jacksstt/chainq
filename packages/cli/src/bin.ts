@@ -94,11 +94,11 @@ async function main() {
       return;
 
     case "tools":
-      await runListTools();
+      await runListTools(isVerbose(rest));
       return;
 
     case "metrics":
-      await runListMetrics();
+      await runListMetrics(isVerbose(rest));
       return;
 
     case "mcp": {
@@ -106,6 +106,14 @@ async function main() {
         console.error(`Unknown subcommand: chainq mcp ${rest[0] ?? ""}`);
         console.error("Did you mean:  chainq mcp serve [--stdio]");
         process.exit(1);
+      }
+      const transportFlags = rest.slice(1);
+      for (const f of transportFlags) {
+        if (f !== "--stdio") {
+          console.error(`Unknown flag for mcp serve: ${f}`);
+          console.error("Supported: --stdio (default).");
+          process.exit(1);
+        }
       }
       await runMcpServe();
       return;
@@ -358,7 +366,7 @@ async function runDoctor(): Promise<void> {
   }
 }
 
-async function runListTools(): Promise<void> {
+async function runListTools(verbose: boolean): Promise<void> {
   const { TOOL_CATALOG } = await import("@chainq/mcp-server");
   console.log(`chainq MCP tools (${TOOL_CATALOG.length} total):\n`);
   const groups = new Map<string, typeof TOOL_CATALOG[number][]>();
@@ -371,13 +379,20 @@ async function runListTools(): Promise<void> {
     console.log(`  ${group}`);
     for (const t of tools) {
       console.log(`    ${t.name.padEnd(24)} ${t.title}`);
+      if (verbose) {
+        console.log(`      ${wrapText(t.description, 86, "      ")}`);
+      }
     }
     console.log("");
   }
-  console.log("Use `chainq mcp serve` and call `tools/list` from an MCP client for full schemas.");
+  if (verbose) {
+    console.log("Schemas available via `chainq mcp serve` + `tools/list` from an MCP client.");
+  } else {
+    console.log("Pass --verbose for descriptions. Schemas via `chainq mcp serve` + `tools/list`.");
+  }
 }
 
-async function runListMetrics(): Promise<void> {
+async function runListMetrics(verbose: boolean): Promise<void> {
   const root = packageRoot();
   const metricsDir = resolve(
     process.env.CHAINQ_METRICS_DIR ?? join(root, "packages/semantic/metrics"),
@@ -395,9 +410,47 @@ async function runListMetrics(): Promise<void> {
   for (const m of list) {
     const dims = m.dimensions.length > 0 ? `dims=[${m.dimensions.join(",")}]` : "no dimensions";
     console.log(`  ${m.metric.padEnd(nameWidth)}  ${dims}`);
-    const summary = (m.description ?? "").split("\n")[0]!.trim();
-    if (summary) console.log(`  ${" ".repeat(nameWidth)}  ${summary}`);
+    const description = (m.description ?? "").trim();
+    if (verbose && description) {
+      for (const line of description.split("\n")) {
+        console.log(`  ${" ".repeat(nameWidth)}  ${line.trim()}`);
+      }
+      const guards: string[] = [];
+      if (m.guardrails.maxRows) guards.push(`max_rows=${m.guardrails.maxRows}`);
+      if (m.guardrails.maxRangeDays) guards.push(`max_range_days=${m.guardrails.maxRangeDays}`);
+      if (m.guardrails.timeoutSeconds) guards.push(`timeout=${m.guardrails.timeoutSeconds}s`);
+      if (guards.length > 0) {
+        console.log(`  ${" ".repeat(nameWidth)}  (${guards.join(", ")})`);
+      }
+      console.log("");
+    } else if (description) {
+      const summary = description.split("\n")[0]!.trim();
+      console.log(`  ${" ".repeat(nameWidth)}  ${summary}`);
+    }
   }
+  if (!verbose) {
+    console.log("\nPass --verbose for full descriptions + guardrails.");
+  }
+}
+
+function isVerbose(args: string[]): boolean {
+  return args.includes("--verbose") || args.includes("-v");
+}
+
+function wrapText(s: string, width: number, indent: string): string {
+  const words = s.split(/\s+/);
+  const lines: string[] = [];
+  let current = "";
+  for (const w of words) {
+    if (current.length + w.length + 1 > width) {
+      lines.push(current.trimEnd());
+      current = w + " ";
+    } else {
+      current += w + " ";
+    }
+  }
+  if (current.trim()) lines.push(current.trimEnd());
+  return lines.join("\n" + indent);
 }
 
 async function runSeed(): Promise<void> {
