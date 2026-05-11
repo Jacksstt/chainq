@@ -116,8 +116,11 @@ export const TOOL_CATALOG: readonly ToolDoc[] = [
     description:
       "Write a single-file report. Defaults to a polished HTML page (inline CSS, " +
       "system fonts, dark/light auto, print-friendly) with frontmatter, tables, " +
-      "and chart embeds (`.svg` / `.png` inline, `.html` linked). Pass " +
-      "`format: \"markdown\"` (or use a `.md` filename) for Obsidian-compatible Markdown.",
+      "and chart embeds (`.svg` / `.png` inline, `.html` linked). Text fields (title, " +
+      "summary, section heading / body / caption) accept either `string` or " +
+      "`{ en, ja }`. Set `locale: \"en\"` / `\"ja\"` / `\"both\"` — `\"both\"` emits " +
+      "a CSS-only language toggle (no JS). Pass `format: \"markdown\"` (or use a " +
+      "`.md` filename) for Obsidian-compatible Markdown.",
   },
   {
     name: "chainq_budget_set",

@@ -2,32 +2,42 @@
  * Report writer — emits a polished self-contained HTML file by default,
  * with optional Markdown output for Obsidian / static-site pipelines.
  *
- * The HTML is intentionally single-file: inline CSS, no external fonts, no
- * scripts. It opens cleanly in any browser, prints well, and respects the
- * reader's `prefers-color-scheme`.
+ * Bilingual support: title / summary / section headings / bodies / captions
+ * accept `string | { en, ja }`. The `locale` field on ReportSpec picks the
+ * rendering mode:
+ *   - "en"   → English only (default; back-compat)
+ *   - "ja"   → Japanese only
+ *   - "both" → bilingual HTML with a CSS-only language toggle (no JS)
  */
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { basename, dirname, extname, resolve } from "node:path";
 
+export interface I18nString {
+  en?: string;
+  ja?: string;
+}
+
+export type Localizable = string | I18nString;
+
+export type ReportLocale = "en" | "ja" | "both";
+
 export interface ReportSection {
-  heading: string;
-  /** Free-form prose. Supports minimal inline markdown: `**bold**`, `*em*`, `` `code` ``. Paragraphs are split on blank lines. */
-  body?: string;
-  /** Array of row objects. Keys of the first row become column headers. */
+  heading: Localizable;
+  body?: Localizable;
   table?: Record<string, unknown>[];
-  /** Filesystem path or URL to a chart artifact. `.svg`/`.png` render inline; `.html` renders a link; everything else becomes a labelled link. */
   chartPath?: string;
-  /** Caption shown under the chart (or as alt text for images). */
-  caption?: string;
+  caption?: Localizable;
 }
 
 export interface ReportSpec {
-  title: string;
+  title: Localizable;
   outPath: string;
   frontmatter?: Record<string, unknown>;
-  summary?: string;
+  summary?: Localizable;
   sections: ReportSection[];
+  /** "en" / "ja" / "both". Defaults to "en" for back-compat. */
+  locale?: ReportLocale;
 }
 
 export type ReportFormat = "html" | "markdown";
@@ -47,19 +57,85 @@ export function inferFormatFromExt(outPath: string): ReportFormat {
   return "html";
 }
 
+// ---------------------------------------------------------------- locale helpers
+
+function isI18n(v: unknown): v is I18nString {
+  return typeof v === "object" && v !== null && !Array.isArray(v) &&
+    ("en" in (v as Record<string, unknown>) || "ja" in (v as Record<string, unknown>));
+}
+
+function pick(v: Localizable | undefined, lang: "en" | "ja"): string {
+  if (v == null) return "";
+  if (typeof v === "string") return v;
+  return v[lang] ?? v.en ?? v.ja ?? "";
+}
+
+function hasI18n(spec: ReportSpec): boolean {
+  if (isI18n(spec.title)) return true;
+  if (spec.summary && isI18n(spec.summary)) return true;
+  for (const s of spec.sections) {
+    if (isI18n(s.heading)) return true;
+    if (s.body && isI18n(s.body)) return true;
+    if (s.caption && isI18n(s.caption)) return true;
+  }
+  return false;
+}
+
+// Chrome strings (the report's own UI text) per locale.
+interface Chrome {
+  generated: (iso: string) => string;
+  metadata: (n: number) => string;
+  openChart: string;
+  authoredBy: string;
+  mit: string;
+}
+
+const CHROME: Record<"en" | "ja", Chrome> = {
+  en: {
+    generated: (iso) => `Generated ${iso}`,
+    metadata: (n) => `Metadata · ${n} field${n === 1 ? "" : "s"}`,
+    openChart: "Open interactive chart",
+    authoredBy: "Authored by an AI agent via",
+    mit: "Self-hosted, MCP-native. MIT.",
+  },
+  ja: {
+    generated: (iso) => `生成: ${iso}`,
+    metadata: (n) => `メタデータ · ${n} 項目`,
+    openChart: "インタラクティブチャートを開く",
+    authoredBy: "AIエージェントが",
+    mit: "セルフホスト、MCPネイティブ、MITライセンス。",
+  },
+};
+
 // ---------------------------------------------------------------- HTML
 
 export function renderHtml(spec: ReportSpec): string {
-  const title = escape(spec.title);
+  const requestedLocale = spec.locale ?? "en";
+  // "both" only makes sense when at least one field is bilingual.
+  const locale: ReportLocale = requestedLocale === "both" && !hasI18n(spec)
+    ? "en"
+    : requestedLocale;
+
+  if (locale === "both") return renderHtmlBilingual(spec);
+  return renderHtmlSingle(spec, locale);
+}
+
+function renderHtmlSingle(spec: ReportSpec, lang: "en" | "ja"): string {
+  const title = escape(pick(spec.title, lang));
   const generated = new Date().toISOString();
+  const chrome = CHROME[lang];
+
   const frontmatter = spec.frontmatter && Object.keys(spec.frontmatter).length > 0
-    ? renderFrontmatterHtml(spec.frontmatter)
+    ? renderFrontmatter(spec.frontmatter, chrome)
     : "";
-  const summary = spec.summary ? `<p class="summary">${renderInline(spec.summary)}</p>` : "";
-  const sections = spec.sections.map(renderSectionHtml).join("\n");
+  const summaryText = pick(spec.summary, lang);
+  const summary = summaryText ? `<p class="summary">${renderInline(summaryText)}</p>` : "";
+  const sections = spec.sections
+    .map((s) => renderSectionSingle(s, lang))
+    .join("\n");
 
   return `<!doctype html>
-<html lang="en">
+<html lang="${lang}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -71,7 +147,7 @@ export function renderHtml(spec: ReportSpec): string {
   <header class="report-head">
     <p class="eyebrow">chainq report</p>
     <h1>${title}</h1>
-    <p class="meta">Generated ${escape(generated)}</p>
+    <p class="meta">${escape(chrome.generated(generated))}</p>
     ${frontmatter}
     ${summary}
   </header>
@@ -79,7 +155,7 @@ export function renderHtml(spec: ReportSpec): string {
 ${sections}
   </article>
   <footer class="report-foot">
-    <p>Authored by an AI agent via <a href="https://github.com/Jacksstt/chainq" target="_blank" rel="noopener">chainq</a>. Self-hosted, MCP-native. MIT.</p>
+    <p>${escape(chrome.authoredBy)} <a href="https://github.com/Jacksstt/chainq" target="_blank" rel="noopener">chainq</a>. ${escape(chrome.mit)}</p>
   </footer>
 </main>
 </body>
@@ -87,47 +163,125 @@ ${sections}
 `;
 }
 
-function renderSectionHtml(section: ReportSection): string {
-  const heading = escape(section.heading);
-  const calloutKind = detectCalloutKind(section.heading);
-  const wrapperClass = calloutKind ? `section callout callout-${calloutKind}` : "section";
+function renderHtmlBilingual(spec: ReportSpec): string {
+  const titleEn = escape(pick(spec.title, "en"));
+  const titleJa = escape(pick(spec.title, "ja"));
+  const generated = new Date().toISOString();
+
+  const frontmatterBlock = spec.frontmatter && Object.keys(spec.frontmatter).length > 0
+    ? renderFrontmatterBilingual(spec.frontmatter)
+    : "";
+  const summaryEn = pick(spec.summary, "en");
+  const summaryJa = pick(spec.summary, "ja");
+  const summary = (summaryEn || summaryJa)
+    ? `${summaryJa ? `<p class="summary" lang="ja">${renderInline(summaryJa)}</p>` : ""}${summaryEn ? `<p class="summary" lang="en">${renderInline(summaryEn)}</p>` : ""}`
+    : "";
+
+  const sections = spec.sections.map(renderSectionBilingual).join("\n");
+
+  // Title for <title> tag: prefer Japanese if available, else English.
+  const docTitle = titleJa || titleEn;
+
+  return `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${docTitle}</title>
+<style>${REPORT_CSS}${BILINGUAL_CSS}</style>
+</head>
+<body>
+<input id="loc-ja" type="radio" name="locale" checked aria-hidden="true">
+<input id="loc-en" type="radio" name="locale" aria-hidden="true">
+<main class="report" data-bilingual>
+  <nav class="locale-switch" aria-label="言語 / Language">
+    <label for="loc-ja">日本語</label>
+    <label for="loc-en">English</label>
+  </nav>
+  <header class="report-head">
+    <p class="eyebrow">chainq report</p>
+    ${titleJa ? `<h1 lang="ja">${titleJa}</h1>` : ""}
+    ${titleEn ? `<h1 lang="en">${titleEn}</h1>` : ""}
+    <p class="meta" lang="ja">${escape(CHROME.ja.generated(generated))}</p>
+    <p class="meta" lang="en">${escape(CHROME.en.generated(generated))}</p>
+    ${frontmatterBlock}
+    ${summary}
+  </header>
+  <article>
+${sections}
+  </article>
+  <footer class="report-foot">
+    <p lang="ja">${escape(CHROME.ja.authoredBy)} <a href="https://github.com/Jacksstt/chainq" target="_blank" rel="noopener">chainq</a> ${escape("経由で作成")}。${escape(CHROME.ja.mit)}</p>
+    <p lang="en">${escape(CHROME.en.authoredBy)} <a href="https://github.com/Jacksstt/chainq" target="_blank" rel="noopener">chainq</a>. ${escape(CHROME.en.mit)}</p>
+  </footer>
+</main>
+</body>
+</html>
+`;
+}
+
+function renderSectionSingle(section: ReportSection, lang: "en" | "ja"): string {
+  const headingText = pick(section.heading, lang);
+  const heading = escape(headingText);
+  const callout = detectCallout(headingText);
+  const wrapperClass = callout ? `section callout callout-${callout}` : "section";
   const parts: string[] = [];
   parts.push(`    <section class="${wrapperClass}">`);
   parts.push(`      <h2>${heading}</h2>`);
-  if (section.body) parts.push(`      ${renderBodyHtml(section.body)}`);
-  if (section.table && section.table.length > 0) parts.push(`      ${renderTableHtml(section.table)}`);
-  if (section.chartPath) parts.push(`      ${renderChartHtml(section.chartPath, section.caption ?? section.heading)}`);
+  const bodyText = pick(section.body, lang);
+  if (bodyText) parts.push(`      ${renderBody(bodyText)}`);
+  if (section.table && section.table.length > 0) parts.push(`      ${renderTable(section.table)}`);
+  if (section.chartPath) {
+    parts.push(`      ${renderChart(section.chartPath, pick(section.caption, lang) || headingText)}`);
+  }
   parts.push(`    </section>`);
   return parts.join("\n");
 }
 
-function renderBodyHtml(body: string): string {
-  // Split on blank lines into paragraphs, then render inline.
+function renderSectionBilingual(section: ReportSection): string {
+  const headingJa = pick(section.heading, "ja");
+  const headingEn = pick(section.heading, "en");
+  // Detect callout from EITHER locale's heading.
+  const callout = detectCallout(headingJa) ?? detectCallout(headingEn);
+  const wrapperClass = callout ? `section callout callout-${callout}` : "section";
+
+  const parts: string[] = [];
+  parts.push(`    <section class="${wrapperClass}">`);
+  if (headingJa) parts.push(`      <h2 lang="ja">${escape(headingJa)}</h2>`);
+  if (headingEn) parts.push(`      <h2 lang="en">${escape(headingEn)}</h2>`);
+
+  const bodyJa = pick(section.body, "ja");
+  const bodyEn = pick(section.body, "en");
+  if (bodyJa) parts.push(`      <div lang="ja">${renderBody(bodyJa)}</div>`);
+  if (bodyEn) parts.push(`      <div lang="en">${renderBody(bodyEn)}</div>`);
+
+  if (section.table && section.table.length > 0) parts.push(`      ${renderTable(section.table)}`);
+
+  if (section.chartPath) {
+    const captionJa = pick(section.caption, "ja") || headingJa;
+    const captionEn = pick(section.caption, "en") || headingEn;
+    parts.push(`      ${renderChartBilingual(section.chartPath, captionJa, captionEn)}`);
+  }
+  parts.push(`    </section>`);
+  return parts.join("\n");
+}
+
+function renderBody(body: string): string {
   const paragraphs = body.trim().split(/\n\s*\n/);
-  return paragraphs
-    .map((p) => `<p>${renderInline(p)}</p>`)
-    .join("\n      ");
+  return paragraphs.map((p) => `<p>${renderInline(p)}</p>`).join("\n      ");
 }
 
 function renderInline(text: string): string {
-  // Escape first, then re-introduce a tiny markdown subset. We must escape
-  // before regex-substituting tags or `**foo**` -> <strong> would emit a
-  // literal `<` in the source.
   let s = escape(text);
-  // `code` — non-greedy, no nested backticks
   s = s.replace(/`([^`]+)`/g, (_, c: string) => `<code>${c}</code>`);
-  // **bold** — two stars, non-greedy
   s = s.replace(/\*\*([^*]+)\*\*/g, (_, c: string) => `<strong>${c}</strong>`);
-  // *italic* — one star, no leading/trailing whitespace
   s = s.replace(/(^|\s)\*([^*\s][^*]*[^*\s]|\S)\*(?=\s|$)/g, (_, pre: string, c: string) => `${pre}<em>${c}</em>`);
-  // bare URLs → links
   s = s.replace(/(https?:\/\/[^\s<]+)/g, (m) => `<a href="${m}" target="_blank" rel="noopener">${m}</a>`);
-  // single newlines inside a paragraph → <br>
   s = s.replace(/\n/g, "<br>");
   return s;
 }
 
-function renderTableHtml(rows: Record<string, unknown>[]): string {
+function renderTable(rows: Record<string, unknown>[]): string {
   const first = rows[0]!;
   const keys = Object.keys(first);
   const head = keys.map((k) => `<th>${escape(k)}</th>`).join("");
@@ -147,7 +301,7 @@ function renderTableHtml(rows: Record<string, unknown>[]): string {
       </tbody></table></div>`;
 }
 
-function renderChartHtml(chartPath: string, caption: string): string {
+function renderChart(chartPath: string, caption: string): string {
   const ext = extname(chartPath).toLowerCase();
   const safePath = escape(chartPath);
   const safeCaption = escape(caption);
@@ -155,29 +309,59 @@ function renderChartHtml(chartPath: string, caption: string): string {
     return `<figure><img src="${safePath}" alt="${safeCaption}" loading="lazy"><figcaption>${safeCaption}</figcaption></figure>`;
   }
   if (ext === ".html" || ext === ".htm") {
-    return `<figure class="chart-link"><a href="${safePath}" target="_blank" rel="noopener">Open interactive chart: ${escape(basename(chartPath))}</a><figcaption>${safeCaption}</figcaption></figure>`;
+    return `<figure class="chart-link"><a href="${safePath}" target="_blank" rel="noopener">${escape(basename(chartPath))}</a><figcaption>${safeCaption}</figcaption></figure>`;
   }
   return `<figure class="chart-link"><a href="${safePath}" target="_blank" rel="noopener">${escape(basename(chartPath))}</a><figcaption>${safeCaption}</figcaption></figure>`;
 }
 
-function renderFrontmatterHtml(frontmatter: Record<string, unknown>): string {
+function renderChartBilingual(chartPath: string, captionJa: string, captionEn: string): string {
+  const ext = extname(chartPath).toLowerCase();
+  const safePath = escape(chartPath);
+  const altCaption = captionEn || captionJa;
+  const imgish = ext === ".svg" || ext === ".png" || ext === ".jpg" || ext === ".jpeg" || ext === ".gif" || ext === ".webp";
+  const head = imgish
+    ? `<img src="${safePath}" alt="${escape(altCaption)}" loading="lazy">`
+    : `<a href="${safePath}" target="_blank" rel="noopener">${escape(basename(chartPath))}</a>`;
+  const captions: string[] = [];
+  if (captionJa) captions.push(`<figcaption lang="ja">${escape(captionJa)}</figcaption>`);
+  if (captionEn) captions.push(`<figcaption lang="en">${escape(captionEn)}</figcaption>`);
+  return `<figure${imgish ? "" : " class=\"chart-link\""}>${head}${captions.join("")}</figure>`;
+}
+
+function renderFrontmatter(frontmatter: Record<string, unknown>, chrome: Chrome): string {
   const rows = Object.entries(frontmatter)
     .map(([k, v]) => `<tr><th scope="row">${escape(k)}</th><td>${escape(formatFrontmatterValue(v))}</td></tr>`)
     .join("");
-  return `<details class="frontmatter"><summary>Metadata · ${Object.keys(frontmatter).length} field${Object.keys(frontmatter).length === 1 ? "" : "s"}</summary><table>${rows}</table></details>`;
+  return `<details class="frontmatter"><summary>${escape(chrome.metadata(Object.keys(frontmatter).length))}</summary><table>${rows}</table></details>`;
 }
 
-function detectCalloutKind(heading: string): "caveat" | "warning" | "tip" | null {
+function renderFrontmatterBilingual(frontmatter: Record<string, unknown>): string {
+  const rows = Object.entries(frontmatter)
+    .map(([k, v]) => `<tr><th scope="row">${escape(k)}</th><td>${escape(formatFrontmatterValue(v))}</td></tr>`)
+    .join("");
+  const n = Object.keys(frontmatter).length;
+  return `<details class="frontmatter"><summary><span lang="ja">${escape(CHROME.ja.metadata(n))}</span><span lang="en">${escape(CHROME.en.metadata(n))}</span></summary><table>${rows}</table></details>`;
+}
+
+function detectCallout(heading: string): "caveat" | "warning" | "tip" | null {
   const h = heading.toLowerCase().trim();
+  // English keywords
   if (/^(caveats?|notes?|gotchas?|limitations?)\b/.test(h)) return "caveat";
   if (/^(warning|important|danger)\b/.test(h)) return "warning";
-  if (/^(tip|note|aside)\b/.test(h)) return "tip";
+  if (/^(tip|aside|hint)\b/.test(h)) return "tip";
+  // Japanese keywords (no word-boundary; CJK matching).
+  if (/^(注意|注意事項|ご注意|注釈|免責|留意|備考|落とし穴)/.test(heading.trim())) return "caveat";
+  if (/^(警告|危険|重要)/.test(heading.trim())) return "warning";
+  if (/^(ヒント|メモ|補足|参考)/.test(heading.trim())) return "tip";
   return null;
 }
 
 // ---------------------------------------------------------------- Markdown (back-compat)
 
 export function renderMarkdown(spec: ReportSpec): string {
+  // Markdown output collapses to a single language (the requested locale,
+  // defaulting to English). Bilingual readers should use HTML.
+  const lang: "en" | "ja" = spec.locale === "ja" ? "ja" : "en";
   const out: string[] = [];
   if (spec.frontmatter && Object.keys(spec.frontmatter).length > 0) {
     out.push("---");
@@ -187,17 +371,19 @@ export function renderMarkdown(spec: ReportSpec): string {
     out.push("---", "");
   }
 
-  out.push(`# ${spec.title}`, "");
-  if (spec.summary) out.push(spec.summary, "");
+  out.push(`# ${pick(spec.title, lang)}`, "");
+  const summary = pick(spec.summary, lang);
+  if (summary) out.push(summary, "");
 
   for (const section of spec.sections) {
-    out.push(`## ${section.heading}`, "");
-    if (section.body) out.push(section.body, "");
+    out.push(`## ${pick(section.heading, lang)}`, "");
+    const body = pick(section.body, lang);
+    if (body) out.push(body, "");
     if (section.table && section.table.length > 0) {
       out.push(renderTableMarkdown(section.table), "");
     }
     if (section.chartPath) {
-      const caption = section.caption ?? section.heading;
+      const caption = pick(section.caption, lang) || pick(section.heading, lang);
       out.push(`![${caption}](${section.chartPath})`, "");
     }
   }
@@ -300,13 +486,14 @@ const REPORT_CSS = `
   }
   .report-foot, .frontmatter summary { color: #555; }
   .report { max-width: none; padding: 0; }
+  .locale-switch { display: none; }
 }
 
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; background: var(--bg); }
 body {
   color: var(--fg);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans CJK JP", sans-serif;
   font-size: 16px;
   line-height: 1.65;
   -webkit-font-smoothing: antialiased;
@@ -329,12 +516,18 @@ code {
 
 .report-head { border-bottom: 1px solid var(--border-soft); padding-bottom: 24px; margin-bottom: 32px; }
 .eyebrow { color: var(--fg-mute); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; margin: 0 0 8px; font-weight: 600; }
-.report-head h1 { font-size: 32px; line-height: 1.2; margin: 0 0 8px; letter-spacing: -0.01em; }
-.meta { color: var(--fg-mute); font-size: 13px; font-family: "SF Mono", Menlo, Consolas, monospace; margin: 0 0 16px; }
+.report-head h1 { font-size: 32px; line-height: 1.25; margin: 0 0 8px; letter-spacing: -0.01em; }
+.report-head h1 + h1 { margin-top: 4px; font-size: 24px; color: var(--fg-dim); font-weight: 500; }
+.meta { color: var(--fg-mute); font-size: 13px; font-family: "SF Mono", Menlo, Consolas, monospace; margin: 0 0 4px; }
+.meta + .meta { margin-bottom: 16px; }
 .summary { font-size: 18px; line-height: 1.55; color: var(--fg-dim); margin: 16px 0 0; }
+.summary + .summary { margin-top: 8px; font-size: 16px; }
 
 .frontmatter { margin: 12px 0 0; font-size: 13px; }
-.frontmatter summary { cursor: pointer; color: var(--fg-mute); padding: 4px 0; user-select: none; }
+.frontmatter summary { cursor: pointer; color: var(--fg-mute); padding: 4px 0; user-select: none; list-style: none; }
+.frontmatter summary::-webkit-details-marker { display: none; }
+.frontmatter summary::before { content: "▸ "; display: inline-block; transition: transform 120ms ease; }
+.frontmatter[open] summary::before { transform: rotate(90deg); }
 .frontmatter[open] summary { color: var(--fg-dim); margin-bottom: 8px; }
 .frontmatter table { width: 100%; border-collapse: collapse; font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12.5px; }
 .frontmatter th, .frontmatter td { padding: 4px 12px 4px 0; text-align: left; vertical-align: top; }
@@ -349,6 +542,7 @@ article { margin: 0; }
   margin: 0 0 12px;
   letter-spacing: -0.005em;
 }
+.section h2 + h2 { margin-top: -4px; font-size: 17px; color: var(--fg-dim); font-weight: 500; }
 .section p { margin: 0 0 12px; }
 .section p:last-child { margin-bottom: 0; }
 
@@ -416,6 +610,7 @@ figcaption {
   margin-top: 8px;
   font-family: "SF Mono", Menlo, Consolas, monospace;
 }
+figcaption + figcaption { margin-top: 2px; }
 .chart-link {
   border: 1px dashed var(--border);
   border-radius: 8px;
@@ -433,11 +628,52 @@ figcaption {
 }
 .report-foot a { color: var(--fg-mute); text-decoration: underline; text-decoration-color: var(--border); }
 .report-foot a:hover { color: var(--accent); text-decoration-color: var(--accent); }
+.report-foot p + p { margin-top: 2px; }
 
 @media (max-width: 640px) {
   .report { padding: 32px 18px 64px; }
   .report-head h1 { font-size: 26px; }
+  .report-head h1 + h1 { font-size: 19px; }
   .section h2 { font-size: 20px; }
+  .section h2 + h2 { font-size: 15px; }
   .summary { font-size: 16px; }
 }
+`;
+
+const BILINGUAL_CSS = `
+/* Bilingual: CSS-only locale toggle. Default = Japanese visible. */
+input[type="radio"][name="locale"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+}
+.locale-switch {
+  display: inline-flex;
+  gap: 4px;
+  margin: 0 0 24px;
+  padding: 4px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+.locale-switch label {
+  cursor: pointer;
+  padding: 4px 14px;
+  border-radius: 999px;
+  color: var(--fg-mute);
+  user-select: none;
+  transition: color 120ms ease, background 120ms ease;
+}
+.locale-switch label:hover { color: var(--fg); }
+#loc-ja:checked ~ .report .locale-switch label[for="loc-ja"],
+#loc-en:checked ~ .report .locale-switch label[for="loc-en"] {
+  background: var(--accent);
+  color: white;
+}
+#loc-ja:checked ~ .report [lang="en"] { display: none; }
+#loc-en:checked ~ .report [lang="ja"] { display: none; }
 `;

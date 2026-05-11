@@ -271,26 +271,31 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
   );
 
   // -------- report -------------------------------------------------------
+  const localized = z.union([
+    z.string(),
+    z.object({ en: z.string().optional(), ja: z.string().optional() }),
+  ]);
   server.tool(
     "chainq_report",
     toolDesc("chainq_report"),
     {
-      title: z.string(),
+      title: localized,
       filename: z.string().describe("Report filename relative to outDir. Format is inferred from the extension: .html (default), .md / .markdown for Markdown."),
-      summary: z.string().optional(),
+      summary: localized.optional(),
       frontmatter: z.record(z.string(), z.unknown()).optional(),
       sections: z.array(
         z.object({
-          heading: z.string(),
-          body: z.string().optional(),
+          heading: localized,
+          body: localized.optional(),
           table: z.array(z.record(z.string(), z.unknown())).optional(),
           chartPath: z.string().optional(),
-          caption: z.string().optional(),
+          caption: localized.optional(),
         }),
       ),
       format: z.enum(["html", "markdown"]).optional().describe("Output format. Defaults to HTML (or inferred from filename)."),
+      locale: z.enum(["en", "ja", "both"]).optional().describe("Render locale: 'en' (default) / 'ja' / 'both' (CSS-only language toggle, no JS). 'both' requires at least one field to be `{ en, ja }`; otherwise falls back to 'en'."),
     },
-    async ({ title, filename, summary, frontmatter, sections, format }) => {
+    async ({ title, filename, summary, frontmatter, sections, format, locale }) => {
       try {
         const path = writeReport(
           {
@@ -299,10 +304,15 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
             summary,
             frontmatter,
             sections,
+            locale,
           },
           format as ReportFormat | undefined,
         );
-        return json({ path, format: format ?? (filename.endsWith(".md") || filename.endsWith(".markdown") ? "markdown" : "html") });
+        return json({
+          path,
+          format: format ?? (filename.endsWith(".md") || filename.endsWith(".markdown") ? "markdown" : "html"),
+          locale: locale ?? "en",
+        });
       } catch (err) {
         return error(`report failed: ${(err as Error).message}`, "REPORT_FAILED");
       }

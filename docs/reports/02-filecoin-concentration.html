@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Filecoin storage-provider concentration</title>
+<title>Filecoin ストレージプロバイダの集中度</title>
 <style>
 :root {
   --bg: #ffffff;
@@ -56,13 +56,14 @@
   }
   .report-foot, .frontmatter summary { color: #555; }
   .report { max-width: none; padding: 0; }
+  .locale-switch { display: none; }
 }
 
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; background: var(--bg); }
 body {
   color: var(--fg);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans CJK JP", sans-serif;
   font-size: 16px;
   line-height: 1.65;
   -webkit-font-smoothing: antialiased;
@@ -85,12 +86,18 @@ code {
 
 .report-head { border-bottom: 1px solid var(--border-soft); padding-bottom: 24px; margin-bottom: 32px; }
 .eyebrow { color: var(--fg-mute); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; margin: 0 0 8px; font-weight: 600; }
-.report-head h1 { font-size: 32px; line-height: 1.2; margin: 0 0 8px; letter-spacing: -0.01em; }
-.meta { color: var(--fg-mute); font-size: 13px; font-family: "SF Mono", Menlo, Consolas, monospace; margin: 0 0 16px; }
+.report-head h1 { font-size: 32px; line-height: 1.25; margin: 0 0 8px; letter-spacing: -0.01em; }
+.report-head h1 + h1 { margin-top: 4px; font-size: 24px; color: var(--fg-dim); font-weight: 500; }
+.meta { color: var(--fg-mute); font-size: 13px; font-family: "SF Mono", Menlo, Consolas, monospace; margin: 0 0 4px; }
+.meta + .meta { margin-bottom: 16px; }
 .summary { font-size: 18px; line-height: 1.55; color: var(--fg-dim); margin: 16px 0 0; }
+.summary + .summary { margin-top: 8px; font-size: 16px; }
 
 .frontmatter { margin: 12px 0 0; font-size: 13px; }
-.frontmatter summary { cursor: pointer; color: var(--fg-mute); padding: 4px 0; user-select: none; }
+.frontmatter summary { cursor: pointer; color: var(--fg-mute); padding: 4px 0; user-select: none; list-style: none; }
+.frontmatter summary::-webkit-details-marker { display: none; }
+.frontmatter summary::before { content: "▸ "; display: inline-block; transition: transform 120ms ease; }
+.frontmatter[open] summary::before { transform: rotate(90deg); }
 .frontmatter[open] summary { color: var(--fg-dim); margin-bottom: 8px; }
 .frontmatter table { width: 100%; border-collapse: collapse; font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12.5px; }
 .frontmatter th, .frontmatter td { padding: 4px 12px 4px 0; text-align: left; vertical-align: top; }
@@ -105,6 +112,7 @@ article { margin: 0; }
   margin: 0 0 12px;
   letter-spacing: -0.005em;
 }
+.section h2 + h2 { margin-top: -4px; font-size: 17px; color: var(--fg-dim); font-weight: 500; }
 .section p { margin: 0 0 12px; }
 .section p:last-child { margin-bottom: 0; }
 
@@ -172,6 +180,7 @@ figcaption {
   margin-top: 8px;
   font-family: "SF Mono", Menlo, Consolas, monospace;
 }
+figcaption + figcaption { margin-top: 2px; }
 .chart-link {
   border: 1px dashed var(--border);
   border-radius: 8px;
@@ -189,61 +198,119 @@ figcaption {
 }
 .report-foot a { color: var(--fg-mute); text-decoration: underline; text-decoration-color: var(--border); }
 .report-foot a:hover { color: var(--accent); text-decoration-color: var(--accent); }
+.report-foot p + p { margin-top: 2px; }
 
 @media (max-width: 640px) {
   .report { padding: 32px 18px 64px; }
   .report-head h1 { font-size: 26px; }
+  .report-head h1 + h1 { font-size: 19px; }
   .section h2 { font-size: 20px; }
+  .section h2 + h2 { font-size: 15px; }
   .summary { font-size: 16px; }
 }
+
+/* Bilingual: CSS-only locale toggle. Default = Japanese visible. */
+input[type="radio"][name="locale"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+}
+.locale-switch {
+  display: inline-flex;
+  gap: 4px;
+  margin: 0 0 24px;
+  padding: 4px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+.locale-switch label {
+  cursor: pointer;
+  padding: 4px 14px;
+  border-radius: 999px;
+  color: var(--fg-mute);
+  user-select: none;
+  transition: color 120ms ease, background 120ms ease;
+}
+.locale-switch label:hover { color: var(--fg); }
+#loc-ja:checked ~ .report .locale-switch label[for="loc-ja"],
+#loc-en:checked ~ .report .locale-switch label[for="loc-en"] {
+  background: var(--accent);
+  color: white;
+}
+#loc-ja:checked ~ .report [lang="en"] { display: none; }
+#loc-en:checked ~ .report [lang="ja"] { display: none; }
 </style>
 </head>
 <body>
-<main class="report">
+<input id="loc-ja" type="radio" name="locale" checked aria-hidden="true">
+<input id="loc-en" type="radio" name="locale" aria-hidden="true">
+<main class="report" data-bilingual>
+  <nav class="locale-switch" aria-label="言語 / Language">
+    <label for="loc-ja">日本語</label>
+    <label for="loc-en">English</label>
+  </nav>
   <header class="report-head">
     <p class="eyebrow">chainq report</p>
-    <h1>Filecoin storage-provider concentration</h1>
-    <p class="meta">Generated 2026-05-11T13:56:03.237Z</p>
-    <details class="frontmatter"><summary>Metadata · 6 fields</summary><table><tr><th scope="row">generated_by</th><td>chainq + scripts/_filecoin-demo.ts (synthetic data)</td></tr><tr><th scope="row">table</th><td>filecoin.deals</td></tr><tr><th scope="row">metric</th><td>filecoin_provider_storage</td></tr><tr><th scope="row">providers_total</th><td>200</td></tr><tr><th scope="row">top10_share</th><td>0.1067</td></tr><tr><th scope="row">hhi</th><td>0.0076</td></tr></table></details>
-    <p class="summary">Across <strong>200</strong> storage providers in the seeded snapshot, the <strong>top 10 hold 10.7%</strong> of all committed bytes. Herfindahl index (byte-weighted): <code>0.0076</code>. Higher HHI means tighter concentration; an HHI above 0.25 is conventionally treated as highly concentrated in industrial economics.</p>
+    <h1 lang="ja">Filecoin ストレージプロバイダの集中度</h1>
+    <h1 lang="en">Filecoin storage-provider concentration</h1>
+    <p class="meta" lang="ja">生成: 2026-05-11T14:21:11.322Z</p>
+    <p class="meta" lang="en">Generated 2026-05-11T14:21:11.322Z</p>
+    <details class="frontmatter"><summary><span lang="ja">メタデータ · 6 項目</span><span lang="en">Metadata · 6 fields</span></summary><table><tr><th scope="row">generated_by</th><td>chainq + scripts/filecoin-demo.ts (synthetic data)</td></tr><tr><th scope="row">table</th><td>filecoin.deals</td></tr><tr><th scope="row">metric</th><td>filecoin_provider_storage</td></tr><tr><th scope="row">providers_total</th><td>200</td></tr><tr><th scope="row">top10_share</th><td>0.1067</td></tr><tr><th scope="row">hhi</th><td>0.0076</td></tr></table></details>
+    <p class="summary" lang="ja">シード済みスナップショットの <strong>200</strong> プロバイダのうち、<strong>上位10社で全コミット容量の 10.7%</strong> を占めます。バイト加重 Herfindahl 指数: <code>0.0076</code>。HHI が高いほど集中度が高く、0.25 を超えると産業組織論で「高度に集中している」と分類されるのが慣例です。</p><p class="summary" lang="en">Across <strong>200</strong> storage providers in the seeded snapshot, the <strong>top 10 hold 10.7%</strong> of all committed bytes. Herfindahl index (byte-weighted): <code>0.0076</code>. Higher HHI means tighter concentration; an HHI above 0.25 is conventionally treated as highly concentrated in industrial economics.</p>
   </header>
   <article>
     <section class="section">
-      <h2>Top 10 providers by bytes stored</h2>
-      <figure><img src="./02-filecoin-top-providers.svg" alt="Bytes stored per provider, top 10 (synthetic seeded dataset)." loading="lazy"><figcaption>Bytes stored per provider, top 10 (synthetic seeded dataset).</figcaption></figure>
+      <h2 lang="ja">格納バイト数 上位10プロバイダ</h2>
+      <h2 lang="en">Top 10 providers by bytes stored</h2>
+      <figure><img src="./02-filecoin-top-providers.svg" alt="Bytes stored per provider, top 10 (synthetic seeded dataset)." loading="lazy"><figcaption lang="ja">プロバイダ別格納バイト数、上位10位（合成シードデータ）。</figcaption><figcaption lang="en">Bytes stored per provider, top 10 (synthetic seeded dataset).</figcaption></figure>
     </section>
     <section class="section">
-      <h2>Top 10 (raw figures)</h2>
+      <h2 lang="ja">上位10位（生の数値）</h2>
+      <h2 lang="en">Top 10 (raw figures)</h2>
       <div class="table-wrap"><table><thead><tr><th>rank</th><th>provider</th><th>tib_stored</th><th>deal_count</th><th>share</th></tr></thead><tbody>
-        <tr><td class="num">1</td><td>f01047</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td></tr>
-        <tr><td class="num">2</td><td>f01103</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td></tr>
-        <tr><td class="num">3</td><td>f01143</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td></tr>
-        <tr><td class="num">4</td><td>f01131</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td></tr>
-        <tr><td class="num">5</td><td>f01027</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td></tr>
-        <tr><td class="num">6</td><td>f01135</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td></tr>
-        <tr><td class="num">7</td><td>f01079</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td></tr>
-        <tr><td class="num">8</td><td>f01083</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td></tr>
-        <tr><td class="num">9</td><td>f01159</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td></tr>
-        <tr><td class="num">10</td><td>f01075</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td></tr>
+        <tr><td class="num">1</td><td>f01191</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td></tr>
+        <tr><td class="num">2</td><td>f01039</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td></tr>
+        <tr><td class="num">3</td><td>f01135</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td></tr>
+        <tr><td class="num">4</td><td>f01031</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td></tr>
+        <tr><td class="num">5</td><td>f01143</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td></tr>
+        <tr><td class="num">6</td><td>f01163</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td></tr>
+        <tr><td class="num">7</td><td>f01167</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td></tr>
+        <tr><td class="num">8</td><td>f01111</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td></tr>
+        <tr><td class="num">9</td><td>f01095</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td></tr>
+        <tr><td class="num">10</td><td>f01059</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td></tr>
       </tbody></table></div>
     </section>
     <section class="section">
-      <h2>Interpreting the numbers</h2>
-      <p>The dataset under <code>pnpm seed</code> synthesises ~2,000 Filecoin deals across a hand-curated pool of providers — it is <strong>not real mainnet</strong>. The concentration number is therefore a shape check, not a measurement. To run this against live data: <code>chainq pull --chain filecoin --from &lt;epoch&gt; --to &lt;epoch&gt;</code> (the snapshot package wraps Filfox + Spacescan).</p>
-      <p>Cross-check with <code>chainq_metric(&quot;filecoin_deal_count&quot;, filters={verified_deal: true})</code> to see whether Filecoin Plus changes the distribution.</p>
+      <h2 lang="ja">数値の読み方</h2>
+      <h2 lang="en">Interpreting the numbers</h2>
+      <div lang="ja"><p><code>pnpm seed</code> で生成されるデータセットは、手選りした少数のプロバイダプール上で約 2,000 件の Filecoin ディールを合成したものです。<strong>メインネット由来ではありません</strong>。したがってここでの集中度は 「分布の形を確認するための数値」であり、計測値ではありません。実データで再現するには <code>chainq pull --chain filecoin --from &lt;epoch&gt; --to &lt;epoch&gt;</code> を使ってください（snapshot パッケージが Filfox + Spacescan の API を包んでいます）。</p>
+      <p>Filecoin Plus の検証付きディール（<code>verified_deal = true</code>）で分布がどう変わるかは <code>chainq_metric(&quot;filecoin_deal_count&quot;, filters={verified_deal: true})</code> で確認できます。</p></div>
+      <div lang="en"><p>The dataset under <code>pnpm seed</code> synthesises ~2,000 Filecoin deals across a hand-curated pool of providers — it is <strong>not real mainnet</strong>. The concentration number is therefore a shape check, not a measurement. To run this against live data: <code>chainq pull --chain filecoin --from &lt;epoch&gt; --to &lt;epoch&gt;</code> (the snapshot package wraps Filfox + Spacescan).</p>
+      <p>Cross-check with <code>chainq_metric(&quot;filecoin_deal_count&quot;, filters={verified_deal: true})</code> to see whether Filecoin Plus changes the distribution.</p></div>
     </section>
     <section class="section callout callout-caveat">
-      <h2>Caveats</h2>
-      <p>Filecoin epochs are 30-second slots, not unix seconds. Convert to wall-clock time with <code>(epoch * 30) + 1598306400</code> (GENESIS_TIMESTAMP, 2020-08-24 22:00:00 UTC).</p>
-      <p>A provider with a small <code>deal_count</code> but a large <code>tib_stored</code> is hosting big pieces. Filtering by deal count alone misses these.</p>
+      <h2 lang="ja">注意</h2>
+      <h2 lang="en">Caveats</h2>
+      <div lang="ja"><p>Filecoin の epoch は unix 秒ではなく 30 秒スロットです。壁時計時刻に変換するには <code>(epoch * 30) + 1598306400</code>（GENESIS_TIMESTAMP, 2020-08-24 22:00:00 UTC）を使ってください。</p>
+      <p><code>deal_count</code> が少ないのに <code>tib_stored</code> が大きいプロバイダは、大きなピースを保持しています。ディール件数だけでフィルタするとこの種のプロバイダを取りこぼします。</p></div>
+      <div lang="en"><p>Filecoin epochs are 30-second slots, not unix seconds. Convert to wall-clock time with <code>(epoch * 30) + 1598306400</code> (GENESIS_TIMESTAMP, 2020-08-24 22:00:00 UTC).</p>
+      <p>A provider with a small <code>deal_count</code> but a large <code>tib_stored</code> is hosting big pieces. Filtering by deal count alone misses these.</p></div>
     </section>
     <section class="section">
-      <h2>Reproducing this report</h2>
-      <p>1. <code>chainq_describe(&quot;filecoin.deals&quot;)</code><br>2. <code>chainq_metric(&quot;filecoin_provider_storage&quot;, { dimensions: [&quot;provider&quot;], start_epoch, end_epoch })</code><br>3. <code>chainq_chart_render({ type: &quot;bar&quot;, x: &quot;provider&quot;, y: &quot;tib_stored&quot;, filename: &quot;top-providers.svg&quot; })</code><br>4. <code>chainq_report({ title, filename: &quot;filecoin-concentration.html&quot;, sections: [...] })</code></p>
+      <h2 lang="ja">このレポートを再現する</h2>
+      <h2 lang="en">Reproducing this report</h2>
+      <div lang="ja"><p>1. <code>chainq_describe(&quot;filecoin.deals&quot;)</code><br>2. <code>chainq_metric(&quot;filecoin_provider_storage&quot;, { dimensions: [&quot;provider&quot;], start_epoch, end_epoch })</code><br>3. <code>chainq_chart_render({ type: &quot;bar&quot;, x: &quot;provider&quot;, y: &quot;tib_stored&quot;, filename: &quot;top-providers.svg&quot; })</code><br>4. <code>chainq_report({ title, filename: &quot;filecoin-concentration.html&quot;, locale: &quot;both&quot;, sections: [...] })</code></p></div>
+      <div lang="en"><p>1. <code>chainq_describe(&quot;filecoin.deals&quot;)</code><br>2. <code>chainq_metric(&quot;filecoin_provider_storage&quot;, { dimensions: [&quot;provider&quot;], start_epoch, end_epoch })</code><br>3. <code>chainq_chart_render({ type: &quot;bar&quot;, x: &quot;provider&quot;, y: &quot;tib_stored&quot;, filename: &quot;top-providers.svg&quot; })</code><br>4. <code>chainq_report({ title, filename: &quot;filecoin-concentration.html&quot;, locale: &quot;both&quot;, sections: [...] })</code></p></div>
     </section>
   </article>
   <footer class="report-foot">
-    <p>Authored by an AI agent via <a href="https://github.com/Jacksstt/chainq" target="_blank" rel="noopener">chainq</a>. Self-hosted, MCP-native. MIT.</p>
+    <p lang="ja">AIエージェントが <a href="https://github.com/Jacksstt/chainq" target="_blank" rel="noopener">chainq</a> 経由で作成。セルフホスト、MCPネイティブ、MITライセンス。</p>
+    <p lang="en">Authored by an AI agent via <a href="https://github.com/Jacksstt/chainq" target="_blank" rel="noopener">chainq</a>. Self-hosted, MCP-native. MIT.</p>
   </footer>
 </main>
 </body>
