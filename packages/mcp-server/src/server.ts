@@ -460,9 +460,12 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
     "chainq_chart_render",
     toolDesc("chainq_chart_render"),
     {
-      type: z.enum(["line", "bar", "area", "point", "stacked-bar", "donut"]).describe(
-        "Chart mark. `stacked-bar` requires a `color` field that names the stack dimension. " +
-        "`donut` uses `y` for the angle (quantity) and `x` (or `color`) as the slice label.",
+      type: z.enum(["line", "bar", "area", "point", "stacked-bar", "donut", "heatmap", "line-ci", "sparkline"]).describe(
+        "Chart mark. `stacked-bar` requires `color` (stack dimension). " +
+        "`donut` uses `y` for slice size, `x` (or `color`) for label. " +
+        "`heatmap` uses `x` × `color` as the two categorical axes, `y` as the cell intensity. " +
+        "`line-ci` is a line with a shaded confidence band; pass `yLo` + `yHi` for the bounds. " +
+        "`sparkline` is a tiny axes-hidden line, sized 120×28 by default — for inline / embedded use.",
       ),
       data: z.array(z.record(z.string(), z.unknown())),
       x: z.string(),
@@ -472,6 +475,8 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
       subtitle: z.string().optional().describe("Smaller caption-style text under the title."),
       theme: z.enum(["light", "dark"]).optional().describe("Theme name. Default 'light'."),
       siFormat: z.boolean().optional().describe("Format numeric axes with SI prefixes (28.5k, 1.6M). Default true."),
+      yLo: z.string().optional().describe("Lower-band column name (used by type='line-ci')."),
+      yHi: z.string().optional().describe("Upper-band column name (used by type='line-ci')."),
       filename: z.string().describe("Filename (relative to the configured outDir)."),
       format: z
         .enum(["svg", "html", "vegalite-json", "png"])
@@ -481,12 +486,12 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
       pngScale: z.number().positive().optional().describe("PNG pixel-density multiplier (2 = retina). Default 1."),
       pngBackground: z.string().optional().describe("CSS color for PNG background. Default `#ffffff`."),
     },
-    async ({ type, data, x, y, color, title, subtitle, theme, siFormat, filename, format, pngWidth, pngScale, pngBackground }) => {
+    async ({ type, data, x, y, color, title, subtitle, theme, siFormat, yLo, yHi, filename, format, pngWidth, pngScale, pngBackground }) => {
       try {
         const outPath = join(outDir, "charts", filename);
         const chosen: ChartFormat = format ?? inferFormatFromExt(outPath) ?? "svg";
         const path = await saveChart(
-          { type: type as ChartType, data, x, y, color, title, subtitle, theme, siFormat },
+          { type: type as ChartType, data, x, y, color, title, subtitle, theme, siFormat, yLo, yHi },
           outPath,
           chosen,
           { pngWidth, pngScale, pngBackground },

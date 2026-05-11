@@ -24,7 +24,16 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, extname, resolve } from "node:path";
 import { pickTheme, SI_FORMAT_EXPR, type ChartThemeName } from "./chart-theme.js";
 
-export type ChartType = "line" | "bar" | "area" | "point" | "stacked-bar" | "donut";
+export type ChartType =
+  | "line"
+  | "bar"
+  | "area"
+  | "point"
+  | "stacked-bar"
+  | "donut"
+  | "heatmap"
+  | "line-ci"
+  | "sparkline";
 export type ChartFormat = "svg" | "html" | "vegalite-json" | "png";
 
 export interface PngOptions {
@@ -51,6 +60,12 @@ export interface ChartSpec {
   theme?: ChartThemeName;
   /** Force SI-prefix axis labels (e.g. 28k, 1.6M). Default true. */
   siFormat?: boolean;
+  /**
+   * For `line-ci`: column names for the low / high band bounds.
+   * `y` is the central line. The band is rendered semi-transparent.
+   */
+  yLo?: string;
+  yHi?: string;
 }
 
 /**
@@ -66,6 +81,101 @@ export function buildVegaLiteSpec(spec: ChartSpec): vegaLite.TopLevelSpec {
     ? { text: spec.title ?? "", subtitle: spec.subtitle }
     : spec.title;
   const siAxis = (spec.siFormat ?? true) ? { labelExpr: SI_FORMAT_EXPR } : {};
+
+  // Heatmap: 2D categorical × categorical with color intensity. `x` and
+  // `color` columns name the two categorical axes; `y` is the quantity.
+  // (Caller intuition: x = column axis, y = row axis, value = cell color.)
+  if (spec.type === "heatmap") {
+    return {
+      $schema: "https://vega.github.io/schema/vega-lite/v6.json",
+      config,
+      title,
+      width: spec.width ?? 600,
+      height: spec.height ?? 360,
+      data: { values: spec.data },
+      mark: { type: "rect", cornerRadius: 2 },
+      encoding: {
+        x: { field: spec.x, type: inferType(spec.data, spec.x), axis: { labelAngle: -30 } },
+        y: { field: spec.color ?? spec.x, type: inferType(spec.data, spec.color ?? spec.x) },
+        color: {
+          field: spec.y,
+          type: "quantitative",
+          scale: { scheme: "blues" },
+          legend: { title: spec.y, orient: "right" },
+        },
+        tooltip: [
+          { field: spec.x, type: inferType(spec.data, spec.x) },
+          { field: spec.color ?? spec.x, type: inferType(spec.data, spec.color ?? spec.x) },
+          { field: spec.y, type: "quantitative", format: ",.0f" },
+        ],
+      },
+    } as vegaLite.TopLevelSpec;
+  }
+
+  // Line with confidence interval: the band layer uses `yLo` / `yHi` for the
+  // shaded region, the line layer uses `y` for the central trace.
+  if (spec.type === "line-ci") {
+    const yLo = spec.yLo ?? `${spec.y}_lo`;
+    const yHi = spec.yHi ?? `${spec.y}_hi`;
+    const xType = inferType(spec.data, spec.x);
+    return {
+      $schema: "https://vega.github.io/schema/vega-lite/v6.json",
+      config,
+      title,
+      width: spec.width ?? 720,
+      height: spec.height ?? 320,
+      data: { values: spec.data },
+      encoding: { x: { field: spec.x, type: xType, axis: { labelAngle: 0 } } },
+      layer: [
+        {
+          mark: { type: "area", opacity: 0.18 },
+          encoding: {
+            y: { field: yLo, type: "quantitative", title: spec.y },
+            y2: { field: yHi },
+          },
+        },
+        {
+          mark: { type: "line", strokeWidth: 2.5 },
+          encoding: {
+            y: { field: spec.y, type: "quantitative", axis: siAxis },
+          },
+        },
+        {
+          mark: { type: "point", filled: true, size: 48 },
+          encoding: {
+            y: { field: spec.y, type: "quantitative" },
+            tooltip: [
+              { field: spec.x, type: xType },
+              { field: yLo, type: "quantitative", format: ",.2f", title: `${spec.y} (lo)` },
+              { field: spec.y, type: "quantitative", format: ",.2f", title: spec.y },
+              { field: yHi, type: "quantitative", format: ",.2f", title: `${spec.y} (hi)` },
+            ],
+          },
+        },
+      ],
+    } as vegaLite.TopLevelSpec;
+  }
+
+  // Sparkline: tiny line chart, axes hidden, no padding. Built for inline
+  // table-cell embedding. Standalone-render also works (e.g. small KPI cards).
+  if (spec.type === "sparkline") {
+    return {
+      $schema: "https://vega.github.io/schema/vega-lite/v6.json",
+      config: {
+        ...config,
+        view: { stroke: "transparent" },
+        padding: 0,
+      },
+      width: spec.width ?? 120,
+      height: spec.height ?? 28,
+      data: { values: spec.data },
+      mark: { type: "line", strokeWidth: 1.5, interpolate: "monotone" },
+      encoding: {
+        x: { field: spec.x, type: inferType(spec.data, spec.x), axis: null },
+        y: { field: spec.y, type: "quantitative", axis: null },
+      },
+    } as vegaLite.TopLevelSpec;
+  }
 
   // Donut: a pie chart with a hole. Vega-lite uses arc with theta encoding.
   if (spec.type === "donut") {
@@ -170,6 +280,31 @@ export async function renderChartSvg(spec: ChartSpec): Promise<string> {
   const runtime = vega.parse(compiled);
   const view = new vega.View(runtime, { renderer: "none" });
   return view.toSVG();
+}
+
+/**
+ * Render a sparkline as a compact inline SVG string suitable for embedding
+ * in HTML table cells. The output has no `xmlns` boilerplate stripped, so
+ * it can be dropped straight into `td` cells.
+ *
+ * Use via the `sparklineColumns` mechanism in ReportSection if you want
+ * the report renderer to inject these automatically per row.
+ */
+export async function renderSparklineSvg(
+  values: number[],
+  opts: { width?: number; height?: number; theme?: ChartThemeName } = {},
+): Promise<string> {
+  if (values.length === 0) return "";
+  const data = values.map((v, i) => ({ i, v }));
+  return renderChartSvg({
+    type: "sparkline",
+    data,
+    x: "i",
+    y: "v",
+    width: opts.width ?? 120,
+    height: opts.height ?? 28,
+    ...(opts.theme ? { theme: opts.theme } : {}),
+  });
 }
 
 /**

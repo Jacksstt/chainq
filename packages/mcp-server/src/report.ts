@@ -31,10 +31,26 @@ export interface DownloadLink {
   format?: "csv" | "json" | "parquet" | "html" | "svg" | "png" | "other";
 }
 
+export interface SparklineColumn {
+  /** Display name of the column the renderer will inject into each row. */
+  name: string;
+  /** Column on each row whose value is an `number[]` (the sparkline series). */
+  valuesKey: string;
+  width?: number;
+  height?: number;
+}
+
 export interface ReportSection {
   heading: Localizable;
   body?: Localizable;
   table?: Record<string, unknown>[];
+  /**
+   * For each entry, the row's `valuesKey` column (must be `number[]`) is
+   * rendered as an inline sparkline SVG and exposed as a NEW column named
+   * `name`. The `valuesKey` source column is then removed from the table
+   * so the sparkline replaces it.
+   */
+  sparklineColumns?: SparklineColumn[];
   chartPath?: string;
   caption?: Localizable;
   /** Optional download chips rendered under the section (CSV / JSON / Parquet …). */
@@ -79,6 +95,64 @@ export function writeReport(spec: ReportSpec, format?: ReportFormat): string {
   const body = chosen === "markdown" ? renderMarkdown(spec) : renderHtml(spec);
   writeFileSync(abs, body, "utf8");
   return abs;
+}
+
+/**
+ * Async variant that pre-renders sparkline columns (if any) before writing.
+ * Use when ReportSection.sparklineColumns is set.
+ *
+ *   await writeReportAsync({
+ *     ...,
+ *     sections: [{
+ *       heading: "Daily trend",
+ *       table: rows,             // each row has { chain, logs, history: [3, 5, 7, ...] }
+ *       sparklineColumns: [{ name: "trend", valuesKey: "history" }],
+ *     }],
+ *   })
+ *
+ * The "history" column is replaced by a "trend" column containing an inline
+ * SVG. Existing call sites that don't set sparklineColumns get identical
+ * behaviour to `writeReport`.
+ */
+export async function writeReportAsync(spec: ReportSpec, format?: ReportFormat): Promise<string> {
+  const prepared = await prepareReport(spec);
+  return writeReport(prepared, format);
+}
+
+/**
+ * Pre-render sparkline columns into a new spec. Pure — does not mutate `spec`.
+ * Exposed for callers that want to inspect / further transform the prepared
+ * spec before writing.
+ */
+export async function prepareReport(spec: ReportSpec): Promise<ReportSpec> {
+  // Lazy-import to avoid pulling vega into the path for callers who never use sparklines.
+  const { renderSparklineSvg } = await import("./charts.js");
+  const sections = await Promise.all(
+    spec.sections.map(async (s) => {
+      if (!s.sparklineColumns || s.sparklineColumns.length === 0 || !s.table || s.table.length === 0) {
+        return s;
+      }
+      const newRows = await Promise.all(
+        s.table.map(async (row) => {
+          const out: Record<string, unknown> = { ...row };
+          for (const sc of s.sparklineColumns!) {
+            const values = row[sc.valuesKey];
+            if (!Array.isArray(values)) continue;
+            const numeric = values.map((v) => Number(v)).filter((v) => Number.isFinite(v));
+            const svg = await renderSparklineSvg(numeric, {
+              ...(sc.width != null ? { width: sc.width } : {}),
+              ...(sc.height != null ? { height: sc.height } : {}),
+            });
+            out[sc.name] = { __html: svg };
+            delete out[sc.valuesKey];
+          }
+          return out;
+        }),
+      );
+      return { ...s, table: newRows };
+    }),
+  );
+  return { ...spec, sections };
 }
 
 export function inferFormatFromExt(outPath: string): ReportFormat {
@@ -338,17 +412,32 @@ function renderInline(text: string): string {
   return s;
 }
 
+/** Type guard for raw-HTML cell escape hatch (used by sparkline injection). */
+function isRawHtml(v: unknown): v is { __html: string } {
+  return typeof v === "object" && v !== null && "__html" in (v as Record<string, unknown>) && typeof (v as { __html: unknown }).__html === "string";
+}
+
 function renderTable(rows: Record<string, unknown>[]): string {
   const first = rows[0]!;
   const keys = Object.keys(first);
   const head = keys.map((k) => `<th>${escape(k)}</th>`).join("");
   const numericCol = (k: string) =>
-    rows.every((r) => r[k] == null || typeof r[k] === "number" || typeof r[k] === "bigint" || /^-?[\d,.]+$/.test(String(r[k])));
+    rows.every((r) => {
+      const v = r[k];
+      if (v == null) return true;
+      if (isRawHtml(v)) return false;
+      return typeof v === "number" || typeof v === "bigint" || /^-?[\d,.]+$/.test(String(v));
+    });
   const isNum = Object.fromEntries(keys.map((k) => [k, numericCol(k)]));
   const body = rows
     .map((row) => {
       const cells = keys
-        .map((k) => `<td${isNum[k] ? " class=\"num\"" : ""}>${escape(formatCell(row[k]))}</td>`)
+        .map((k) => {
+          const v = row[k];
+          // Raw-HTML escape hatch: { __html: "<svg…>" } drops the value in unescaped.
+          if (isRawHtml(v)) return `<td class="raw">${v.__html}</td>`;
+          return `<td${isNum[k] ? " class=\"num\"" : ""}>${escape(formatCell(v))}</td>`;
+        })
         .join("");
       return `<tr>${cells}</tr>`;
     })
@@ -695,6 +784,8 @@ article { margin: 0; }
 .table-wrap tbody tr:last-child td { border-bottom: 0; }
 .table-wrap tbody tr:nth-child(even) td { background: var(--bg-soft); }
 .table-wrap td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.table-wrap td.raw { padding: 4px 14px; line-height: 0; }
+.table-wrap td.raw svg { vertical-align: middle; max-width: 140px; height: 28px; }
 
 figure { margin: 16px 0; padding: 0; }
 figure img {

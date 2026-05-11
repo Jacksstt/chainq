@@ -10,7 +10,7 @@
 import { pull, PUBLIC_ARCHIVES } from "../packages/snapshot/src/index.ts";
 import { Engine } from "../packages/mcp-server/src/engine.ts";
 import { saveChart } from "../packages/mcp-server/src/charts.ts";
-import { writeReport, type ReportSection } from "../packages/mcp-server/src/report.ts";
+import { writeReport, writeReportAsync, type ReportSection } from "../packages/mcp-server/src/report.ts";
 import {
   scoreReport,
   executiveSummarySection,
@@ -392,8 +392,25 @@ async function main() {
     ],
   });
 
+  // Pull per-block log counts so each chain gets a sparkline in the detail table.
+  const perBlockSeries: Record<string, number[]> = {};
+  for (const p of pulls) {
+    if (!p.ok) { perBlockSeries[p.chain] = []; continue; }
+    try {
+      const eng = await import("../packages/mcp-server/src/engine.ts");
+      const e = new eng.Engine({ dataDir: tmp, cacheDbPath: join(tmp, `spk-${p.chain}.db`) });
+      await e.start();
+      const r = await e.query(
+        `SELECT block_number, COUNT(*) AS n FROM read_parquet('${p.parquet}') GROUP BY 1 ORDER BY 1`,
+        { cacheLabel: null },
+      );
+      perBlockSeries[p.chain] = (r.rows as Array<Record<string, unknown>>).map((row) => Number(row["n"] ?? 0));
+      await e.stop();
+    } catch { perBlockSeries[p.chain] = []; }
+  }
+
   sections.push({
-    heading: { en: "4. Per-chain detail", ja: "4. チェーン別詳細" },
+    heading: { en: "4. Per-chain detail (with 50-block sparkline)", ja: "4. チェーン別詳細（50ブロック推移スパークライン付き）" },
     table: pulls.map((p) => ({
       chain: p.chain,
       label: p.label,
@@ -406,7 +423,12 @@ async function main() {
       window_s: (p.windowMs / 1000).toFixed(1),
       pull_ms: p.pullElapsed,
       top_emitter: p.topEmitter ? `${p.topEmitter.address.slice(0, 10)}… (${p.topEmitter.logs})` : "—",
+      // The valuesKey column is replaced by the inline sparkline at render time.
+      _series: perBlockSeries[p.chain] ?? [],
     })),
+    sparklineColumns: [
+      { name: "trend (50 blocks)", valuesKey: "_series", width: 140, height: 28 },
+    ],
   });
 
   if (failed.length > 0) {
@@ -535,7 +557,7 @@ async function main() {
 
   // ---------- 7. Write the report (with rubric score embedded in frontmatter)
   const outPath = resolve(REPORT_DIR, "07-multichain-live.html");
-  writeReport({
+  await writeReportAsync({
     title: {
       en: "Multi-chain live snapshot — 8 EVM chains in parallel",
       ja: "マルチチェーン live スナップショット — 8 EVM チェーン並列",

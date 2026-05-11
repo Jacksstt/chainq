@@ -41,7 +41,7 @@
       "id": "filler_penalty",
       "description": "Filler / hedge phrases per 100 words ≤ 1.0.",
       "score": 1,
-      "evidence": "0 filler phrases / 673 words = 0.00 per 100 words"
+      "evidence": "0 filler phrases / 676 words = 0.00 per 100 words"
     },
     {
       "id": "reproducibility",
