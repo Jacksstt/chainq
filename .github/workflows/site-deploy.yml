@@ -9,6 +9,7 @@ on:
       - "packages/playground/**"
       - "scripts/filecoin-demo.ts"
       - "scripts/dex-concentration-minimal.ts"
+      - "scripts/live-base-demo.ts"
       - "scripts/seed-sample-data.ts"
       - "packages/mcp-server/src/report.ts"
       - "packages/mcp-server/src/charts.ts"
@@ -50,10 +51,14 @@ jobs:
           cp data/dex.trades.parquet packages/playground/public/sample.parquet
           pnpm --filter @chainq/playground build
 
-      - name: Regenerate gallery reports (Filecoin + DEX)
+      - name: Regenerate gallery reports (Filecoin + DEX + Live Base)
         run: |
           pnpm exec tsx scripts/filecoin-demo.ts
           pnpm exec tsx scripts/dex-concentration-minimal.ts
+          # Live Base pull — pulls real Subsquid data at deploy time.
+          # Failure here should NOT block the deploy (network blips happen);
+          # the previously-committed report stays in place.
+          pnpm exec tsx scripts/live-base-demo.ts || echo "[deploy] live-base-demo skipped (network)"
 
       - name: Assemble combined site
         run: |
@@ -70,6 +75,7 @@ jobs:
           <h1>chainq reports gallery</h1>
           <p>Example AI-agent-generated reports built with chainq's MCP tools.</p>
           <ul>
+            <li><a href="./05-base-live.html"><strong>Base mainnet — live 100-second snapshot</strong></a> — pulled at deploy time from public Subsquid, no API key, no RPC. Bilingual, real onchain data.</li>
             <li><a href="./02-filecoin-concentration.html">Filecoin storage-provider concentration</a> — bilingual, analyst-grade, 13 sections, 2 interactive charts, downloads</li>
             <li><a href="./01-dex-volume-base.html">Base DEX volume — Jan 2026</a></li>
             <li><a href="./04-dex-taker-concentration.html">Base DEX taker concentration</a> — ~100 LOC source script</li>

@@ -94,3 +94,44 @@ This run also pushed two protocol-level fixes to
 
 Both fixes are covered by the offline `pnpm test:watch` smoke test
 (which now mocks the worker-discovery protocol) and by this live run.
+
+## Follow-on evidence
+
+### `chainq watch` live (resume + extend)
+
+```bash
+mkdir -p /tmp/chainq-watch-live
+CHAINQ_DATA_DIR=/tmp/chainq-watch-live \
+  pnpm exec tsx packages/cli/src/bin.ts watch \
+  --chain base --from 24000000 --to 24000005 --max-rows 2000
+```
+
+- First call: blocks 24000000-24000005 → 3,633 rows → 2 shards
+  (`base.logs.000000.parquet`, `base.logs.000001.parquet`).
+- Checkpoint file written: `lastBlock: 24000005`.
+- Re-running with `--from 0 --to 24000005` is a **0-batch / 0-row no-op**
+  (resumes from checkpoint+1=24000006, immediately exits) → idempotent.
+- Running with `--to 24000010` extends: 2,901 new rows → 1 new shard
+  → checkpoint `lastBlock: 24000010`, cumulative `totalRows: 6534`.
+
+The cumulative 6,534 rows match the single-shot pull exactly — `pull` and
+`watch` produce equivalent output over the same range.
+
+### End-to-end live demo
+
+`scripts/live-base-demo.ts` runs the full pipeline against the same
+archive: pull → DuckDB analytics → 4 SVG charts → 3 CSV downloads →
+bilingual HTML report. Output: `docs/reports/05-base-live.html`.
+
+For the canonical run (blocks 24000000-24000049, 50 blocks):
+
+- 28,529 logs across 1,629 distinct contracts
+- 671 distinct event signatures
+- Top emitter: WETH `0x4200…0006` at **20.47%** of logs in window
+- Second emitter: USDC `0x833589fc…02913` at **5.17%**
+- Wall-clock window: 2024-12-21T13:55:47 → 2024-12-21T13:57:25 UTC
+
+The site-deploy GitHub Action re-runs this demo on every Pages build,
+so the live report at
+`https://jacksstt.github.io/chainq/reports/05-base-live.html`
+reflects a fresh pull on each deploy.
