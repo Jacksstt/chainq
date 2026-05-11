@@ -1,3 +1,5 @@
+export * from "./realtime.js";
+
 /**
  * @chainq/ingest-evm — EVM data ingestion via cryo.
  *

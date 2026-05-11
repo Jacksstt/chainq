@@ -7,6 +7,25 @@ Pre-`v0.1.0` is breaking by default; we only call out highlights.
 
 ## [Unreleased]
 
+### Added (this push)
+
+- **`@chainq/whuffie`** — new package. Sybil-resistant reputation data product.
+  TypeScript types, reference `compositeScore()` implementation, and
+  `RESEARCH.md` mapping the formal model to the table schema. Spellbook
+  models for `whuffie.attestations`, `whuffie.hostage_bonds`, `whuffie.proofs`,
+  `whuffie.reputations` (placeholders until empirical phase).
+- **`@chainq/ingest-solana`** — Helius RPC client. `signaturesFor`,
+  `enrichedTransactions`, `fetchTokenTransfers`.
+- **Subsquid realtime stream** in `@chainq/ingest-evm/src/realtime.ts` —
+  `streamSubsquid()` async iterator and `collectStream()` helper.
+- **dbt-duckdb actually runs** — `scripts/dbt-run.sh` and `pnpm dbt:run`.
+  CI now builds all 8 spellbook models on Python 3.11.
+- **Brand**: `assets/logo.svg`, `assets/social-card.svg`. README badges and
+  logo embedded.
+- **`docs/CLAUDE_CODE_INTEGRATION.md`** — three install paths, sanity prompts,
+  and a real investigation prompt that touches every tool.
+- **New semantic metric**: `whuffie_score`.
+
 ### Added
 
 - MCP tool surface grew to **11 tools**: discovery (`list_tables`, `search_tables`,

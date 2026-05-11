@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 80" role="img" aria-label="chainq">
+  <title>chainq</title>
+  <style>
+    .wm { font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-weight: 700; }
+    .a  { fill: #0F172A; }
+    .b  { fill: #2563EB; }
+  </style>
+  <!-- bracket left -->
+  <path class="a" d="M14 14 L26 14 L26 22 L22 22 L22 58 L26 58 L26 66 L14 66 Z"/>
+  <!-- bracket right -->
+  <path class="a" d="M306 14 L294 14 L294 22 L298 22 L298 58 L294 58 L294 66 L306 66 Z"/>
+  <text x="40"  y="52" class="wm a" font-size="36">chain</text>
+  <text x="178" y="52" class="wm b" font-size="36">q</text>
+  <!-- accent dot -->
+  <circle cx="220" cy="40" r="4" class="b"/>
+  <text x="234" y="48" font-family="system-ui, -apple-system, Segoe UI, Roboto" font-size="13" fill="#475569">onchain · agent · sql</text>
+</svg>

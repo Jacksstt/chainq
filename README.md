@@ -1,14 +1,18 @@
 <div align="center">
 
-# chainq
+<img src="assets/logo.svg" alt="chainq" width="320">
 
 **Self-hosted onchain analytics, redesigned for AI agents.**
 
 The open-source, MCP-native answer to Dune.
 
+[![CI](https://github.com/Jacksstt/chainq/actions/workflows/ci.yml/badge.svg)](https://github.com/Jacksstt/chainq/actions/workflows/ci.yml)
 [![status](https://img.shields.io/badge/status-pre--alpha-orange.svg)](#status)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![node](https://img.shields.io/badge/node-%E2%89%A520-blue.svg)](#requirements)
+[![MCP](https://img.shields.io/badge/MCP-1.x-2563EB.svg)](https://modelcontextprotocol.io/)
+[![DuckDB](https://img.shields.io/badge/DuckDB-1.x-FFF000.svg)](https://duckdb.org/)
+[![dbt](https://img.shields.io/badge/dbt--duckdb-supported-FF694A.svg)](https://github.com/duckdb/dbt-duckdb)
 
 </div>
 
@@ -73,6 +77,8 @@ Wire it into Claude Code (one-time):
 ```bash
 claude mcp add chainq -- pnpm --dir /absolute/path/to/chainq mcp:serve
 ```
+
+Three integration paths are documented in [`docs/CLAUDE_CODE_INTEGRATION.md`](docs/CLAUDE_CODE_INTEGRATION.md).
 
 Then in Claude Code:
 
@@ -151,9 +157,11 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for rationale and tradeoffs.
 | [`@chainq/core`](packages/core) | Shared types, schemas, semantic-layer model |
 | [`@chainq/mcp-server`](packages/mcp-server) | MCP server exposing the agent tools |
 | [`@chainq/cli`](packages/cli) | Standalone CLI (wraps the MCP server) |
-| [`@chainq/ingest-evm`](packages/ingest-evm) | EVM ingestion via cryo + Subsquid |
-| [`@chainq/ingest-filecoin`](packages/ingest-filecoin) | Filecoin-native ingestion |
-| [`spellbook/`](spellbook) | dbt project (fork of Dune Spellbook + chainq additions) |
+| [`@chainq/ingest-evm`](packages/ingest-evm) | EVM ingestion: cryo backfill + Subsquid realtime stream |
+| [`@chainq/ingest-filecoin`](packages/ingest-filecoin) | Filecoin-native (Filfox + Spacescan) |
+| [`@chainq/ingest-solana`](packages/ingest-solana) | Solana via Helius RPC |
+| [`@chainq/whuffie`](packages/whuffie) | Sybil-resistant reputation data product (research line) |
+| [`spellbook/`](spellbook) | dbt-duckdb project (Spellbook fork + chainq additions; runs in CI) |
 
 ## Roadmap
 

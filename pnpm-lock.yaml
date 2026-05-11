@@ -50,6 +50,12 @@ importers:
         specifier: workspace:*
         version: link:../core
 
+  packages/ingest-solana:
+    dependencies:
+      '@chainq/core':
+        specifier: workspace:*
+        version: link:../core
+
   packages/mcp-server:
     dependencies:
       '@chainq/core':
@@ -73,6 +79,12 @@ importers:
       zod:
         specifier: ^4.4.3
         version: 4.4.3
+
+  packages/whuffie:
+    dependencies:
+      '@chainq/core':
+        specifier: workspace:*
+        version: link:../core
 
 packages:
 

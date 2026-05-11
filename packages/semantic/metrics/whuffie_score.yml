@@ -1,0 +1,29 @@
+metric: whuffie_score
+description: |
+  Composite Sybil-resistant reputation score per address in [0, 1].
+  Defined in `RESEARCH.md` Theorem 2.
+dimensions:
+  - subject
+  - day
+filters:
+  - subject
+  - min_pop_providers
+sql_template: |
+  SELECT
+    {{select_dimensions}},
+    AVG(score) AS score,
+    AVG(hostage_usd) AS hostage_usd,
+    MAX(pop_distinct_providers) AS pop_distinct_providers
+  FROM "whuffie.reputations"
+  WHERE day BETWEEN {{start}} AND {{end}}
+    {{subject_clause}}
+    {{min_pop_providers_clause}}
+  GROUP BY {{group_dimensions}}
+  ORDER BY {{group_dimensions}}
+dimension_expressions:
+  subject: subject
+  day: day
+guardrails:
+  max_range_days: 180
+  max_rows: 50000
+  timeout_seconds: 20
