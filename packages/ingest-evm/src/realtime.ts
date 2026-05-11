@@ -42,43 +42,71 @@ export interface SubsquidBatch {
  * Async iterator over Subsquid stream batches. Caller is responsible for
  * checkpointing the last seen block.
  */
+/**
+ * Subsquid v2 archive protocol:
+ *   1. GET `<archiveUrl>/<fromBlock>/worker` → returns the dynamic worker URL
+ *      (load-balanced; can change between calls).
+ *   2. POST query body to the worker URL → returns a batch of blocks.
+ *   3. Advance `fromBlock` to the highest seen + 1; if more data, GOTO 1.
+ *
+ * We follow worker URLs each iteration because the archive can re-shard
+ * mid-stream; sticking to one worker can return 404 on later pages.
+ */
 export async function* streamSubsquid(opts: SubsquidStreamOptions): AsyncGenerator<SubsquidBatch> {
   const fetchImpl = opts.fetch ?? globalThis.fetch;
   let from = opts.fromBlock;
   while (true) {
+    if (opts.toBlock != null && from > opts.toBlock) return;
+
+    // 1. discover the worker that serves this block.
+    const workerResp = await fetchImpl(`${opts.archiveUrl}/${from}/worker`);
+    if (!workerResp.ok) {
+      const text = await workerResp.text();
+      throw new Error(`subsquid worker lookup failed at block ${from}: ${workerResp.status} ${text.slice(0, 200)}`);
+    }
+    const workerUrl = (await workerResp.text()).trim();
+    if (!workerUrl) return; // No worker → head reached.
+
+    // 2. POST the query body to the worker.
     const body = {
-      type: "evm",
       fromBlock: from,
-      ...(opts.toBlock ? { toBlock: opts.toBlock } : {}),
+      ...(opts.toBlock != null ? { toBlock: opts.toBlock } : {}),
       ...(opts.maxBytes ? { maxBytes: opts.maxBytes } : {}),
       fields: defaultFields(),
       ...opts.request,
     };
-    const resp = await fetchImpl(`${opts.archiveUrl}/stream`, {
+    const resp = await fetchImpl(workerUrl, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
     });
     if (!resp.ok) {
       const text = await resp.text();
-      throw new Error(`subsquid stream failed: ${resp.status} ${text.slice(0, 200)}`);
+      throw new Error(`subsquid stream failed at ${workerUrl}: ${resp.status} ${text.slice(0, 200)}`);
     }
     const batches = (await resp.json()) as SubsquidBatch[];
     if (batches.length === 0) return;
+
+    let advancedTo = from;
     for (const batch of batches) {
       yield batch;
-      from = Math.max(from, batch.header.number + 1);
+      advancedTo = Math.max(advancedTo, batch.header.number + 1);
     }
-    if (opts.toBlock && from > opts.toBlock) return;
+    // Defensive: if the worker returned batches but didn't advance the
+    // cursor, bail to avoid an infinite loop.
+    if (advancedTo <= from) return;
+    from = advancedTo;
   }
 }
 
 function defaultFields() {
+  // Match the Subsquid v2 archive schema. `trace` fields use a nested-dict
+  // shape rather than the boolean shape used for block/log/transaction, so
+  // we omit them here — the snapshot/watch use cases only need logs anyway.
   return {
     block: { number: true, hash: true, timestamp: true },
     log: { address: true, topics: true, data: true, transactionHash: true, logIndex: true },
     transaction: { hash: true, from: true, to: true, value: true, status: true, gasUsed: true },
-    trace: { type: true, action: true, result: true },
   };
 }
 

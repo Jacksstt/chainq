@@ -33,16 +33,27 @@ function makeMockBatches(start: number, count: number) {
   }));
 }
 
-// First request returns 3 batches; second returns [] (Subsquid signals
-// end-of-stream that way).
-let serveCount = 0;
-const mockFetch: typeof globalThis.fetch = async (_url, _init) => {
-  serveCount += 1;
-  const batches = serveCount === 1 ? makeMockBatches(1000, 3) : [];
-  return new Response(JSON.stringify(batches), {
-    status: 200,
-    headers: { "content-type": "application/json" },
-  });
+// Mock the v2 worker-discovery protocol:
+//   GET  <archiveUrl>/<fromBlock>/worker  → worker URL (plain text)
+//   POST <worker URL>                     → JSON array of batches
+const WORKER_URL = "https://mock-worker.subsquid.test/query/abcd";
+let postCount = 0;
+const mockFetch: typeof globalThis.fetch = async (url, init) => {
+  const u = typeof url === "string" ? url : url.toString();
+  const method = (init?.method ?? "GET").toUpperCase();
+  if (method === "GET" && /\/worker$/.test(u)) {
+    return new Response(WORKER_URL, { status: 200, headers: { "content-type": "text/plain" } });
+  }
+  if (method === "POST" && u === WORKER_URL) {
+    postCount += 1;
+    // First POST: 3 batches; subsequent POSTs: [] (end-of-stream).
+    const batches = postCount === 1 ? makeMockBatches(1000, 3) : [];
+    return new Response(JSON.stringify(batches), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  }
+  return new Response(`unexpected ${method} ${u}`, { status: 404 });
 };
 
 async function main() {

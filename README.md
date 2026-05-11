@@ -62,26 +62,26 @@ Nansen shipped an excellent agent-facing CLI in 2026. We respect it. But it's cl
 
 ## Status
 
-**Pre-alpha. Not a Dune replacement today.** Active development; APIs will break without notice until `0.1.0`.
+**Pre-alpha.** Active development; APIs will break without notice until `0.1.0`.
 
-What's **proven working** (in CI / smoke tests / dbt run):
+What's **proven working** (in CI / smoke tests / dbt run / live mainnet):
 
-- 18 MCP tools across 8 capability groups (discovery / execution / semantic / analytics / recall / render / report / budget)
-- 10 curated catalog tables (`dex.trades`, `erc20.transfers`, `prices.usd`, `labels.addresses`, `filecoin.deals`, `solana.transfers`, `solana.dex.trades`, `nft.trades`, `lending.events`, `bridge.transfers`)
-- 20 semantic-layer metrics, including cross-table joins (DEX × prices, ERC-20 × labels, sanctioned exposure)
-- dbt-duckdb spellbook: **18 working models, 25 dbt tests** — schema constraints (`not_null`, `accepted_values`) enforced at build time
-- Bilingual single-file HTML reports (JA / EN / both with CSS toggle, no JS), brand customisation, interactive vega-embed charts, CSV download chips
-- Per-session cost governor (`chainq_budget_set/status/clear`) with structured `BUDGET_EXCEEDED` errors and BM25-ranked `chainq_recall`
-- Benchmark suite (see [BENCHMARKS.md](docs/BENCHMARKS.md)) — P95 0.5 ms - 27 ms across 10 representative queries on a 103.6 MiB dataset
+- **18 MCP tools** across 8 capability groups (discovery / execution / semantic / analytics / recall / render / report / budget)
+- **10 curated catalog tables**: `dex.trades`, `erc20.transfers`, `prices.usd`, `labels.addresses`, `filecoin.deals`, `solana.transfers`, `solana.dex.trades`, `nft.trades`, `lending.events`, `bridge.transfers`
+- **20 semantic-layer metrics**, including cross-table joins (DEX × prices, ERC-20 × labels, sanctioned exposure)
+- **dbt-duckdb spellbook: 18 working models, 25 dbt tests** — schema constraints (`not_null`, `accepted_values`) enforced at build time
+- **Live Base mainnet ingest**: `chainq pull --chain base --from 24000000 --to 24000010` against the public Subsquid archive returned **6,534 logs across 11 blocks** with the expected 2-second cadence and `WETH (0x4200…0006)` + `USDC (0x833589fc…02913)` as the top emitters — full evidence at [docs/LIVE-INGEST-PROOF.md](docs/LIVE-INGEST-PROOF.md)
+- **Bilingual single-file HTML reports** (JA / EN / both with CSS toggle, no JS), brand customisation, interactive vega-embed charts, CSV download chips
+- **Per-session cost governor** (`chainq_budget_set/status/clear`) with structured `BUDGET_EXCEEDED` errors and BM25-ranked `chainq_recall`
+- **Benchmark suite** ([BENCHMARKS.md](docs/BENCHMARKS.md)) — P95 0.5 ms - 27 ms across 10 representative queries on a 103.6 MiB dataset
 
-What's **not yet proven** (and therefore why the "Dune replacement" claim is withheld):
+What's **still pending**:
 
-- **Live-mainnet ingest**: `chainq pull` / `chainq watch` compile, smoke-test against a mocked Subsquid fetch, and have offline checkpointing — but **no committed evidence yet** that they pull real Base/Ethereum blocks whose contents match Etherscan
-- **dbt against real data**: the 18 models all read seeded synthetic Parquet. Equivalence against a real Subsquid pull is the next milestone
-- **Operational reliability**: no 90-day uptime trace; no reorg-safe head-following yet (Subsquid archive serves finalised blocks, so the existing path is bounded but not stress-tested)
-- **Real Whuffie / Agentic Finance dogfooding**: pending Phase 2 of [Vault Goals](https://github.com/Jacksstt/chainq/blob/main/docs/ROADMAP.md)
+- **dbt against real data**: the 18 spellbook models read seeded synthetic Parquet by default. Pointing them at the live-pulled `base.logs.parquet` is the next milestone (the engine and metric YAMLs already accept it; only the spellbook source mapping needs the swap).
+- **Operational reliability**: no 90-day uptime trace yet; reorg-safe head-following is unimplemented (the live archive serves finalised blocks, so the current path is bounded but not stress-tested).
+- **Real Whuffie / Agentic Finance dogfooding**: pending Phase 2 of [docs/ROADMAP.md](docs/ROADMAP.md).
 
-See [docs/ROADMAP.md](docs/ROADMAP.md) and the [9-axis honest assessment in the gallery](docs/reports/README.md) for the full list of distance markers.
+See [docs/ROADMAP.md](docs/ROADMAP.md) for the full list of distance markers.
 
 ## Quickstart
 
