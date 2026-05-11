@@ -192,7 +192,11 @@ async function main() {
   });
 
   // ---------- 4. CSV download for full per-chain stats ----------
-  const csvPath = resolve(REPORT_DIR, `${CHART_PREFIX}-stats.csv`);
+  // IMPORTANT: write to absolute path on disk, but reference the report's
+  // download chips via a RELATIVE path so the rendered HTML is portable
+  // (works on Pages, on file://, on Notion embed, anywhere).
+  const csvPath = `./${CHART_PREFIX}-stats.csv`;
+  const csvAbs = resolve(REPORT_DIR, `${CHART_PREFIX}-stats.csv`);
   const cols = ["chain", "label", "rows", "blocks", "contracts", "topic0s", "txs", "window_seconds", "pull_ms", "top_emitter"];
   const csvLines = [cols.join(",")];
   for (const p of pulls) {
@@ -203,7 +207,7 @@ async function main() {
       p.topEmitter?.address ?? "",
     ].map((v) => /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : v).join(","));
   }
-  writeFileSync(csvPath, csvLines.join("\n"));
+  writeFileSync(csvAbs, csvLines.join("\n"));
 
   // ---------- 5. Build sections ----------
   const totalLogs = ok.reduce((s, p) => s + p.rows, 0);
