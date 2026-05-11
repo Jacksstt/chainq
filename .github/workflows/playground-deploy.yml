@@ -31,7 +31,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm seed
-      - run: cp data/dex.trades.parquet packages/playground/public/sample.parquet
+      - run: mkdir -p packages/playground/public && cp data/dex.trades.parquet packages/playground/public/sample.parquet
       - run: pnpm --filter @chainq/playground build
       - uses: actions/upload-pages-artifact@v3
         with:
