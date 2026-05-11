@@ -7,7 +7,25 @@ Pre-`v0.1.0` is breaking by default; we only call out highlights.
 
 ## [Unreleased]
 
-### Added (this push — RPC-free / node-free stack)
+### Added (this push — zero-infrastructure entry points)
+
+- **`.devcontainer/`** — Codespaces / VS Code Dev Containers config. One-click
+  spin-up with seed data already loaded; Claude Code extension preinstalled.
+- **`packages/playground/`** — DuckDB-WASM in the browser. Static site (Vite +
+  TypeScript) lets anyone paste a Parquet URL and run SQL with zero install.
+  Build is 195 KB JS (46 KB gzipped). Auto-deployed to GitHub Pages via
+  `playground-deploy.yml`.
+- **`fly.toml` + `render.yaml`** — one-click cloud deploy templates. Render
+  free tier hosts a chainq instance with 1 GB persistent disk; Fly.io hobby
+  plan also works.
+- **`scripts/install.sh`** — `curl | sh` installer. Clones to `~/.chainq`,
+  pnpm install, seeds data, drops a `chainq` shim onto `$HOME/.local/bin`.
+- **`docs/INSTALL.md`** — five install paths in a single comparison table.
+  Explicitly documents that **no path requires a Mac mini or an always-on
+  server you own**.
+- README updated with badge row for Codespaces / Render / Playground.
+
+### Added (previous push — RPC-free / node-free stack)
 
 - **`@chainq/snapshot`** — `pull()` streams from a public Subsquid archive
   into compressed Parquet. CLI: `chainq pull --chain <id> --from N --to N`.

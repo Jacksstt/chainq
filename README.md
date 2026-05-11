@@ -14,6 +14,12 @@ The open-source, MCP-native answer to Dune.
 [![DuckDB](https://img.shields.io/badge/DuckDB-1.x-FFF000.svg)](https://duckdb.org/)
 [![dbt](https://img.shields.io/badge/dbt--duckdb-supported-FF694A.svg)](https://github.com/duckdb/dbt-duckdb)
 
+**No infrastructure? No problem.** Try without installing anything:
+
+[![Open in Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Jacksstt/chainq)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Jacksstt/chainq)
+&nbsp; · &nbsp; [Browser playground (DuckDB-WASM)](https://jacksstt.github.io/chainq)
+
 </div>
 
 ---
@@ -60,8 +66,20 @@ Nansen shipped an excellent agent-facing CLI in 2026. We respect it. But it's cl
 
 ## Quickstart
 
-This will give you a running MCP server with synthetic sample data — enough
-for Claude Code to introspect schemas and run real DuckDB queries.
+Pick one — they all reach the same place.
+
+| You want | Do this |
+|---|---|
+| **No install, just try** | [Browser playground](https://jacksstt.github.io/chainq) — paste a Parquet URL, write SQL |
+| **One-click cloud VM** | [Open in Codespaces](https://codespaces.new/Jacksstt/chainq) — chainq running with seed data in a hosted VS Code |
+| **One-click deploy** | [Deploy to Render](https://render.com/deploy?repo=https://github.com/Jacksstt/chainq) — public URL, free tier |
+| **One-line laptop install** | `curl -fsSL https://raw.githubusercontent.com/Jacksstt/chainq/main/scripts/install.sh \| sh` |
+| **Docker on laptop** | `docker compose -f docker/docker-compose.yml up` |
+| **Dev from source** | See below |
+
+All paths are documented in [`docs/INSTALL.md`](docs/INSTALL.md).
+
+### Dev from source
 
 ```bash
 git clone https://github.com/Jacksstt/chainq.git

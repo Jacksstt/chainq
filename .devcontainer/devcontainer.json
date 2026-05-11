@@ -1,0 +1,40 @@
+{
+  "name": "chainq",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.11"
+    },
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "remoteEnv": {
+    "CHAINQ_DATA_DIR": "${containerWorkspaceFolder}/data",
+    "PNPM_HOME": "/home/node/.local/share/pnpm",
+    "PATH": "/home/node/.local/share/pnpm:${containerEnv:PATH}"
+  },
+  "postCreateCommand": "corepack enable && corepack prepare pnpm@9.12.0 --activate && pnpm install --frozen-lockfile && pnpm seed",
+  "postStartCommand": "echo 'chainq dev container ready. Try: pnpm test'",
+  "forwardPorts": [7900, 3000, 5173],
+  "portsAttributes": {
+    "7900": { "label": "chainq MCP", "onAutoForward": "silent" },
+    "3000": { "label": "Metabase", "onAutoForward": "silent" },
+    "5173": { "label": "playground (vite)", "onAutoForward": "silent" }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "redhat.vscode-yaml",
+        "ms-azuretools.vscode-docker",
+        "GitHub.copilot",
+        "Anthropic.claude-code"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "typescript.tsdk": "node_modules/typescript/lib"
+      }
+    }
+  },
+  "remoteUser": "node"
+}

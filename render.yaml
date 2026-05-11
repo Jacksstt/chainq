@@ -1,0 +1,22 @@
+# One-click Render.com deploy.
+# Render's free tier covers a small chainq instance + a 1 GB persistent disk.
+#
+# Click the README badge or open https://render.com/deploy?repo=<this-repo>.
+
+services:
+  - type: web
+    name: chainq
+    runtime: docker
+    plan: free
+    dockerfilePath: ./docker/Dockerfile.chainq
+    region: singapore
+    envVars:
+      - key: CHAINQ_DATA_DIR
+        value: /data
+      - key: NODE_ENV
+        value: production
+    disk:
+      name: chainq-data
+      mountPath: /data
+      sizeGB: 1
+    healthCheckPath: /

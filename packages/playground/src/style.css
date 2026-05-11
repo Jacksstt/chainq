@@ -1,0 +1,91 @@
+:root {
+  color-scheme: light;
+  --ink: #0f172a;
+  --accent: #2563eb;
+  --muted: #475569;
+  --bg: #f8fafc;
+  --border: #e2e8f0;
+  --error: #b91c1c;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  color: var(--ink);
+  background: var(--bg);
+  line-height: 1.5;
+}
+
+header, main, footer {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+header h1 {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 40px;
+  font-weight: 700;
+  margin: 0 0 8px;
+}
+header .accent { color: var(--accent); }
+
+.tagline { color: var(--muted); margin: 0 0 4px; }
+a { color: var(--accent); }
+
+main { background: white; border: 1px solid var(--border); border-radius: 8px; }
+
+.row { display: grid; grid-template-columns: 110px 1fr auto; gap: 8px; align-items: start; margin-bottom: 16px; }
+.row label {
+  font-weight: 600;
+  padding-top: 8px;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+.row input, .row textarea {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 14px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  width: 100%;
+}
+.row button {
+  background: var(--ink);
+  color: white;
+  border: 0;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  height: 36px;
+}
+.row button:disabled { opacity: 0.5; cursor: not-allowed; }
+.row button:hover:not(:disabled) { background: var(--accent); }
+
+.status {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 13px;
+  color: var(--muted);
+  background: var(--bg);
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+.status.error { color: var(--error); border-color: var(--error); }
+
+#result table {
+  border-collapse: collapse;
+  margin-top: 16px;
+  width: 100%;
+  font-size: 13px;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+#result th, #result td {
+  text-align: left;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+}
+#result th { background: var(--bg); }
+
+footer { color: var(--muted); font-size: 13px; }

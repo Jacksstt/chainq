@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>chainq playground</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <header>
+    <h1>chainq <span class="accent">playground</span></h1>
+    <p class="tagline">
+      DuckDB-WASM in your browser. No install, no server, no RPC.
+      Paste a Parquet URL, write SQL, get rows.
+    </p>
+    <p class="tagline">
+      Source: <a href="https://github.com/Jacksstt/chainq" target="_blank">github.com/Jacksstt/chainq</a>
+    </p>
+  </header>
+
+  <main>
+    <section class="row">
+      <label for="parquet-url">Parquet URL</label>
+      <input id="parquet-url"
+             type="url"
+             value="https://raw.githubusercontent.com/Jacksstt/chainq/main/data/dex.trades.parquet"
+             placeholder="https://.../dataset.parquet" />
+      <button id="load-btn">Load</button>
+    </section>
+
+    <section class="row">
+      <label for="sql">SQL</label>
+      <textarea id="sql" rows="6">
+SELECT chain, COUNT(*) AS trades, AVG(amount_usd) AS avg_usd
+FROM 'dataset'
+GROUP BY chain
+ORDER BY trades DESC
+LIMIT 50
+      </textarea>
+      <button id="run-btn" disabled>Run</button>
+    </section>
+
+    <section id="status" class="status">Ready.</section>
+
+    <section id="result"></section>
+  </main>
+
+  <footer>
+    <p>Built by <a href="https://primebeat.jp" target="_blank">Prime Beat</a>. MIT.</p>
+  </footer>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
