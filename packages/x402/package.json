@@ -1,0 +1,17 @@
+{
+  "name": "@chainq/x402",
+  "version": "0.0.0",
+  "private": true,
+  "description": "x402 pay-per-call middleware for chainq. Lets operators run a public MCP endpoint and meter access in USDC.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "test": "echo 'no tests yet'"
+  },
+  "dependencies": {
+    "@chainq/core": "workspace:*"
+  },
+  "license": "MIT"
+}

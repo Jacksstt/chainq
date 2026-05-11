@@ -7,7 +7,19 @@ Pre-`v0.1.0` is breaking by default; we only call out highlights.
 
 ## [Unreleased]
 
-### Added (this push — zero-infrastructure entry points)
+### Added (this push — public-endpoint billing + Pages live)
+
+- **`@chainq/x402`** — pay-per-call gating for chainq tools. `Gate` class
+  exposes `quote()` / `settle()` with replay-prevention nonces. Default
+  pricing matches Nansen's tiering ($0.005-$0.03 USDC, free for discovery).
+  Verifier is pluggable; v0.2.0 wires it to Base / Solana RPCs.
+  `RESEARCH.md` explains the design and migration plan.
+- **GitHub Pages live**: https://jacksstt.github.io/chainq/ now serves the
+  DuckDB-WASM playground. Pages source = GitHub Actions workflow built from
+  `packages/playground`. Public, free, no install.
+- README + INSTALL updated to point at the live playground URL.
+
+### Added (previous push — zero-infrastructure entry points)
 
 - **`.devcontainer/`** — Codespaces / VS Code Dev Containers config. One-click
   spin-up with seed data already loaded; Claude Code extension preinstalled.

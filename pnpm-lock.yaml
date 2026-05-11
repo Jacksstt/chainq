@@ -126,6 +126,12 @@ importers:
         specifier: workspace:*
         version: link:../core
 
+  packages/x402:
+    dependencies:
+      '@chainq/core':
+        specifier: workspace:*
+        version: link:../core
+
 packages:
 
   '@duckdb/duckdb-wasm@1.32.0':

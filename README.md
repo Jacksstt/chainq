@@ -18,7 +18,7 @@ The open-source, MCP-native answer to Dune.
 
 [![Open in Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Jacksstt/chainq)
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Jacksstt/chainq)
-&nbsp; · &nbsp; [Browser playground (DuckDB-WASM)](https://jacksstt.github.io/chainq)
+&nbsp; · &nbsp; [Browser playground (DuckDB-WASM)](https://jacksstt.github.io/chainq/)
 
 </div>
 
@@ -192,6 +192,8 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for rationale and tradeoffs.
 | [`@chainq/snapshot`](packages/snapshot) | Pull Parquet snapshots from public archives — **the RPC-free path** |
 | [`@chainq/storage`](packages/storage) | Filecoin / IPFS pinning for community snapshot sharing |
 | [`@chainq/light-client`](packages/light-client) | Trust-minimised verification (Helios / Lodestar plan) |
+| [`@chainq/x402`](packages/x402) | Pay-per-call gating for public MCP endpoints (USDC on Base / Solana) |
+| [`@chainq/playground`](packages/playground) | DuckDB-WASM in-browser playground (no install) |
 | [`@chainq/ingest-evm`](packages/ingest-evm) | EVM ingestion: cryo backfill + Subsquid realtime stream |
 | [`@chainq/ingest-filecoin`](packages/ingest-filecoin) | Filecoin-native (Filfox + Spacescan) |
 | [`@chainq/ingest-solana`](packages/ingest-solana) | Solana via Helius RPC |
