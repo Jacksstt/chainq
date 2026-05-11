@@ -23,3 +23,11 @@ models:
       +materialized: view
     filecoin:
       +materialized: view
+    solana:
+      +materialized: view
+    prices:
+      +materialized: view
+    labels:
+      +materialized: view
+    whuffie:
+      +materialized: view
