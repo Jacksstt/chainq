@@ -11,6 +11,7 @@ on:
       - "scripts/dex-concentration-minimal.ts"
       - "scripts/live-base-demo.ts"
       - "scripts/live-filecoin-demo.ts"
+      - "scripts/live-multichain-demo.ts"
       - "scripts/seed-sample-data.ts"
       - "packages/mcp-server/src/report.ts"
       - "packages/mcp-server/src/charts.ts"
@@ -61,6 +62,7 @@ jobs:
           # the previously-committed reports stay in place.
           pnpm exec tsx scripts/live-base-demo.ts || echo "[deploy] live-base-demo skipped (network)"
           pnpm exec tsx scripts/live-filecoin-demo.ts || echo "[deploy] live-filecoin-demo skipped (network)"
+          pnpm exec tsx scripts/live-multichain-demo.ts || echo "[deploy] live-multichain-demo skipped (network)"
 
       - name: Assemble combined site
         run: |
@@ -77,6 +79,7 @@ jobs:
           <h1>chainq reports gallery</h1>
           <p>Example AI-agent-generated reports built with chainq's MCP tools.</p>
           <ul>
+            <li><a href="./07-multichain-live.html"><strong>Multi-chain live snapshot — 8 EVM chains in parallel</strong></a> — Ethereum, Base, Arbitrum, Optimism, Polygon, Linea, Scroll, Unichain pulled in parallel from public Subsquid archives at deploy time. Showcases the 45-chain breadth.</li>
             <li><a href="./05-base-live.html"><strong>Base mainnet — live 100-second snapshot</strong></a> — pulled at deploy time from public Subsquid, no API key, no RPC. Bilingual, real onchain data.</li>
             <li><a href="./06-filecoin-live.html"><strong>Filecoin mainnet — live concentration snapshot</strong></a> — pulled at deploy time from Filfox public API. Real Filecoin storage providers and verified-deal share.</li>
             <li><a href="./02-filecoin-concentration.html">Filecoin storage-provider concentration</a> — bilingual, analyst-grade, 13 sections, 2 interactive charts, downloads</li>

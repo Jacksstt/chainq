@@ -18,10 +18,12 @@ Use them as:
 | 4 | [Base DEX taker concentration](./04-dex-taker-concentration.html) (bilingual) | HTML | minimal (~100 LOC source) | `query`, `concentration`, `chart_render`, `report` |
 | 5 | [**Base mainnet live snapshot**](./05-base-live.html) (bilingual) | HTML | **real Base data** | `pull`, `query`, `concentration`, `chart_render`, `report` |
 | 6 | [**Filecoin live concentration**](./06-filecoin-live.html) (bilingual) | HTML | **real Filecoin data** | `@chainq/ingest-filecoin fetchRecentDeals`, `concentration`, `bucketize`, `chart_render`, `report` |
+| 7 | [**Multi-chain live snapshot**](./07-multichain-live.html) (bilingual) | HTML | **real data across 8 EVM chains** | 8× parallel `pull`, multi-chain DuckDB analytics, `chart_render`, `report` |
 
-Reports 5 and 6 are the live-data exemplars — pulled at build time from
-public archives (Subsquid for Base logs, Filfox for Filecoin deals), no
-API keys, no operated RPC. See
+Reports 5, 6, and 7 are the live-data exemplars — pulled at build time
+from public archives (Subsquid for EVM chains, Filfox for Filecoin), no
+API keys, no operated RPC. Report 7 specifically demonstrates the
+45-chain breadth: 8 EVM chains hit in parallel from a single script. See
 [docs/LIVE-INGEST-PROOF.md](../LIVE-INGEST-PROOF.md) for the
 protocol-level evidence runs.
 

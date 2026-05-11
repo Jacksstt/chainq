@@ -1,0 +1,387 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>マルチチェーン live スナップショット — 8 EVM チェーン並列</title>
+<style>
+:root {
+  --bg: #ffffff;
+  --bg-soft: #f6f7f9;
+  --bg-card: #ffffff;
+  --border: #e2e6ee;
+  --border-soft: #eef0f4;
+  --fg: #0f172a;
+  --fg-dim: #475569;
+  --fg-mute: #6b7280;
+  --accent: #2563eb;
+  --accent-soft: #dbeafe;
+  --code-bg: #f3f4f6;
+  --callout-caveat: #f59e0b;
+  --callout-caveat-bg: #fffbeb;
+  --callout-warning: #ef4444;
+  --callout-warning-bg: #fef2f2;
+  --callout-tip: #10b981;
+  --callout-tip-bg: #ecfdf5;
+  --shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b0c10;
+    --bg-soft: #111319;
+    --bg-card: #14161d;
+    --border: #232631;
+    --border-soft: #1a1d25;
+    --fg: #e8eaed;
+    --fg-dim: #a8adb8;
+    --fg-mute: #7d8392;
+    --accent: #60a5fa;
+    --accent-soft: #1e3a8a;
+    --code-bg: #0f1116;
+    --callout-caveat: #fbbf24;
+    --callout-caveat-bg: #1f1a0a;
+    --callout-warning: #f87171;
+    --callout-warning-bg: #1f0f0f;
+    --callout-tip: #34d399;
+    --callout-tip-bg: #0a1f17;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.4);
+  }
+}
+@media print {
+  :root {
+    --bg: #ffffff; --bg-soft: #ffffff; --bg-card: #ffffff;
+    --border: #cccccc; --border-soft: #e5e5e5;
+    --fg: #000000; --fg-dim: #333333; --fg-mute: #555555;
+    --shadow: none;
+  }
+  .report-foot, .frontmatter summary { color: #555; }
+  .report { max-width: none; padding: 0; }
+  .locale-switch { display: none; }
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); }
+body {
+  color: var(--fg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans CJK JP", sans-serif;
+  font-size: 16px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code, pre, kbd, samp {
+  font-family: "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 0.92em;
+}
+code {
+  background: var(--code-bg);
+  padding: 0.1em 0.4em;
+  border-radius: 4px;
+  border: 1px solid var(--border-soft);
+}
+
+.report { max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; }
+
+.report-head { border-bottom: 1px solid var(--border-soft); padding-bottom: 24px; margin-bottom: 32px; }
+.eyebrow { color: var(--fg-mute); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; margin: 0 0 8px; font-weight: 600; }
+.report-head h1 { font-size: 32px; line-height: 1.25; margin: 0 0 8px; letter-spacing: -0.01em; }
+.report-head h1 + h1 { margin-top: 4px; font-size: 24px; color: var(--fg-dim); font-weight: 500; }
+.meta { color: var(--fg-mute); font-size: 13px; font-family: "SF Mono", Menlo, Consolas, monospace; margin: 0 0 4px; }
+.meta + .meta { margin-bottom: 16px; }
+.summary { font-size: 18px; line-height: 1.55; color: var(--fg-dim); margin: 16px 0 0; }
+.summary + .summary { margin-top: 8px; font-size: 16px; }
+
+.frontmatter { margin: 12px 0 0; font-size: 13px; }
+.frontmatter summary { cursor: pointer; color: var(--fg-mute); padding: 4px 0; user-select: none; list-style: none; }
+.frontmatter summary::-webkit-details-marker { display: none; }
+.frontmatter summary::before { content: "▸ "; display: inline-block; transition: transform 120ms ease; }
+.frontmatter[open] summary::before { transform: rotate(90deg); }
+.frontmatter[open] summary { color: var(--fg-dim); margin-bottom: 8px; }
+.frontmatter table { width: 100%; border-collapse: collapse; font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12.5px; }
+.frontmatter th, .frontmatter td { padding: 4px 12px 4px 0; text-align: left; vertical-align: top; }
+.frontmatter th { color: var(--fg-mute); font-weight: 500; width: 1%; white-space: nowrap; }
+.frontmatter td { color: var(--fg); }
+
+article { margin: 0; }
+.section { margin: 0 0 40px; }
+.section h2 {
+  font-size: 22px;
+  line-height: 1.3;
+  margin: 0 0 12px;
+  letter-spacing: -0.005em;
+}
+.section h2 + h2 { margin-top: -4px; font-size: 17px; color: var(--fg-dim); font-weight: 500; }
+.section p { margin: 0 0 12px; }
+.section p:last-child { margin-bottom: 0; }
+
+.callout {
+  background: var(--callout-caveat-bg);
+  border-left: 3px solid var(--callout-caveat);
+  padding: 16px 20px;
+  border-radius: 0 6px 6px 0;
+}
+.callout-caveat { background: var(--callout-caveat-bg); border-left-color: var(--callout-caveat); }
+.callout-warning { background: var(--callout-warning-bg); border-left-color: var(--callout-warning); }
+.callout-tip { background: var(--callout-tip-bg); border-left-color: var(--callout-tip); }
+.callout h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--callout-caveat); margin: 0 0 8px; }
+.callout-warning h2 { color: var(--callout-warning); }
+.callout-tip h2 { color: var(--callout-tip); }
+.callout p { font-size: 15px; }
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  box-shadow: var(--shadow);
+  margin: 8px 0 16px;
+}
+.table-wrap table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px;
+}
+.table-wrap thead th {
+  text-align: left;
+  background: var(--bg-soft);
+  color: var(--fg-dim);
+  font-weight: 600;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  white-space: nowrap;
+}
+.table-wrap tbody td {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border-soft);
+  white-space: nowrap;
+}
+.table-wrap tbody tr:last-child td { border-bottom: 0; }
+.table-wrap tbody tr:nth-child(even) td { background: var(--bg-soft); }
+.table-wrap td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+figure { margin: 16px 0; padding: 0; }
+figure img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  box-shadow: var(--shadow);
+}
+figcaption {
+  color: var(--fg-mute);
+  font-size: 13px;
+  margin-top: 8px;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+}
+figcaption + figcaption { margin-top: 2px; }
+.chart-link {
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  background: var(--bg-soft);
+}
+.chart-link a { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 14px; }
+.chart-interactive { margin: 16px 0; }
+
+.report-logo {
+  display: block;
+  max-height: 36px;
+  margin: 0 0 12px;
+}
+
+.downloads {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0 0;
+}
+.dl-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+  background: var(--bg-soft);
+  color: var(--fg-dim);
+  text-decoration: none;
+  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+}
+.dl-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  text-decoration: none;
+  background: var(--bg-card);
+}
+.dl-fmt {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.dl-csv .dl-fmt    { background: #16a34a22; color: #16a34a; }
+.dl-json .dl-fmt   { background: #eab30822; color: #c08303; }
+.dl-parquet .dl-fmt{ background: #6366f122; color: #6366f1; }
+.dl-html .dl-fmt   { background: #ef444422; color: #ef4444; }
+
+.report-foot {
+  margin-top: 64px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border-soft);
+  color: var(--fg-mute);
+  font-size: 13px;
+}
+.report-foot a { color: var(--fg-mute); text-decoration: underline; text-decoration-color: var(--border); }
+.report-foot a:hover { color: var(--accent); text-decoration-color: var(--accent); }
+.report-foot p + p { margin-top: 2px; }
+
+@media (max-width: 640px) {
+  .report { padding: 32px 18px 64px; }
+  .report-head h1 { font-size: 26px; }
+  .report-head h1 + h1 { font-size: 19px; }
+  .section h2 { font-size: 20px; }
+  .section h2 + h2 { font-size: 15px; }
+  .summary { font-size: 16px; }
+}
+
+/* Bilingual: CSS-only locale toggle. Default = Japanese visible. */
+input[type="radio"][name="locale"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+}
+.locale-switch {
+  display: inline-flex;
+  gap: 4px;
+  margin: 0 0 24px;
+  padding: 4px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+.locale-switch label {
+  cursor: pointer;
+  padding: 4px 14px;
+  border-radius: 999px;
+  color: var(--fg-mute);
+  user-select: none;
+  transition: color 120ms ease, background 120ms ease;
+}
+.locale-switch label:hover { color: var(--fg); }
+#loc-ja:checked ~ .report .locale-switch label[for="loc-ja"],
+#loc-en:checked ~ .report .locale-switch label[for="loc-en"] {
+  background: var(--accent);
+  color: white;
+}
+#loc-ja:checked ~ .report [lang="en"] { display: none; }
+#loc-en:checked ~ .report [lang="ja"] { display: none; }
+</style><style>:root, .report { --accent: #8b5cf6; }</style>
+</head>
+<body>
+<input id="loc-ja" type="radio" name="locale" checked aria-hidden="true">
+<input id="loc-en" type="radio" name="locale" aria-hidden="true">
+<main class="report" data-bilingual>
+  <nav class="locale-switch" aria-label="言語 / Language">
+    <label for="loc-ja">日本語</label>
+    <label for="loc-en">English</label>
+  </nav>
+  <header class="report-head">
+    
+    <p class="eyebrow">CHAINQ · MULTI-CHAIN LIVE</p>
+    <h1 lang="ja">マルチチェーン live スナップショット — 8 EVM チェーン並列</h1>
+    <h1 lang="en">Multi-chain live snapshot — 8 EVM chains in parallel</h1>
+    <p class="meta" lang="ja">生成: 2026-05-11T21:42:59.639Z</p>
+    <p class="meta" lang="en">Generated 2026-05-11T21:42:59.639Z</p>
+    <details class="frontmatter"><summary><span lang="ja">メタデータ · 9 項目</span><span lang="en">Metadata · 9 fields</span></summary><table><tr><th scope="row">target_chains</th><td>8</td></tr><tr><th scope="row">successful_pulls</th><td>8</td></tr><tr><th scope="row">failed_pulls</th><td>0</td></tr><tr><th scope="row">total_logs</th><td>64326</td></tr><tr><th scope="row">total_distinct_contracts</th><td>4660</td></tr><tr><th scope="row">max_pull_ms</th><td>20539</td></tr><tr><th scope="row">total_pull_ms_sequential</th><td>62116</td></tr><tr><th scope="row">parallelism</th><td>8</td></tr><tr><th scope="row">pulled_at</th><td>2026-05-11T21:42:59.639Z</td></tr></table></details>
+    <p class="summary" lang="ja">8 EVM チェーンを 1 つの単一 HTML レポートに統合。<code>chainq pull → DuckDB 分析 → チャート → バイリンガル HTML</code> の全パイプラインが end-to-end で動作。成功 8、失敗 0。</p><p class="summary" lang="en">Single self-contained report covering 8 EVM chains. The full <code>chainq pull → DuckDB analytics → chart → bilingual HTML report</code> pipeline executed end-to-end. 8 chains succeeded, 0 failed.</p>
+  </header>
+  <article>
+    <section class="section">
+      <h2 lang="ja">エグゼクティブサマリー</h2>
+      <h2 lang="en">Executive summary</h2>
+      <div lang="ja"><p>- <strong>8 中 8 チェーン</strong> を並列で pull、所要時間 <strong>20.5s</strong>（最も遅いプル）。<br>- <strong>64,326 ログ</strong> を <strong>4,660 コントラクト</strong> から取得。全て公開 Subsquid アーカイブ経由、API キーなし、RPC ノード運用なし。<br>- 全チェーンで同じ <code>chainq pull</code> コードパス。9 チェーン目を追加するのは <strong>PUBLIC_ARCHIVES に 1 行追加するだけ</strong>。<br>- このレポート自体が「45 チェーン対応は願望ではない」ことの証拠 — 生成のために 8 チェーンを live で叩いています。</p></div>
+      <div lang="en"><p>- <strong>8 of 8 chains</strong> pulled successfully in <strong>20.5s</strong> wall-clock (parallelised).<br>- <strong>64,326 log events</strong> across <strong>4,660 distinct contracts</strong>, all from public Subsquid archives — no API keys, no operated nodes.<br>- Same <code>chainq pull</code> code path for every chain. Adding the 9th chain is <strong>one row in PUBLIC_ARCHIVES</strong>.<br>- This report is itself the proof that 45-chain support is not aspirational: 8 chains were touched live to build it.</p></div>
+    </section>
+    <section class="section">
+      <h2 lang="ja">1. チェーン別ログ件数</h2>
+      <h2 lang="en">1. Per-chain log volume</h2>
+      <figure><img src="./07-multichain-logs-per-chain.svg" alt="Logs emitted in the 50-block window for each chain. Cross-chain variance reflects gas usage, contract density, and block time differences." loading="lazy"><figcaption lang="ja">各チェーン直近50ブロックでのログ発行件数。チェーン間の差はガス使用量、コントラクト密度、ブロック時間の違いを反映しています。</figcaption><figcaption lang="en">Logs emitted in the 50-block window for each chain. Cross-chain variance reflects gas usage, contract density, and block time differences.</figcaption></figure>
+      <div class="downloads"><a class="dl-chip dl-csv" href="/Users/shibuyaryuukyou/Documents/projects/chainq/docs/reports/07-multichain-stats.csv" download><span class="dl-fmt">CSV</span> <span lang="ja">全統計 CSV</span><span lang="en">All stats CSV</span></a><a class="dl-chip dl-png" href="./07-multichain-logs-per-chain.png" download><span class="dl-fmt">PNG</span> <span lang="ja">PNG (1600px)</span><span lang="en">PNG (1600w)</span></a></div>
+    </section>
+    <section class="section">
+      <h2 lang="ja">2. チェーン別コントラクト数</h2>
+      <h2 lang="en">2. Distinct contracts per chain</h2>
+      <figure><img src="./07-multichain-contracts-per-chain.svg" alt="How many unique contracts emitted at least one event during the window." loading="lazy"><figcaption lang="ja">ウィンドウ内で 1 つ以上のイベントを発行したユニークなコントラクト数。</figcaption><figcaption lang="en">How many unique contracts emitted at least one event during the window.</figcaption></figure>
+    </section>
+    <section class="section">
+      <h2 lang="ja">3. チェーン別取引数</h2>
+      <h2 lang="en">3. Distinct transactions per chain</h2>
+      <figure><img src="./07-multichain-txs-per-chain.svg" alt="Unique transaction count. Combined with contract count, gives a rough activity profile per chain." loading="lazy"><figcaption lang="ja">ユニークなトランザクション数。コントラクト数と組み合わせるとチェーンごとの大まかな活動プロファイルが見えます。</figcaption><figcaption lang="en">Unique transaction count. Combined with contract count, gives a rough activity profile per chain.</figcaption></figure>
+    </section>
+    <section class="section">
+      <h2 lang="ja">4. チェーン別詳細</h2>
+      <h2 lang="en">4. Per-chain detail</h2>
+      <div class="table-wrap"><table><thead><tr><th>chain</th><th>label</th><th>status</th><th>rows</th><th>blocks</th><th>contracts</th><th>topic0s</th><th>txs</th><th>window_s</th><th>pull_ms</th><th>top_emitter</th></tr></thead><tbody>
+        <tr><td>ethereum</td><td>Ethereum L1</td><td>✓</td><td class="num">7808</td><td class="num">21</td><td class="num">1024</td><td class="num">324</td><td class="num">2911</td><td class="num">240.0</td><td class="num">8729</td><td>0xc02aaa39… (1402)</td></tr>
+        <tr><td>base</td><td>Base (OP Stack)</td><td>✓</td><td class="num">28529</td><td class="num">50</td><td class="num">1629</td><td class="num">671</td><td class="num">4995</td><td class="num">98.0</td><td class="num">20539</td><td>0x42000000… (5841)</td></tr>
+        <tr><td>arbitrum</td><td>Arbitrum One</td><td>✓</td><td class="num">647</td><td class="num">47</td><td class="num">138</td><td class="num">119</td><td class="num">105</td><td class="num">12.0</td><td class="num">2465</td><td>0x82af4944… (60)</td></tr>
+        <tr><td>optimism</td><td>Optimism</td><td>✓</td><td class="num">4729</td><td class="num">50</td><td class="num">545</td><td class="num">263</td><td class="num">722</td><td class="num">98.0</td><td class="num">5945</td><td>0x42000000… (458)</td></tr>
+        <tr><td>polygon</td><td>Polygon PoS</td><td>✓</td><td class="num">20377</td><td class="num">50</td><td class="num">984</td><td class="num">537</td><td class="num">4878</td><td class="num">104.0</td><td class="num">17256</td><td>0x00000000… (5882)</td></tr>
+        <tr><td>linea</td><td>Linea (zkEVM)</td><td>✓</td><td class="num">955</td><td class="num">50</td><td class="num">145</td><td class="num">130</td><td class="num">204</td><td class="num">98.0</td><td class="num">2522</td><td>0xe5d7c2a4… (123)</td></tr>
+        <tr><td>scroll</td><td>Scroll (zkEVM)</td><td>✓</td><td class="num">1139</td><td class="num">50</td><td class="num">170</td><td class="num">131</td><td class="num">285</td><td class="num">146.0</td><td class="num">2588</td><td>0x53000000… (200)</td></tr>
+        <tr><td>unichain</td><td>Unichain (Uniswap L2)</td><td>✓</td><td class="num">142</td><td class="num">30</td><td class="num">25</td><td class="num">19</td><td class="num">63</td><td class="num">49.0</td><td class="num">2072</td><td>0xec4a5606… (30)</td></tr>
+      </tbody></table></div>
+    </section>
+    <section class="section">
+      <h2 lang="ja">5. メソドロジー</h2>
+      <h2 lang="en">5. Methodology</h2>
+      <div lang="ja"><p><strong>対象</strong>: 8 チェーン。L1（Ethereum, Polygon）、OP Stack L2（Base, Optimism, Unichain）、Arbitrum stack（Arbitrum One）、zkEVM L2（Linea, Scroll）を横断。</p>
+      <p><strong>pull</strong>: 各チェーンに対し <code>chainq pull --chain &lt;id&gt; --from N --to N+49</code> を <strong><code>Promise.all</code> で並列実行</strong>。所要時間は最も遅いプルが決定（20.5s）— 直列なら 62.1s 相当でした。</p>
+      <p><strong>分析</strong>: チェーンごとに DuckDB <code>read_parquet</code> + 集約 SELECT（COUNT, COUNT DISTINCT）。エンジンもコードパスも他の chainq 機能と同一。</p>
+      <p><strong>ブロック範囲</strong>: 各チェーン 50 ブロック。壁時計の長さはチェーンごとに違います（Ethereum 12秒/block, Polygon 2秒, Arbitrum 0.25秒など）。詳細テーブルの <code>window_s</code> 列で明示しています。</p></div>
+      <div lang="en"><p><strong>Targets</strong>: 8 chains spanning L1 (Ethereum, Polygon), OP Stack L2 (Base, Optimism, Unichain), Arbitrum stack (Arbitrum One), and zkEVM L2 (Linea, Scroll).</p>
+      <p><strong>Pull</strong>: <code>chainq pull --chain &lt;id&gt; --from N --to N+49</code> against each chain&#39;s public Subsquid archive in <strong>parallel via <code>Promise.all</code></strong>. The slowest pull determined wall-clock time (20.5s); sequential would have been ~62.1s.</p>
+      <p><strong>Analytics</strong>: per-chain DuckDB <code>read_parquet</code> + aggregate SELECTs (COUNT, COUNT DISTINCT). Same engine, same code path as the rest of chainq.</p>
+      <p><strong>Block windows</strong>: 50 blocks each chain. Wall-clock window differs because block time differs (Ethereum 12s, Polygon 2s, Arbitrum 0.25s, etc.). The <code>window_s</code> column in the detail table makes this explicit.</p></div>
+    </section>
+    <section class="section callout callout-caveat">
+      <h2 lang="ja">注意</h2>
+      <h2 lang="en">Caveats</h2>
+      <div lang="ja"><p><strong>チェーン間比較は「形」を見るためで、絶対量の比較ではありません。</strong> 同じブロック窓でログが 50 倍出ているチェーンは、単にブロック時間が 1/50 なだけかもしれません — 活動量が 50 倍とは限らない。順位付けする時は必ず <code>window_s</code> で正規化してください。</p>
+      <p><strong>CI では pull 失敗が珍しくありません。</strong> ここで選んだブロック範囲は任意の値です — slug 追加後に Subsquid 側で worker がリシャードされている場合、historical range が 404 することがあります。<code>scripts/probe-archives.ts</code> のプローブは URL の到達性は検証しますが、任意の historical range が引けるかまでは保証しません。</p></div>
+      <div lang="en"><p><strong>Cross-chain comparison is shape, not magnitude.</strong> A chain with 50× more logs in the same block window may simply have 50× shorter block times — not 50× more activity. Always normalize by the <code>window_s</code> column when ranking.</p>
+      <p><strong>Pull failures are common in CI.</strong> The selected block ranges are arbitrary; if a chain has re-shard&#39;d workers since the slug was first added, the pull will 404. The probe at <code>scripts/probe-archives.ts</code> validates the URL is reachable but not that every historical range still resolves.</p></div>
+    </section>
+    <section class="section">
+      <h2 lang="ja">再現手順</h2>
+      <h2 lang="en">Reproducing</h2>
+      <div lang="ja"><p>``<code>bash<br>pnpm exec tsx scripts/live-multichain-demo.ts<br>open docs/reports/07-multichain-live.html<br></code>``</p>
+      <p><code>TARGETS</code> 配列を編集してチェーン追加可能（<code>docs/SUPPORTED-CHAINS.md</code> の 43 候補から）。pull は並列実行なので、9 チェーン目を足しても所要時間は最も遅いプルで決まり、ほぼゼロコスト。</p></div>
+      <div lang="en"><p>``<code>bash<br>pnpm exec tsx scripts/live-multichain-demo.ts<br>open docs/reports/07-multichain-live.html<br></code>``</p>
+      <p>Edit the <code>TARGETS</code> array to add more chains (any of the 43 in <code>docs/SUPPORTED-CHAINS.md</code>). Pulls run in parallel, so adding a 9th chain costs ~0 wall-clock time as long as the slowest pull doesn&#39;t change.</p></div>
+    </section>
+  </article>
+  <footer class="report-foot">
+    <p lang="ja"><strong>chainq</strong> が 8 並列 <code>chainq pull</code> で生成。全データは公開 Subsquid アーカイブから build 時に live で取得した実 onchain データ。ベンダー API キーなし。MIT。</p>
+    <p lang="en">Authored by <strong>chainq</strong> with 8 parallel <code>chainq pull</code> calls. All data is real, pulled live from public Subsquid archives at build time. No vendor API keys. MIT.</p>
+  </footer>
+</main>
+</body>
+</html>
