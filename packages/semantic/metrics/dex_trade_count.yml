@@ -1,0 +1,26 @@
+metric: dex_trade_count
+description: |
+  Number of DEX trades per dimension over a time window.
+dimensions:
+  - chain
+  - dex_name
+filters:
+  - chain
+  - dex_name
+sql_template: |
+  SELECT
+    {{select_dimensions}},
+    COUNT(*) AS trades
+  FROM "dex.trades"
+  WHERE block_time BETWEEN {{start}} AND {{end}}
+    {{chain_clause}}
+    {{dex_name_clause}}
+  GROUP BY {{group_dimensions}}
+  ORDER BY trades DESC
+dimension_expressions:
+  chain: chain
+  dex_name: dex_name
+guardrails:
+  max_range_days: 365
+  max_rows: 10000
+  timeout_seconds: 20

@@ -1,0 +1,24 @@
+metric: filecoin_deal_count
+description: |
+  Number of Filecoin storage deals per provider in an epoch range.
+dimensions:
+  - provider
+filters:
+  - provider
+  - verified_deal
+sql_template: |
+  SELECT
+    {{select_dimensions}},
+    COUNT(*) AS deals,
+    SUM(piece_size_bytes) AS total_bytes
+  FROM "filecoin.deals"
+  WHERE start_epoch BETWEEN {{start_epoch}} AND {{end_epoch}}
+    {{provider_clause}}
+    {{verified_deal_clause}}
+  GROUP BY {{group_dimensions}}
+  ORDER BY deals DESC
+dimension_expressions:
+  provider: provider
+guardrails:
+  max_rows: 5000
+  timeout_seconds: 20

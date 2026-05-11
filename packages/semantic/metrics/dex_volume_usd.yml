@@ -1,0 +1,29 @@
+metric: dex_volume_usd
+description: |
+  DEX swap volume in USD across all supported aggregators.
+  Aggregates `dex.trades.amount_usd`.
+dimensions:
+  - chain
+  - dex_name
+  - day
+filters:
+  - chain
+  - dex_name
+sql_template: |
+  SELECT
+    {{select_dimensions}},
+    SUM(amount_usd) AS volume_usd
+  FROM "dex.trades"
+  WHERE block_time BETWEEN {{start}} AND {{end}}
+    {{chain_clause}}
+    {{dex_name_clause}}
+  GROUP BY {{group_dimensions}}
+  ORDER BY {{group_dimensions}}
+dimension_expressions:
+  chain: chain
+  dex_name: dex_name
+  day: "date_trunc('day', block_time)"
+guardrails:
+  max_range_days: 90
+  max_rows: 50000
+  timeout_seconds: 20

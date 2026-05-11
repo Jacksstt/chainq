@@ -1,0 +1,12 @@
+# dbt profile for chainq_spellbook.
+#
+# Defaults to a sibling data/ directory. Override DATA_DIR if you've put your
+# Parquet files somewhere else.
+chainq:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "{{ env_var('CHAINQ_CACHE_DB', '../data/chainq-dbt.duckdb') }}"
+      external_root: "{{ env_var('CHAINQ_DATA_DIR', '../data') }}"
+      threads: 4

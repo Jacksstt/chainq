@@ -19,6 +19,9 @@
     "@chainq/core": "workspace:*",
     "@duckdb/node-api": "1.5.2-r.1",
     "@modelcontextprotocol/sdk": "^1.29.0",
+    "vega": "^6.2.0",
+    "vega-lite": "^6.4.3",
+    "yaml": "^2.8.4",
     "zod": "^4.4.3"
   },
   "license": "MIT"

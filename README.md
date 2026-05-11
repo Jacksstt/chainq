@@ -83,18 +83,32 @@ and `chainq_query` in sequence and stream results back.
 
 ### What's working today (v0.0.x)
 
-- `chainq_list_tables` — enumerate the catalog
-- `chainq_search_tables` — natural-language search by name/description
-- `chainq_describe` — schema, sample rows, gotchas
-- `chainq_estimate_cost` — best-effort row / cost estimate
-- `chainq_query` — DuckDB SQL over Parquet with row caps
+| Category | Tool | Notes |
+|---|---|---|
+| Discovery | `chainq_list_tables` | Enumerate the catalog |
+| Discovery | `chainq_search_tables` | Free-text + chain filter |
+| Discovery | `chainq_describe` | Schema, sample rows, gotchas |
+| Execution | `chainq_estimate_cost` | Row / cost estimate from `EXPLAIN` |
+| Execution | `chainq_query` | DuckDB SQL with row + timeout caps; result is cached |
+| Semantic | `chainq_list_metrics` | List YAML-defined metrics |
+| Semantic | `chainq_metric` | Run a named metric with dimensions and filters |
+| Memory | `chainq_recall` | Search past queries by SQL or label |
+| Memory | `chainq_recall_by_id` | Pull a cached result preview |
+| Output | `chainq_chart_render` | Vega-Lite → SVG file |
+| Output | `chainq_report` | Write a Markdown report with frontmatter, tables, chart embeds |
 
-### What's not yet implemented
+Supporting code:
 
-- Real cryo / Subsquid / Filfox ingest (stubs only)
-- Semantic-layer metrics
-- Chart rendering, report-to-vault
-- Spellbook dbt models (catalog is hand-curated for now)
+- `@chainq/ingest-evm` — `assertCryoInstalled` + `backfill()` that shells out to cryo
+- `@chainq/ingest-filecoin` — Filfox + Spacescan REST wrappers
+- `spellbook/` — dbt-duckdb project with 4 starter models (dex, erc20 ×2, filecoin)
+
+### What's not yet wired
+
+- cryo / Subsquid actual data fetching (the wrappers exist; data still hand-seeded)
+- Iceberg storage
+- Realtime ingest, Solana, Move chains
+- Multi-machine / Trino backend
 
 See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 

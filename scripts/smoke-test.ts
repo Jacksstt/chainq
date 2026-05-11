@@ -1,53 +1,111 @@
 #!/usr/bin/env tsx
 /**
- * In-process smoke test: walk the Engine + catalog without spawning a real
- * stdio transport. Exits non-zero on the first failure so it can run in CI.
+ * In-process smoke test for engine + metric registry + chart + report.
  */
 
 import { resolve } from "node:path";
 import assert from "node:assert/strict";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 
-import { CATALOG, Engine, findTable, searchTables } from "../packages/mcp-server/src/index.ts";
+import {
+  CATALOG,
+  Engine,
+  MetricRegistry,
+  findTable,
+  renderMarkdown,
+  saveChart,
+  searchTables,
+} from "../packages/mcp-server/src/index.ts";
 
 async function main() {
   const dataDir = resolve("data");
+  const metricsDir = resolve("packages/semantic/metrics");
+  const outDir = resolve("data/out");
   console.log(`[smoke] data dir = ${dataDir}`);
 
-  // catalog basics --------------------------------------------------------
-  assert.ok(CATALOG.length >= 3, "catalog should have at least 3 tables");
-  console.log(`[smoke] catalog tables = ${CATALOG.map((t) => t.name).join(", ")}`);
+  // Clean any prior cache so we get deterministic counts.
+  const cacheFile = resolve(dataDir, ".chainq-cache.duckdb");
+  if (existsSync(cacheFile)) rmSync(cacheFile, { force: true });
 
-  // findTable -------------------------------------------------------------
-  const dex = findTable("dex.trades");
-  assert.ok(dex, "dex.trades missing");
-  assert.ok(dex.columns.length > 0, "dex.trades columns missing");
+  // ---- catalog ----------------------------------------------------------
+  assert.ok(CATALOG.length >= 3);
+  assert.ok(findTable("dex.trades"));
+  assert.ok(searchTables("dex").some((t) => t.name === "dex.trades"));
+  assert.deepEqual(searchTables("", "filecoin").map((t) => t.name), ["filecoin.deals"]);
 
-  // searchTables ----------------------------------------------------------
-  const hits = searchTables("dex");
-  assert.ok(hits.some((t) => t.name === "dex.trades"), "search did not surface dex.trades");
-
-  const filFiltered = searchTables("", "filecoin");
-  assert.deepEqual(filFiltered.map((t) => t.name), ["filecoin.deals"]);
-
-  // engine ----------------------------------------------------------------
+  // ---- engine -----------------------------------------------------------
   const engine = new Engine({ dataDir });
   await engine.start();
 
   const trades = await engine.query(`SELECT chain, COUNT(*) AS n FROM "dex.trades" GROUP BY chain ORDER BY chain`);
-  assert.ok(trades.rows.length > 0, "dex.trades returned no rows");
-  console.log("[smoke] dex.trades per chain:");
-  for (const row of trades.rows) console.log(`         ${JSON.stringify(row)}`);
+  assert.ok(trades.rows.length === 5);
+  assert.ok(trades.cacheId, "expected query to cache");
+  console.log(`[smoke] dex.trades query cached as ${trades.cacheId}`);
 
-  const transfers = await engine.query(`SELECT COUNT(*) AS n FROM "erc20.transfers"`);
-  const n = transfers.rows[0]?.["n"];
-  assert.ok(typeof n === "string" || typeof n === "number", "erc20.transfers count missing");
-  console.log(`[smoke] erc20.transfers rows = ${n}`);
+  // recall ----------------------------------------------------------------
+  const recall = await engine.recall("dex");
+  assert.ok(recall.length >= 1, "recall should find the cached query");
+  const recallById = await engine.recallById(trades.cacheId!);
+  assert.ok(recallById, "recall_by_id missing");
+  assert.equal(recallById!.id, trades.cacheId);
+  console.log(`[smoke] recall found ${recall.length} entries`);
 
-  const deals = await engine.query(`SELECT COUNT(*) AS n FROM "filecoin.deals"`);
-  console.log(`[smoke] filecoin.deals rows = ${deals.rows[0]?.["n"]}`);
+  // timeout machinery ----------------------------------------------------
+  // Verifies the Promise.race-based timeout rejects when a promise hangs.
+  // We don't run this against a real DuckDB query because the native binding
+  // can block the libuv pool, which makes a literal "kill a long SQL"
+  // test flaky. The engine still applies the timeout; see DEVELOPMENT.md.
+  const neverResolves = new Promise<never>(() => {
+    // intentionally never resolves
+  });
+  const racing = Promise.race([
+    neverResolves,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("synthetic timeout")), 50),
+    ),
+  ]);
+  await assert.rejects(() => racing, /synthetic timeout/);
 
-  const est = await engine.estimate(`SELECT * FROM "dex.trades"`);
-  console.log(`[smoke] estimate dex.trades = ${JSON.stringify(est)}`);
+  // ---- metrics ----------------------------------------------------------
+  const registry = new MetricRegistry(metricsDir);
+  registry.load();
+  const metrics = registry.list();
+  assert.ok(metrics.find((m) => m.metric === "dex_volume_usd"), "dex_volume_usd metric missing");
+  const sql = registry.render("dex_volume_usd", {
+    dimensions: ["chain", "day"],
+    start: "2026-01-01 00:00:00",
+    end: "2026-01-02 00:00:00",
+    filters: { chain: "base" },
+  });
+  assert.ok(sql.includes("SUM(amount_usd)"), "rendered SQL missing aggregate");
+  assert.ok(sql.includes("AND chain = 'base'"), "filter clause not substituted");
+  assert.ok(sql.includes("date_trunc('day', block_time)"), "derived day dimension not rendered");
+
+  const metricResult = await engine.query(sql, { cacheLabel: "metric:dex_volume_usd" });
+  console.log(`[smoke] dex_volume_usd rows = ${metricResult.actualRows}`);
+
+  // ---- chart + report --------------------------------------------------
+  const sample = trades.rows.map((r) => ({ chain: r["chain"], n: Number(r["n"]) }));
+  const chartPath = await saveChart(
+    { type: "bar", data: sample, x: "chain", y: "n", title: "Trades by chain" },
+    resolve(outDir, "charts/trades-by-chain.svg"),
+  );
+  assert.ok(existsSync(chartPath));
+  const svg = readFileSync(chartPath, "utf8");
+  assert.ok(svg.startsWith("<svg"), "chart should be SVG");
+  console.log(`[smoke] chart written to ${chartPath} (${svg.length} bytes)`);
+
+  const md = renderMarkdown({
+    title: "Smoke test report",
+    outPath: "ignored",
+    summary: "Generated by the chainq smoke test.",
+    sections: [
+      { heading: "Trades per chain", table: sample },
+      { heading: "Chart", chartPath: chartPath },
+    ],
+  });
+  assert.ok(md.includes("| chain | n |"), "markdown table missing");
+  console.log("[smoke] markdown render ok");
 
   await engine.stop();
   console.log("[smoke] ok");

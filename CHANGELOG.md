@@ -9,18 +9,41 @@ Pre-`v0.1.0` is breaking by default; we only call out highlights.
 
 ### Added
 
-- `@chainq/mcp-server` now exposes 5 working MCP tools:
-  `chainq_list_tables`, `chainq_search_tables`, `chainq_describe`,
+- MCP tool surface grew to **11 tools**: discovery (`list_tables`, `search_tables`,
+  `describe`), execution (`estimate_cost`, `query`), semantic
+  (`list_metrics`, `metric`), memory (`recall`, `recall_by_id`), output
+  (`chart_render`, `report`).
+- **Semantic layer**: YAML metric definitions under `packages/semantic/metrics/`
+  with `dimension_expressions` (derived columns like
+  `date_trunc('day', block_time)`) and `guardrails` (max_range_days, max_rows,
+  timeout_seconds). Three starter metrics shipped.
+- **Persistent query cache** (`data/.chainq-cache.duckdb`) backs the `recall`
+  tools — every `query` and `metric` invocation is searchable later.
+- **Chart rendering** via vega-lite → SVG, no node-canvas dependency.
+- **Markdown report writer** with optional frontmatter, tables, and chart embeds.
+- **Per-query timeout** via `Promise.race`. Note: DuckDB's native binding may
+  block libuv, so the timeout reliably rejects the JS promise but cannot
+  always kill the underlying SQL — see DEVELOPMENT.md.
+- **`@chainq/ingest-evm`**: real `cryo` CLI wrapper with `assertCryoInstalled`
+  and a `backfill(opts)` that streams Parquet to disk.
+- **`@chainq/ingest-filecoin`**: Filfox REST + Spacescan REST clients for
+  recent deals and miner snapshots.
+- **`spellbook/`**: dbt-duckdb project skeleton with starter models for
+  `dex.trades`, `erc20.transfers` (+ daily rollup), and `filecoin.deals` (with
+  epoch → UTC conversion).
+- Recursive bigint / Date normalization on query results so JSON serialization
+  is safe regardless of DuckDB column types.
+
+### Earlier (initial commit)
+
+- `chainq_list_tables`, `chainq_search_tables`, `chainq_describe`,
   `chainq_estimate_cost`, `chainq_query`.
-- DuckDB engine that reads Parquet files from `data/` and exposes them as
-  views matching the catalog names (`dex.trades`, `erc20.transfers`, `filecoin.deals`).
-- Hand-curated catalog of three tables with schema, sample rows, and gotchas.
-- `chainq mcp serve` CLI subcommand spawns the MCP server over stdio.
-- `pnpm seed` script generates synthetic Parquet so a fresh checkout has data.
-- In-process smoke test (`scripts/smoke-test.ts`) and end-to-end MCP test
-  (`scripts/mcp-smoke-test.ts`); CI runs both.
-- `DEVELOPMENT.md` with the contributor loop.
-- `docs/COMPARISON.md` — side-by-side vs Dune Free and Analyst.
+- DuckDB engine that reads Parquet files from `data/` as views.
+- Hand-curated catalog of three tables.
+- `chainq mcp serve` CLI subcommand.
+- `pnpm seed` synthetic data generator.
+- Smoke + MCP end-to-end tests in CI.
+- `DEVELOPMENT.md`, `docs/COMPARISON.md`.
 
 ## [0.0.0] — 2026-05-11
 
