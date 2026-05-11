@@ -139,6 +139,85 @@ export const CATALOG: TableDescriptor[] = [
     ],
     partitions: ["start_epoch"],
   },
+  {
+    name: "solana.transfers",
+    description:
+      "SPL token and native SOL transfers on Solana mainnet. One row per transfer instruction (including inner instructions).",
+    chains: ["solana"],
+    columns: [
+      { name: "block_time", type: "TIMESTAMP", description: "When the transaction landed on chain (UTC).", nullable: true },
+      { name: "slot", type: "BIGINT", description: "Solana slot at which the transfer was confirmed.", nullable: true },
+      { name: "signature", type: "VARCHAR", description: "Base58-encoded transaction signature.", nullable: true },
+      { name: "mint", type: "VARCHAR", description: "SPL token mint address. NULL for native SOL transfers.", nullable: true },
+      { name: "from_account", type: "VARCHAR", description: "Source token account or system account.", nullable: true },
+      { name: "to_account", type: "VARCHAR", description: "Destination token account or system account.", nullable: true },
+      { name: "amount", type: "VARCHAR", description: "Raw u64 amount as a decimal string. Decimals NOT applied.", nullable: true },
+      { name: "decimals", type: "INTEGER", description: "Mint decimals at time of transfer (9 for native SOL, typically 6 for stablecoins).", nullable: true },
+    ],
+    gotchas: [
+      "Native SOL transfers have mint = NULL; their `amount` is in lamports (1e9 lamports = 1 SOL).",
+      "`amount` is a decimal string. Use TRY_CAST to apply `decimals` before averaging.",
+      "Solana has no `chain` column — every row is implicitly solana mainnet.",
+    ],
+    lineage: [
+      {
+        source: "Helius RPC enriched transactions endpoint via @chainq/ingest-solana",
+        transform: "Normalised into per-transfer rows in spellbook/models/solana/solana_transfers.sql",
+        dbtModel: "models/solana/solana_transfers.sql",
+      },
+    ],
+    sampleQueries: [
+      {
+        title: "Top mints by transfer count over last N slots",
+        sql: "SELECT mint, COUNT(*) AS transfers FROM solana_transfers WHERE slot >= (SELECT MAX(slot) - 100000 FROM solana_transfers) AND mint IS NOT NULL GROUP BY 1 ORDER BY 2 DESC LIMIT 20",
+      },
+      {
+        title: "Native SOL transfer volume per day",
+        sql: "SELECT date_trunc('day', block_time) AS day, SUM(TRY_CAST(amount AS HUGEINT)) / 1e9 AS sol_volume FROM solana_transfers WHERE mint IS NULL GROUP BY 1 ORDER BY 1",
+      },
+    ],
+    partitions: ["slot"],
+  },
+  {
+    name: "solana.dex.trades",
+    description:
+      "Solana DEX swap events normalized across Jupiter, Orca Whirlpool, Raydium, Meteora DLMM, and Phoenix. One row per swap.",
+    chains: ["solana"],
+    columns: [
+      { name: "block_time", type: "TIMESTAMP", description: "When the swap landed on chain (UTC).", nullable: true },
+      { name: "slot", type: "BIGINT", description: "Solana slot.", nullable: true },
+      { name: "signature", type: "VARCHAR", description: "Base58 transaction signature.", nullable: true },
+      { name: "dex_name", type: "VARCHAR", description: "DEX protocol name (e.g. jupiter, orca_whirlpool, raydium_amm).", nullable: true },
+      { name: "trader", type: "VARCHAR", description: "Wallet that initiated the swap.", nullable: true },
+      { name: "token_in_mint", type: "VARCHAR", description: "Mint of the token sold.", nullable: true },
+      { name: "token_out_mint", type: "VARCHAR", description: "Mint of the token bought.", nullable: true },
+      { name: "amount_in", type: "DECIMAL(24,4)", description: "Amount of token_in sold (human units, decimals applied). Returned as a decimal string.", nullable: true },
+      { name: "amount_out", type: "DECIMAL(24,4)", description: "Amount of token_out bought. Returned as a decimal string.", nullable: true },
+      { name: "amount_usd", type: "DECIMAL(23,2)", description: "USD-equivalent volume at trade time. NULL when pricing was unavailable.", nullable: true },
+    ],
+    gotchas: [
+      "amount_usd may be NULL when off-chain pricing was unavailable.",
+      "Jupiter routes through multiple DEXes — `dex_name='jupiter'` rows represent the aggregator entrypoint, not the underlying venue.",
+    ],
+    lineage: [
+      {
+        source: "Helius RPC enriched transactions endpoint via @chainq/ingest-solana",
+        transform: "Per-DEX swap events decoded and normalised in spellbook/models/solana/solana_dex_trades.sql",
+        dbtModel: "models/solana/solana_dex_trades.sql",
+      },
+    ],
+    sampleQueries: [
+      {
+        title: "Daily USD volume per dex_name",
+        sql: "SELECT date_trunc('day', block_time) AS day, dex_name, SUM(amount_usd) AS volume_usd FROM solana_dex_trades WHERE amount_usd IS NOT NULL GROUP BY 1, 2 ORDER BY 1, 2",
+      },
+      {
+        title: "Top traders by trade count",
+        sql: "SELECT trader, COUNT(*) AS trades FROM solana_dex_trades GROUP BY 1 ORDER BY 2 DESC LIMIT 20",
+      },
+    ],
+    partitions: ["slot"],
+  },
 ];
 
 export function findTable(name: string): TableDescriptor | undefined {

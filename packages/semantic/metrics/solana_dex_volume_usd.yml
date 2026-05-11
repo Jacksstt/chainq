@@ -1,0 +1,28 @@
+metric: solana_dex_volume_usd
+description: |
+  Solana DEX swap volume in USD across supported venues
+  (Jupiter, Orca Whirlpool, Raydium, Meteora DLMM, Phoenix).
+  Aggregates `solana.dex.trades.amount_usd`, excluding rows where
+  pricing was unavailable.
+dimensions:
+  - day
+  - dex_name
+filters:
+  - dex_name
+sql_template: |
+  SELECT
+    {{select_dimensions}},
+    SUM(amount_usd) AS volume_usd
+  FROM "solana.dex.trades"
+  WHERE block_time BETWEEN {{start}} AND {{end}}
+    AND amount_usd IS NOT NULL
+    {{dex_name_clause}}
+  GROUP BY {{group_dimensions}}
+  ORDER BY {{group_dimensions}}
+dimension_expressions:
+  dex_name: dex_name
+  day: "date_trunc('day', block_time)"
+guardrails:
+  max_range_days: 90
+  max_rows: 50000
+  timeout_seconds: 20

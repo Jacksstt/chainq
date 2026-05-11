@@ -30,6 +30,7 @@ export interface CacheEntry {
   result_rows: number;
   elapsed_seconds: number;
   created_at: string;
+  score?: number;
 }
 
 export class Engine {
@@ -188,15 +189,15 @@ export class Engine {
 
   async recall(query: string, limit = 10): Promise<CacheEntry[]> {
     const cache = this.requireCacheConn();
-    const q = `%${query.toLowerCase()}%`;
+    // Pull a bounded slice of the cache and rank it in-process with BM25 so we
+    // can score sql + label tokens jointly instead of running raw LIKE.
     const reader = await cache.runAndReadAll(
       `SELECT id, sql, label, result_rows, elapsed_ms, created_at
        FROM query_cache
-       WHERE LOWER(sql) LIKE ? OR LOWER(COALESCE(label, '')) LIKE ?
-       ORDER BY created_at DESC LIMIT ?`,
-      [q, q, BigInt(limit)],
+       ORDER BY created_at DESC
+       LIMIT 5000`,
     );
-    return reader.getRowObjects().map((row) => ({
+    const rows = reader.getRowObjects().map((row) => ({
       id: String(row["id"]),
       sql: String(row["sql"]),
       label: row["label"] == null ? null : String(row["label"]),
@@ -204,6 +205,58 @@ export class Engine {
       elapsed_seconds: Number(row["elapsed_ms"]) / 1000,
       created_at: String(row["created_at"]),
     }));
+
+    if (rows.length === 0) return [];
+
+    const queryTokens = tokenize(query);
+    const docTokens = rows.map((r) => tokenize(`${r.sql} ${r.label ?? ""}`));
+
+    // If the query produced no tokens, fall through to the recency fallback.
+    if (queryTokens.length > 0) {
+      const N = rows.length;
+      const docLens = docTokens.map((t) => t.length);
+      const avgdl = docLens.reduce((a, b) => a + b, 0) / Math.max(1, N);
+
+      // Document frequency for each unique query term.
+      const df = new Map<string, number>();
+      const uniqQueryTerms = Array.from(new Set(queryTokens));
+      for (const term of uniqQueryTerms) {
+        let count = 0;
+        for (const tokens of docTokens) {
+          if (tokens.includes(term)) count++;
+        }
+        df.set(term, count);
+      }
+
+      const k1 = 1.5;
+      const b = 0.75;
+      const scored = rows.map((row, i) => {
+        const tokens = docTokens[i] ?? [];
+        const dl = docLens[i] ?? 0;
+        const tf = new Map<string, number>();
+        for (const t of tokens) tf.set(t, (tf.get(t) ?? 0) + 1);
+        let score = 0;
+        for (const term of uniqQueryTerms) {
+          const f = tf.get(term) ?? 0;
+          if (f === 0) continue;
+          const dfi = df.get(term) ?? 0;
+          const idf = Math.log((N - dfi + 0.5) / (dfi + 0.5) + 1);
+          const denom = f + k1 * (1 - b + (b * dl) / Math.max(1, avgdl));
+          score += idf * ((f * (k1 + 1)) / denom);
+        }
+        return { ...row, score };
+      });
+
+      const hits = scored.filter((r) => r.score > 0);
+      if (hits.length > 0) {
+        hits.sort((a, b) => b.score - a.score);
+        return hits.slice(0, limit);
+      }
+    }
+
+    // Fallback: no token matches (or empty query). Return recent rows; the
+    // input was already sorted by created_at DESC.
+    return rows.slice(0, limit).map((r) => ({ ...r, score: 0 }));
   }
 
   async recallById(id: string): Promise<(CacheEntry & { result_preview: unknown[] }) | null> {
@@ -350,6 +403,17 @@ export function applyAutoLimit(sql: string, limit: number): string {
     return trimmed;
   }
   return `${trimmed}\nLIMIT ${limit}`;
+}
+
+/**
+ * Lowercase word tokenizer used by `recall`'s BM25 ranking. Splits on the
+ * inverse of `[a-z0-9_]+` and drops tokens shorter than two characters so
+ * single-letter SQL aliases don't bloat the term space.
+ */
+export function tokenize(text: string): string[] {
+  const lower = text.toLowerCase();
+  const matches = lower.match(/[a-z0-9_]+/g) ?? [];
+  return matches.filter((t) => t.length >= 2);
 }
 
 async function runWithTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {

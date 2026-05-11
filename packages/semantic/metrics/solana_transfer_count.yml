@@ -1,0 +1,25 @@
+metric: solana_transfer_count
+description: |
+  Count of SPL token and native SOL transfers on Solana mainnet.
+  Aggregates `solana.transfers` row count, sliced by day and mint.
+dimensions:
+  - day
+  - mint
+filters:
+  - mint
+sql_template: |
+  SELECT
+    {{select_dimensions}},
+    COUNT(*) AS transfer_count
+  FROM "solana.transfers"
+  WHERE block_time BETWEEN {{start}} AND {{end}}
+    {{mint_clause}}
+  GROUP BY {{group_dimensions}}
+  ORDER BY {{group_dimensions}}
+dimension_expressions:
+  mint: mint
+  day: "date_trunc('day', block_time)"
+guardrails:
+  max_range_days: 30
+  max_rows: 50000
+  timeout_seconds: 20

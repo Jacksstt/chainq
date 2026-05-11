@@ -22,7 +22,7 @@
 - [x] MCP tools: `search_tables`, `describe`, `query`, `metric`, `estimate_cost`, `chart_render`, `report`
 - [x] 10 semantic metrics
 - [x] `chainq init` + `chainq pull` + `chainq mcp serve` flow works end-to-end
-- [ ] `chainq ingest backfill` general wrapper (today: per-chain `chainq pull`)
+- [x] `chainq ingest backfill` multi-chain orchestrator
 - [ ] Internal Prime Beat dogfooding on at least one live consulting case
 
 ## v0.2.0 — Quality of life
@@ -31,28 +31,31 @@
 - [x] Cost governor: per-session hard budget (`chainq_budget_set/status/clear`)
 - [x] `report` writes to Obsidian-compatible Markdown with frontmatter
 - [x] Better `describe` output (table lineage, sample queries, partitions, gotchas)
-- [ ] `chart_render` with multiple backends (matplotlib, vega-lite)
-- [ ] Vector-similarity recall on top of LIKE-based recall
+- [x] `chart_render` with multiple formats (SVG / HTML / vega-lite JSON)
+- [x] BM25-ranked recall over the session cache
 
 ## v0.3.0 — Solana
 
-- [ ] Solana ingest via Helius / Yellowstone gRPC
-- [ ] Spellbook-style curated Solana tables: `solana.transfers`, `solana.dex.trades`
-- [ ] First non-EVM metric set
+- [x] Solana ingest skeleton (`@chainq/ingest-solana` — Helius RPC client)
+- [x] Spellbook-style curated Solana tables: `solana.transfers`, `solana.dex.trades`
+- [x] First non-EVM metric set (`solana_transfer_count`, `solana_dex_volume_usd`)
+- [ ] Yellowstone gRPC realtime stream
 
 ## v0.5.0 — Scale
 
 - [ ] Iceberg storage format option
 - [ ] Trino / Starburst backend driver
-- [ ] ClickHouse backend driver (for hot metrics)
+- [x] ClickHouse backend driver scaffold (`@chainq/engine-clickhouse`, impl pending)
 - [ ] Multi-machine ingest
 
 ## v1.0.0 — Public OSS launch
 
 - [ ] Production-ready stability
-- [ ] Documented setup on Linux + macOS
-- [ ] Sample reports gallery
-- [ ] Public landing page
+- [x] Documented setup on Linux (`docs/INSTALL_LINUX.md`) + macOS
+- [x] Sample reports gallery (`docs/reports/`)
+- [x] Public landing page (`docs/site/index.html`)
+- [x] Structured error codes (`@chainq/core` `ChainqError` + `ChainqErrorCode`)
+- [x] CI matrix: Node 20 / 22 × Ubuntu / macOS
 - [ ] HN / X launch
 
 ## Beyond v1

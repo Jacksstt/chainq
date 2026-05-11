@@ -7,10 +7,16 @@ import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { z } from "zod";
 import { resolve, join } from "node:path";
 
+import type { ChainqErrorCode, ChainqErrorShape } from "@chainq/core";
 import { CATALOG, findTable, searchTables } from "./catalog.js";
 import { Engine } from "./engine.js";
 import { MetricRegistry } from "./metrics.js";
-import { saveChart, type ChartType } from "./charts.js";
+import {
+  saveChart,
+  inferFormatFromExt,
+  type ChartType,
+  type ChartFormat,
+} from "./charts.js";
 import { writeReport } from "./report.js";
 import { BudgetTracker } from "./budget.js";
 
@@ -64,7 +70,7 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
     { table: z.string() },
     async ({ table }) => {
       const t = findTable(table);
-      return t ? json(t) : error(`Unknown table: ${table}`);
+      return t ? json(t) : error(`Unknown table: ${table}`, "UNKNOWN_TABLE", { table });
     },
   );
 
@@ -82,7 +88,7 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
           decision: budget.checkEstimate(estimate),
         });
       } catch (err) {
-        return error(`estimate failed: ${(err as Error).message}`);
+        return error(`estimate failed: ${(err as Error).message}`, "ESTIMATE_FAILED");
       }
     },
   );
@@ -103,6 +109,8 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
         if (!decision.allowed) {
           return error(
             `budget exceeded: ${decision.reason ?? "cap would be breached"} ${JSON.stringify(decision.wouldExceed ?? {})}`,
+            "BUDGET_EXCEEDED",
+            decision.wouldExceed,
           );
         }
         const result = await engine.query(sql, {
@@ -117,7 +125,9 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
         });
         return json({ ...result, budget: budget.status() });
       } catch (err) {
-        return error(`query failed: ${(err as Error).message}`);
+        const msg = (err as Error).message;
+        const code: ChainqErrorCode = /timeout/i.test(msg) ? "QUERY_TIMEOUT" : "QUERY_FAILED";
+        return error(`query failed: ${msg}`, code);
       }
     },
   );
@@ -154,7 +164,7 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
     },
     async ({ metric, dimensions, filters, start, end, start_epoch, end_epoch, max_rows }) => {
       const spec = registry.get(metric);
-      if (!spec) return error(`unknown metric: ${metric}`);
+      if (!spec) return error(`unknown metric: ${metric}`, "UNKNOWN_METRIC", { metric });
       let sql: string;
       try {
         sql = registry.render(metric, {
@@ -166,7 +176,7 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
           end_epoch,
         });
       } catch (err) {
-        return error(`render failed: ${(err as Error).message}`);
+        return error(`render failed: ${(err as Error).message}`, "INVALID_INPUT");
       }
       try {
         const estimate = await engine.estimate(sql);
@@ -174,6 +184,8 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
         if (!decision.allowed) {
           return error(
             `budget exceeded: ${decision.reason ?? "cap would be breached"} ${JSON.stringify(decision.wouldExceed ?? {})}`,
+            "BUDGET_EXCEEDED",
+            decision.wouldExceed,
           );
         }
         const result = await engine.query(sql, {
@@ -188,7 +200,7 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
         });
         return json({ metric, sql, result, budget: budget.status() });
       } catch (err) {
-        return error(`metric ${metric} failed: ${(err as Error).message}`);
+        return error(`metric ${metric} failed: ${(err as Error).message}`, "QUERY_FAILED");
       }
     },
   );
@@ -205,7 +217,7 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
       try {
         return json(await engine.recall(query, limit));
       } catch (err) {
-        return error(`recall failed: ${(err as Error).message}`);
+        return error(`recall failed: ${(err as Error).message}`, "RECALL_FAILED");
       }
     },
   );
@@ -217,9 +229,9 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
     async ({ id }) => {
       try {
         const entry = await engine.recallById(id);
-        return entry ? json(entry) : error(`no cache entry: ${id}`);
+        return entry ? json(entry) : error(`no cache entry: ${id}`, "RECALL_FAILED", { id });
       } catch (err) {
-        return error(`recall_by_id failed: ${(err as Error).message}`);
+        return error(`recall_by_id failed: ${(err as Error).message}`, "RECALL_FAILED");
       }
     },
   );
@@ -227,7 +239,7 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
   // -------- chart_render -------------------------------------------------
   server.tool(
     "chainq_chart_render",
-    "Render a vega-lite chart from a result-set and save an SVG file.",
+    "Render a vega-lite chart from a result-set and save it. Supports three output formats: 'svg' (static, server-rendered), 'html' (single-file interactive page loading vega via CDN), and 'vegalite-json' (raw vega-lite TopLevelSpec for downstream tooling). If `format` is omitted, it is inferred from the filename extension (.svg / .html / .json) and falls back to 'svg'.",
     {
       type: z.enum(["line", "bar", "area", "point"]),
       data: z.array(z.record(z.string(), z.unknown())),
@@ -236,16 +248,23 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
       color: z.string().optional(),
       title: z.string().optional(),
       filename: z.string().describe("Filename (relative to the configured outDir)."),
+      format: z
+        .enum(["svg", "html", "vegalite-json"])
+        .optional()
+        .describe("Output format. Inferred from filename extension if omitted."),
     },
-    async ({ type, data, x, y, color, title, filename }) => {
+    async ({ type, data, x, y, color, title, filename, format }) => {
       try {
+        const outPath = join(outDir, "charts", filename);
+        const chosen: ChartFormat = format ?? inferFormatFromExt(outPath) ?? "svg";
         const path = await saveChart(
           { type: type as ChartType, data, x, y, color, title },
-          join(outDir, "charts", filename),
+          outPath,
+          chosen,
         );
-        return json({ path, format: "svg", rows: data.length });
+        return json({ path, format: chosen, rows: data.length });
       } catch (err) {
-        return error(`chart_render failed: ${(err as Error).message}`);
+        return error(`chart_render failed: ${(err as Error).message}`, "CHART_FAILED");
       }
     },
   );
@@ -280,7 +299,7 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
         });
         return json({ path });
       } catch (err) {
-        return error(`report failed: ${(err as Error).message}`);
+        return error(`report failed: ${(err as Error).message}`, "REPORT_FAILED");
       }
     },
   );
@@ -333,6 +352,18 @@ function json(value: unknown) {
   return { content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }] };
 }
 
-function error(message: string) {
-  return { isError: true, content: [{ type: "text" as const, text: message }] };
+function error(
+  message: string,
+  code: ChainqErrorCode = "UNKNOWN",
+  details?: Record<string, unknown>,
+) {
+  const payload: ChainqErrorShape = {
+    code,
+    message,
+    ...(details ? { details } : {}),
+  };
+  return {
+    isError: true,
+    content: [{ type: "text" as const, text: JSON.stringify(payload) }],
+  };
 }

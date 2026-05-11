@@ -95,3 +95,49 @@ export type CostBudget =
   | { type: "credits"; max: number }
   | { type: "rows"; max: number }
   | { type: "seconds"; max: number };
+
+// ---------------------------------------------------------------------------
+// Error codes
+// ---------------------------------------------------------------------------
+
+/**
+ * Structured error codes surfaced through the MCP server so clients can
+ * branch on failure reasons without parsing free-form English messages.
+ */
+export type ChainqErrorCode =
+  | "BUDGET_EXCEEDED"
+  | "UNKNOWN_TABLE"
+  | "UNKNOWN_METRIC"
+  | "QUERY_TIMEOUT"
+  | "QUERY_FAILED"
+  | "ESTIMATE_FAILED"
+  | "INVALID_INPUT"
+  | "RECALL_FAILED"
+  | "CHART_FAILED"
+  | "REPORT_FAILED"
+  | "UNKNOWN";
+
+export interface ChainqErrorShape {
+  code: ChainqErrorCode;
+  message: string;
+  /** Optional structured details — budget breach, missing field, etc. */
+  details?: Record<string, unknown>;
+}
+
+export class ChainqError extends Error implements ChainqErrorShape {
+  readonly code: ChainqErrorCode;
+  readonly details?: Record<string, unknown>;
+  constructor(code: ChainqErrorCode, message: string, details?: Record<string, unknown>) {
+    super(message);
+    this.code = code;
+    this.details = details;
+    this.name = "ChainqError";
+  }
+  toJSON(): ChainqErrorShape {
+    return {
+      code: this.code,
+      message: this.message,
+      ...(this.details ? { details: this.details } : {}),
+    };
+  }
+}

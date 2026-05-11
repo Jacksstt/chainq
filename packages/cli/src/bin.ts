@@ -13,8 +13,10 @@
 
 import { resolve, dirname, join } from "node:path";
 import { spawn } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { runInit } from "./init.js";
+import { runBackfill, type BackfillRange } from "./backfill.js";
 
 const args = process.argv.slice(2);
 
@@ -27,6 +29,8 @@ function usage(): void {
       "  chainq help",
       "  chainq init [path] [--force]    Initialise a chainq workspace.",
       "  chainq pull --chain <id> --from N --to N [--topic0 0x...]",
+      "  chainq ingest backfill --plan <plan.json>",
+      "  chainq ingest backfill --chains <list> --from N --to M [--concurrency K]",
       "  chainq mcp serve [--stdio]             Start the MCP server.",
       "  chainq seed                            Write sample parquet files to ./data.",
       "",
@@ -67,6 +71,15 @@ async function main() {
     case "pull":
       await runPull(rest);
       return;
+
+    case "ingest": {
+      if (rest[0] !== "backfill") {
+        console.error(`Unknown subcommand: chainq ingest ${rest[0] ?? ""}`);
+        process.exit(1);
+      }
+      await runIngestBackfill(rest.slice(1));
+      return;
+    }
 
     default:
       console.error(`Unknown command: ${cmd}`);
@@ -171,6 +184,138 @@ async function runPull(restArgs: string[]): Promise<void> {
     ...(opts["topic0"] ? { logFilter: { topic0: [opts["topic0"]] } } : {}),
   });
   console.error(`[pull] wrote ${result.rows} rows to ${result.outputPath}`);
+}
+
+async function runIngestBackfill(restArgs: string[]): Promise<void> {
+  const opts = parseFlags(restArgs);
+  const planPath = opts["plan"];
+  const chains = opts["chains"];
+
+  if (planPath && chains) {
+    console.error("error: --plan and --chains are mutually exclusive");
+    process.exit(1);
+  }
+
+  let ranges: BackfillRange[];
+  if (planPath) {
+    let raw: string;
+    try {
+      raw = readFileSync(resolve(planPath), "utf8");
+    } catch (err) {
+      console.error(
+        `error: failed to read plan '${planPath}': ${err instanceof Error ? err.message : String(err)}`,
+      );
+      process.exit(1);
+    }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (err) {
+      console.error(
+        `error: plan '${planPath}' is not valid JSON: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      process.exit(1);
+    }
+    if (!Array.isArray(parsed)) {
+      console.error("error: plan must be a JSON array of BackfillRange");
+      process.exit(1);
+    }
+    ranges = parsed.map((r, i) => {
+      if (
+        !r ||
+        typeof r !== "object" ||
+        typeof (r as Record<string, unknown>)["chain"] !== "string" ||
+        typeof (r as Record<string, unknown>)["fromBlock"] !== "number" ||
+        typeof (r as Record<string, unknown>)["toBlock"] !== "number"
+      ) {
+        console.error(`error: plan entry [${i}] missing chain/fromBlock/toBlock`);
+        process.exit(1);
+      }
+      const obj = r as Record<string, unknown>;
+      const range: BackfillRange = {
+        chain: obj["chain"] as string,
+        fromBlock: obj["fromBlock"] as number,
+        toBlock: obj["toBlock"] as number,
+      };
+      if (typeof obj["topic0"] === "string") range.topic0 = obj["topic0"];
+      return range;
+    });
+  } else if (chains) {
+    const from = Number(opts["from"]);
+    const to = Number(opts["to"]);
+    if (!Number.isFinite(from) || !Number.isFinite(to)) {
+      console.error(
+        "usage: chainq ingest backfill --chains <list> --from N --to M [--concurrency K] [--topic0 0x...]",
+      );
+      process.exit(1);
+    }
+    const chainList = chains
+      .split(",")
+      .map((c) => c.trim())
+      .filter((c) => c.length > 0);
+    if (chainList.length === 0) {
+      console.error("error: --chains is empty");
+      process.exit(1);
+    }
+    ranges = chainList.map((chain) => {
+      const range: BackfillRange = { chain, fromBlock: from, toBlock: to };
+      if (opts["topic0"]) range.topic0 = opts["topic0"];
+      return range;
+    });
+  } else {
+    console.error(
+      "usage:\n" +
+        "  chainq ingest backfill --plan <plan.json>\n" +
+        "  chainq ingest backfill --chains <list> --from N --to M [--concurrency K]",
+    );
+    process.exit(1);
+  }
+
+  const concurrency = opts["concurrency"] ? Number(opts["concurrency"]) : undefined;
+  if (concurrency !== undefined && !Number.isFinite(concurrency)) {
+    console.error("error: --concurrency must be a number");
+    process.exit(1);
+  }
+
+  const outDir = resolve(process.env.CHAINQ_DATA_DIR ?? "./data");
+  console.error(
+    `[backfill] ranges=${ranges.length} concurrency=${concurrency ?? 2} outDir=${outDir}`,
+  );
+
+  const result = await runBackfill({
+    ranges,
+    outDir,
+    ...(concurrency !== undefined ? { concurrency } : {}),
+  });
+
+  // Summary: ok-range count by chain. BackfillResult only exposes total
+  // rows globally, so we report that plus per-chain success counts.
+  const okByChain = new Map<string, number>();
+  for (const r of result.ok) {
+    okByChain.set(r.chain, (okByChain.get(r.chain) ?? 0) + 1);
+  }
+
+  console.error("");
+  console.error(
+    `ok: ${result.ok.length} ranges, failed: ${result.failed.length}, total rows: ${result.totalRows}`,
+  );
+  if (okByChain.size > 0) {
+    console.error("by chain (ok ranges):");
+    for (const [chain, count] of okByChain) {
+      console.error(`  ${chain}: ${count}`);
+    }
+  }
+  if (result.failed.length > 0) {
+    console.error(`failed: ${result.failed.length} range${result.failed.length === 1 ? "" : "s"}`);
+    for (const f of result.failed) {
+      console.error(
+        `  ${f.range.chain} [${f.range.fromBlock}..${f.range.toBlock}] — ${f.error}`,
+      );
+    }
+  }
+  console.error(`elapsed: ${result.elapsedSeconds.toFixed(2)}s`);
+
+  if (result.failed.length > 0) process.exit(1);
 }
 
 function parseFlags(args: string[]): Record<string, string> {

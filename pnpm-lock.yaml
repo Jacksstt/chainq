@@ -41,6 +41,12 @@ importers:
 
   packages/core: {}
 
+  packages/engine-clickhouse:
+    dependencies:
+      '@chainq/core':
+        specifier: workspace:*
+        version: link:../core
+
   packages/ingest-evm:
     dependencies:
       '@chainq/core':
