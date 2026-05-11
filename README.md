@@ -66,10 +66,11 @@ Nansen shipped an excellent agent-facing CLI in 2026. We respect it. But it's cl
 
 What's **proven working** (in CI / smoke tests / dbt run / live mainnet):
 
+- **45 chains supported end-to-end**: 43 EVM via public Subsquid archives + Solana (Helius) + Filecoin (Filfox / Spacescan). Reachability is probed on every push; the live list is at [docs/SUPPORTED-CHAINS.md](docs/SUPPORTED-CHAINS.md)
 - **18 MCP tools** across 8 capability groups (discovery / execution / semantic / analytics / recall / render / report / budget)
-- **10 curated catalog tables**: `dex.trades`, `erc20.transfers`, `prices.usd`, `labels.addresses`, `filecoin.deals`, `solana.transfers`, `solana.dex.trades`, `nft.trades`, `lending.events`, `bridge.transfers`
-- **20 semantic-layer metrics**, including cross-table joins (DEX × prices, ERC-20 × labels, sanctioned exposure)
-- **dbt-duckdb spellbook: 18 working models, 25 dbt tests** — schema constraints (`not_null`, `accepted_values`) enforced at build time
+- **11 curated catalog tables**: `base.logs`, `dex.trades`, `erc20.transfers`, `prices.usd`, `labels.addresses`, `filecoin.deals`, `solana.transfers`, `solana.dex.trades`, `nft.trades`, `lending.events`, `bridge.transfers`
+- **21 semantic-layer metrics**, including cross-table joins (DEX × prices, ERC-20 × labels, sanctioned exposure) and a live-data metric (`base_logs_hourly`)
+- **dbt-duckdb spellbook: 23 working models, 42 dbt tests** — schema constraints (`not_null`, `accepted_values`) enforced at build time, plus a topic0 decoder (raw logs → ERC-20 Transfer events) that closes the loop on live data
 - **Live Base mainnet ingest**: `chainq pull --chain base --from 24000000 --to 24000010` against the public Subsquid archive returned **6,534 logs across 11 blocks** with the expected 2-second cadence and `WETH (0x4200…0006)` + `USDC (0x833589fc…02913)` as the top emitters — full evidence at [docs/LIVE-INGEST-PROOF.md](docs/LIVE-INGEST-PROOF.md)
 - **Bilingual single-file HTML reports** (JA / EN / both with CSS toggle, no JS), brand customisation, interactive vega-embed charts, CSV download chips
 - **Per-session cost governor** (`chainq_budget_set/status/clear`) with structured `BUDGET_EXCEEDED` errors and BM25-ranked `chainq_recall`

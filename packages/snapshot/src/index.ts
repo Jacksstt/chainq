@@ -128,14 +128,69 @@ export async function pull(opts: PullOptions): Promise<PullResult> {
 }
 
 /**
- * Convenience: well-known public Subsquid archive URLs.
+ * Public Subsquid archives.
+ *
+ * Every entry points at a v2 archive URL of the form
+ *   https://v2.archive.subsquid.io/network/<archive-slug>
+ * and is reachable without any API key. Reachability is probed by
+ * `scripts/probe-archives.ts` — the results live in
+ * `docs/SUPPORTED-CHAINS.md`. An entry being present here means we know
+ * the URL pattern; whether it is currently UP is what the probe records.
+ *
+ * Adding a chain: append a row, then run
+ *   pnpm exec tsx scripts/probe-archives.ts --write
  */
 export const PUBLIC_ARCHIVES: Record<string, string> = {
-  ethereum: "https://v2.archive.subsquid.io/network/ethereum-mainnet",
-  base: "https://v2.archive.subsquid.io/network/base-mainnet",
-  polygon: "https://v2.archive.subsquid.io/network/polygon",
-  arbitrum: "https://v2.archive.subsquid.io/network/arbitrum-one",
-  optimism: "https://v2.archive.subsquid.io/network/optimism-mainnet",
+  // ---------- L1 EVM ----------
+  ethereum:          "https://v2.archive.subsquid.io/network/ethereum-mainnet",
+  bnb:               "https://v2.archive.subsquid.io/network/binance-mainnet",
+  avalanche:         "https://v2.archive.subsquid.io/network/avalanche-mainnet",
+  sonic:             "https://v2.archive.subsquid.io/network/sonic-mainnet",
+  gnosis:            "https://v2.archive.subsquid.io/network/gnosis-mainnet",
+  celo:              "https://v2.archive.subsquid.io/network/celo-mainnet",
+  moonbeam:          "https://v2.archive.subsquid.io/network/moonbeam-mainnet",
+  moonriver:         "https://v2.archive.subsquid.io/network/moonriver-mainnet",
+  canto:             "https://v2.archive.subsquid.io/network/canto",
+  bera:              "https://v2.archive.subsquid.io/network/berachain-mainnet",
+  polygon:           "https://v2.archive.subsquid.io/network/polygon-mainnet",
+  tron:              "https://v2.archive.subsquid.io/network/tron-mainnet",
+  monad:             "https://v2.archive.subsquid.io/network/monad-mainnet",
+  plume:             "https://v2.archive.subsquid.io/network/plume",
+
+  // ---------- Ethereum L2 / rollups ----------
+  base:              "https://v2.archive.subsquid.io/network/base-mainnet",
+  arbitrum:          "https://v2.archive.subsquid.io/network/arbitrum-one",
+  optimism:          "https://v2.archive.subsquid.io/network/optimism-mainnet",
+  "arbitrum-nova":   "https://v2.archive.subsquid.io/network/arbitrum-nova",
+  linea:             "https://v2.archive.subsquid.io/network/linea-mainnet",
+  scroll:            "https://v2.archive.subsquid.io/network/scroll-mainnet",
+  zksync:            "https://v2.archive.subsquid.io/network/zksync-mainnet",
+  "polygon-zkevm":   "https://v2.archive.subsquid.io/network/polygon-zkevm-mainnet",
+  mode:              "https://v2.archive.subsquid.io/network/mode-mainnet",
+  blast:             "https://v2.archive.subsquid.io/network/blast-l2-mainnet",
+  mantle:            "https://v2.archive.subsquid.io/network/mantle-mainnet",
+  manta:             "https://v2.archive.subsquid.io/network/manta-pacific",
+  metis:             "https://v2.archive.subsquid.io/network/metis-mainnet",
+  zora:              "https://v2.archive.subsquid.io/network/zora-mainnet",
+  taiko:             "https://v2.archive.subsquid.io/network/taiko-mainnet",
+  unichain:          "https://v2.archive.subsquid.io/network/unichain-mainnet",
+  soneium:           "https://v2.archive.subsquid.io/network/soneium-mainnet",
+  ink:               "https://v2.archive.subsquid.io/network/ink-mainnet",
+  abstract:          "https://v2.archive.subsquid.io/network/abstract-mainnet",
+  cyber:             "https://v2.archive.subsquid.io/network/cyber-mainnet",
+  merlin:            "https://v2.archive.subsquid.io/network/merlin-mainnet",
+  hemi:              "https://v2.archive.subsquid.io/network/hemi-mainnet",
+  shibarium:         "https://v2.archive.subsquid.io/network/shibarium",
+
+  // ---------- App / gaming chains ----------
+  dogechain:         "https://v2.archive.subsquid.io/network/dogechain-mainnet",
+  "dfk-chain":       "https://v2.archive.subsquid.io/network/dfk-chain",
+  beam:              "https://v2.archive.subsquid.io/network/beam-mainnet",
+  flare:             "https://v2.archive.subsquid.io/network/flare-mainnet",
+
+  // ---------- Misc EVM ----------
+  okx:               "https://v2.archive.subsquid.io/network/xlayer-mainnet",
+  hyperliquid:       "https://v2.archive.subsquid.io/network/hyperliquid-mainnet",
 };
 
 interface LogRow {
