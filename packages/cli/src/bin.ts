@@ -11,7 +11,7 @@
  *   seed                                    Write sample parquet files to ./data.
  */
 
-import { resolve, dirname } from "node:path";
+import { resolve, dirname, join } from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
@@ -75,8 +75,10 @@ async function main() {
 }
 
 function packageRoot(): string {
+  // bin.ts lives at <root>/packages/cli/src/bin.ts, so three "..":
+  //   src → cli → packages → <root>.
   const here = dirname(fileURLToPath(import.meta.url));
-  return resolve(here, "..", "..", "..", "..");
+  return resolve(here, "..", "..", "..");
 }
 
 async function runMcpServe(): Promise<void> {
@@ -84,9 +86,15 @@ async function runMcpServe(): Promise<void> {
     "@modelcontextprotocol/sdk/server/stdio.js"
   );
   const { startServer } = await import("@chainq/mcp-server");
-  const dataDir = resolve(process.env.CHAINQ_DATA_DIR ?? "./data");
+  // Resolve paths relative to the chainq install root, not the CWD, so the
+  // MCP server works no matter where the host (Claude Code, IDE) spawns it.
+  const root = packageRoot();
+  const dataDir = resolve(process.env.CHAINQ_DATA_DIR ?? join(root, "data"));
+  const metricsDir = resolve(
+    process.env.CHAINQ_METRICS_DIR ?? join(root, "packages/semantic/metrics"),
+  );
   const transport = new StdioServerTransport();
-  await startServer(transport, { dataDir });
+  await startServer(transport, { dataDir, metricsDir });
 }
 
 async function runSeed(): Promise<void> {

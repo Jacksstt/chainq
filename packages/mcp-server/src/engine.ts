@@ -57,9 +57,8 @@ export class Engine {
     for (const table of CATALOG) {
       const file = join(this.opts.dataDir, `${table.name}.parquet`);
       if (!existsSync(file)) continue;
-      await this.conn.run(`CREATE VIEW "${table.name}" AS SELECT * FROM read_parquet('${file}')`);
-      const flat = table.name.replace(/\./g, "_");
-      await this.conn.run(`CREATE VIEW "${flat}" AS SELECT * FROM "${table.name}"`);
+      const physical = table.name.replace(/\./g, "_");
+      await this.conn.run(`CREATE VIEW "${physical}" AS SELECT * FROM read_parquet('${file}')`);
     }
 
     const cacheInstance = await DuckDBInstance.create(this.opts.cacheDbPath);
@@ -143,8 +142,10 @@ export class Engine {
     const timeoutSeconds = opts.timeoutSeconds ?? this.opts.defaultTimeoutSeconds;
 
     const started = Date.now();
+    const rewritten = rewriteCuratedNames(sql);
+    const prepared = applyAutoLimit(rewritten, maxRows + 1);
     const reader = await runWithTimeout(
-      conn.runAndReadAll(`${sql}\nLIMIT ${maxRows + 1}`),
+      conn.runAndReadAll(prepared),
       timeoutSeconds * 1000,
       `query exceeded ${timeoutSeconds}s timeout`,
     );
@@ -226,12 +227,13 @@ export class Engine {
   }
 }
 
-function normalize(value: unknown): unknown {
+export function normalize(value: unknown): unknown {
   if (value == null) return value;
   if (typeof value === "bigint") return value.toString();
   if (value instanceof Date) return value.toISOString();
   if (Array.isArray(value)) return value.map(normalize);
   if (typeof value === "object") {
+    if (isDuckDbDecimal(value)) return decimalToString(value);
     const obj = value as Record<string, unknown>;
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(obj)) {
@@ -240,6 +242,82 @@ function normalize(value: unknown): unknown {
     return out;
   }
   return value;
+}
+
+interface DuckDbDecimal {
+  width: number;
+  scale: number;
+  value: bigint | string | number;
+}
+
+function isDuckDbDecimal(v: object): v is DuckDbDecimal {
+  const o = v as Record<string, unknown>;
+  if (!("width" in o) || !("scale" in o) || !("value" in o)) return false;
+  if (typeof o.width !== "number" || typeof o.scale !== "number") return false;
+  const t = typeof o.value;
+  return t === "bigint" || t === "string" || t === "number";
+}
+
+/**
+ * Convert a DuckDB DECIMAL value to a precision-preserving decimal string.
+ *   { width: 21, scale: 1, value: "15" } → "1.5"
+ *   { width: 23, scale: 2, value: "-1234" } → "-12.34"
+ *   { width: 38, scale: 18, value: "1" } → "0.000000000000000001"
+ */
+export function decimalToString(d: DuckDbDecimal): string {
+  const raw = typeof d.value === "bigint" ? d.value.toString() : String(d.value);
+  const neg = raw.startsWith("-");
+  const digits = neg ? raw.slice(1) : raw;
+  const scale = Math.max(0, d.scale | 0);
+  let body: string;
+  if (scale === 0) {
+    body = digits;
+  } else if (digits.length <= scale) {
+    const padded = digits.padStart(scale + 1, "0");
+    body = padded.slice(0, -scale) + "." + padded.slice(-scale);
+  } else {
+    body = digits.slice(0, -scale) + "." + digits.slice(-scale);
+  }
+  return neg ? "-" + body : body;
+}
+
+/**
+ * Rewrite curated logical names like "dex.trades" / dex.trades into the
+ * underscore-form physical view name (dex_trades). Allows callers to write
+ * either form in SQL.
+ */
+export function rewriteCuratedNames(sql: string): string {
+  let out = sql;
+  for (const table of CATALOG) {
+    const physical = table.name.replace(/\./g, "_");
+    if (physical === table.name) continue;
+    // Quoted form: "dex.trades" → dex_trades
+    out = out.split(`"${table.name}"`).join(physical);
+    // Unquoted dotted form, used only when not adjacent to identifier chars
+    // (so we don't touch things like sometable.dex.trades).
+    const escaped = table.name.replace(/[.]/g, "\\.");
+    const re = new RegExp(`(?<![\\w."'])${escaped}(?![\\w."'])`, "g");
+    out = out.replace(re, physical);
+  }
+  return out;
+}
+
+/**
+ * Append `LIMIT N` to a SQL statement only when it is a plain SELECT/WITH that
+ * does not already carry an outer LIMIT. Leaves PRAGMA, DDL, EXPLAIN, SHOW,
+ * CALL, COPY, and statements with existing LIMIT untouched.
+ */
+export function applyAutoLimit(sql: string, limit: number): string {
+  const trimmed = sql.trim().replace(/;\s*$/, "");
+  // Detect the first significant token, skipping line and block comments.
+  const head = trimmed.replace(/^(?:\s|--[^\n]*\n|\/\*[\s\S]*?\*\/)+/, "");
+  if (!/^(?:select|with)\b/i.test(head)) {
+    return trimmed;
+  }
+  if (/\blimit\s+\d+(?:\s+offset\s+\d+)?\s*$/i.test(trimmed)) {
+    return trimmed;
+  }
+  return `${trimmed}\nLIMIT ${limit}`;
 }
 
 async function runWithTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
