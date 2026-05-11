@@ -16,7 +16,10 @@
     "test": "echo 'no tests yet'"
   },
   "dependencies": {
-    "@chainq/core": "workspace:*"
+    "@chainq/core": "workspace:*",
+    "@duckdb/node-api": "1.5.2-r.1",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^4.4.3"
   },
   "license": "MIT"
 }

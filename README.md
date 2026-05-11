@@ -54,33 +54,49 @@ Nansen shipped an excellent agent-facing CLI in 2026. We respect it. But it's cl
 
 **Pre-alpha.** Active development. APIs will break without notice until `0.1.0`. See [docs/ROADMAP.md](docs/ROADMAP.md).
 
-## Quickstart (target API, not all implemented yet)
+## Quickstart
+
+This will give you a running MCP server with synthetic sample data — enough
+for Claude Code to introspect schemas and run real DuckDB queries.
 
 ```bash
-# Install
-pnpm add -g @chainq/cli
+git clone https://github.com/Jacksstt/chainq.git
+cd chainq
+pnpm install
+pnpm seed              # generate sample Parquet files in ./data
+pnpm test              # typecheck + smoke + MCP end-to-end test
+pnpm mcp:serve         # start the MCP server over stdio
+```
 
-# Initialize a workspace
-chainq init --chain ethereum,base,filecoin --data ~/PrimeBeat-Data
+Wire it into Claude Code (one-time):
 
-# Backfill 100k blocks of raw data (uses cryo for EVM)
-chainq ingest backfill --blocks 100k --rpc $ETHEREUM_RPC
-
-# Build curated tables (dbt + Spellbook fork)
-chainq transform run
-
-# Start the MCP server
-chainq mcp serve --port 7900
-
-# Wire it to Claude Code (one-time)
-claude mcp add chainq -- chainq mcp serve --stdio
+```bash
+claude mcp add chainq -- pnpm --dir /absolute/path/to/chainq mcp:serve
 ```
 
 Then in Claude Code:
 
-> _"Investigate the Storacha project on Filecoin. Look at deal volume, top clients, and recent storage provider activity over the last 90 days. Save a report to my vault."_
+> _"Use chainq. Tell me how many DEX trades happened on Base, and show me a query against `dex.trades` aggregated by hour."_
 
-The agent will call `search_tables`, `describe`, `estimate_cost`, `metric`, `chart_render`, and `report` in sequence — and you get a markdown report with charts.
+The agent will call `chainq_list_tables`, `chainq_describe`, `chainq_estimate_cost`,
+and `chainq_query` in sequence and stream results back.
+
+### What's working today (v0.0.x)
+
+- `chainq_list_tables` — enumerate the catalog
+- `chainq_search_tables` — natural-language search by name/description
+- `chainq_describe` — schema, sample rows, gotchas
+- `chainq_estimate_cost` — best-effort row / cost estimate
+- `chainq_query` — DuckDB SQL over Parquet with row caps
+
+### What's not yet implemented
+
+- Real cryo / Subsquid / Filfox ingest (stubs only)
+- Semantic-layer metrics
+- Chart rendering, report-to-vault
+- Spellbook dbt models (catalog is hand-curated for now)
+
+See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ## Why not just use Dune?
 

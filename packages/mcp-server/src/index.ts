@@ -1,40 +1,9 @@
 /**
- * @chainq/mcp-server — MCP tools that expose chainq to AI agents.
- *
- * Currently a placeholder. Real MCP SDK wiring lands in v0.0.1.
+ * Public surface of @chainq/mcp-server.
  */
 
-import type {
-  QueryEstimate,
-  QueryResult,
-  TableDescriptor,
-  MetricDescriptor,
-} from "@chainq/core";
-
-export interface ChainqMcpServer {
-  searchTables(query: string, chain?: string): Promise<TableDescriptor[]>;
-  describe(table: string): Promise<TableDescriptor>;
-  listMetrics(): Promise<MetricDescriptor[]>;
-  estimateCost(sql: string): Promise<QueryEstimate>;
-  query(sql: string, maxRows?: number, timeoutSeconds?: number): Promise<QueryResult>;
-}
-
-export function createServer(): ChainqMcpServer {
-  return {
-    async searchTables(_query, _chain) {
-      throw new Error("not implemented");
-    },
-    async describe(_table) {
-      throw new Error("not implemented");
-    },
-    async listMetrics() {
-      throw new Error("not implemented");
-    },
-    async estimateCost(_sql) {
-      throw new Error("not implemented");
-    },
-    async query(_sql, _maxRows, _timeoutSeconds) {
-      throw new Error("not implemented");
-    },
-  };
-}
+export { startServer } from "./server.js";
+export type { ServerOptions } from "./server.js";
+export { Engine } from "./engine.js";
+export type { EngineOptions } from "./engine.js";
+export { CATALOG, findTable, searchTables } from "./catalog.js";

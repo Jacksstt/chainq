@@ -13,14 +13,20 @@
     "build": "pnpm -r build",
     "dev": "pnpm -r --parallel dev",
     "lint": "pnpm -r lint",
-    "test": "pnpm -r test",
+    "test": "pnpm typecheck && pnpm seed && pnpm test:smoke && pnpm test:mcp",
+    "test:smoke": "tsx scripts/smoke-test.ts",
+    "test:mcp": "tsx scripts/mcp-smoke-test.ts",
     "typecheck": "pnpm -r typecheck",
+    "seed": "tsx scripts/seed-sample-data.ts",
+    "mcp:serve": "tsx packages/cli/src/bin.ts mcp serve",
     "clean": "pnpm -r clean && rm -rf node_modules"
   },
   "devDependencies": {
+    "@duckdb/node-api": "1.5.2-r.1",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@types/node": "^22.0.0",
-    "typescript": "^5.6.0",
-    "tsx": "^4.19.0"
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
   },
   "keywords": [
     "blockchain",

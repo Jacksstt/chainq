@@ -16,7 +16,8 @@
   },
   "dependencies": {
     "@chainq/core": "workspace:*",
-    "@chainq/mcp-server": "workspace:*"
+    "@chainq/mcp-server": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.29.0"
   },
   "license": "MIT"
 }
