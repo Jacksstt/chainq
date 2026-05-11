@@ -120,3 +120,21 @@ models:
         tests: [not_null, unique]
       - name: logs
         tests: [not_null]
+
+  - name: base_logs_decoded
+    description: Base raw logs left-joined to a topic0 → event_name dictionary.
+    columns:
+      - name: topic0
+        tests: [not_null]
+      - name: tx_hash
+        tests: [not_null]
+
+  - name: base_erc20_transfers_derived
+    description: ERC-20 Transfer events decoded from raw Base logs.
+    columns:
+      - name: token
+        tests: [not_null]
+      - name: from_addr
+        tests: [not_null]
+      - name: to_addr
+        tests: [not_null]
