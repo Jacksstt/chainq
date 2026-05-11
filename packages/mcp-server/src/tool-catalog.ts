@@ -162,12 +162,15 @@ export const TOOL_CATALOG: readonly ToolDoc[] = [
     title: "Render chart",
     group: "render",
     description:
-      "Render a vega-lite chart from a result-set and save it. Supports four formats: " +
-      "`svg` (static, server-rendered), `html` (single-file interactive page loading vega " +
-      "from CDN), `vegalite-json` (raw spec for downstream rendering), and `png` (rasterized " +
-      "via @resvg/resvg-js — no native canvas dependency). When `format=png`, optional " +
-      "`pngWidth` / `pngScale` / `pngBackground` control output dimensions and background. " +
-      "If `format` is omitted, it is inferred from the filename extension and defaults to `svg`.",
+      "Render a polished vega-lite chart from a result-set and save it. Mark types: " +
+      "`line` / `bar` / `area` / `point` / `stacked-bar` / `donut`. Formats: `svg` (static), " +
+      "`html` (single-file interactive vega-embed page), `vegalite-json` (raw spec), `png` " +
+      "(rasterized via @resvg/resvg-js, no native canvas dep). " +
+      "Charts are styled with the chainq theme by default: 8-color categorical palette, " +
+      "system + monospace fonts, subtle dotted gridlines, SI-prefix axis labels (28.5k / 1.6M), " +
+      "rounded bar corners, tooltips, and `prefers-color-scheme`-aware palette via `theme: 'dark'`. " +
+      "Optional `subtitle` for caption-style text under the title. Set `siFormat: false` to keep " +
+      "raw numbers on axes.",
   },
   {
     name: "chainq_report",

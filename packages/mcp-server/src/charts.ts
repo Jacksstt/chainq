@@ -22,8 +22,9 @@ import * as vegaLite from "vega-lite";
 import { Resvg } from "@resvg/resvg-js";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, extname, resolve } from "node:path";
+import { pickTheme, SI_FORMAT_EXPR, type ChartThemeName } from "./chart-theme.js";
 
-export type ChartType = "line" | "bar" | "area" | "point";
+export type ChartType = "line" | "bar" | "area" | "point" | "stacked-bar" | "donut";
 export type ChartFormat = "svg" | "html" | "vegalite-json" | "png";
 
 export interface PngOptions {
@@ -42,30 +43,125 @@ export interface ChartSpec {
   y: string;
   color?: string;
   title?: string;
+  /** Optional subtitle under the title — caption-style smaller text. */
+  subtitle?: string;
   width?: number;
   height?: number;
+  /** Theme name. Default "light"; pass "dark" for the dark palette. */
+  theme?: ChartThemeName;
+  /** Force SI-prefix axis labels (e.g. 28k, 1.6M). Default true. */
+  siFormat?: boolean;
 }
 
 /**
  * Build the vega-lite TopLevelSpec from a ChartSpec. Single source of truth
  * for the spec shape — every renderer below funnels through here.
+ *
+ * Applies the chainq theme (colors / typography / spacing / SI-prefix axis
+ * labels) automatically. The caller can override via `spec.theme`.
  */
 export function buildVegaLiteSpec(spec: ChartSpec): vegaLite.TopLevelSpec {
+  const config = pickTheme(spec.theme ?? "light");
+  const title = spec.subtitle
+    ? { text: spec.title ?? "", subtitle: spec.subtitle }
+    : spec.title;
+  const siAxis = (spec.siFormat ?? true) ? { labelExpr: SI_FORMAT_EXPR } : {};
+
+  // Donut: a pie chart with a hole. Vega-lite uses arc with theta encoding.
+  if (spec.type === "donut") {
+    return {
+      $schema: "https://vega.github.io/schema/vega-lite/v6.json",
+      config,
+      title,
+      width: spec.width ?? 360,
+      height: spec.height ?? 360,
+      data: { values: spec.data },
+      mark: { type: "arc", innerRadius: 80, padAngle: 0.015, cornerRadius: 3 },
+      encoding: {
+        theta: { field: spec.y, type: "quantitative", stack: true },
+        color: {
+          field: spec.color ?? spec.x,
+          type: inferType(spec.data, spec.color ?? spec.x),
+          legend: { title: spec.color ?? spec.x, orient: "right" },
+        },
+        order: { field: spec.y, type: "quantitative", sort: "descending" },
+        tooltip: [
+          { field: spec.x, type: inferType(spec.data, spec.x) },
+          { field: spec.y, type: "quantitative", format: ",.0f" },
+        ],
+      },
+    } as vegaLite.TopLevelSpec;
+  }
+
+  // Stacked bar: same as bar but with a color dimension that stacks.
+  if (spec.type === "stacked-bar") {
+    return {
+      $schema: "https://vega.github.io/schema/vega-lite/v6.json",
+      config,
+      title,
+      width: spec.width ?? 600,
+      height: spec.height ?? 320,
+      data: { values: spec.data },
+      mark: { type: "bar", cornerRadiusEnd: 2 },
+      encoding: {
+        x: {
+          field: spec.x,
+          type: inferType(spec.data, spec.x),
+          axis: { labelAngle: 0, ...(inferType(spec.data, spec.x) === "quantitative" ? siAxis : {}) },
+        },
+        y: { field: spec.y, type: "quantitative", stack: true, axis: siAxis },
+        color: spec.color
+          ? { field: spec.color, type: inferType(spec.data, spec.color), legend: { orient: "right" } }
+          : undefined,
+        tooltip: [
+          { field: spec.x, type: inferType(spec.data, spec.x) },
+          { field: spec.y, type: "quantitative", format: ",.0f" },
+          ...(spec.color ? [{ field: spec.color, type: inferType(spec.data, spec.color) }] : []),
+        ],
+      },
+    } as vegaLite.TopLevelSpec;
+  }
+
+  // line / bar / area / point — share the same skeleton, differ only in mark.
+  const xType = inferType(spec.data, spec.x);
   return {
     $schema: "https://vega.github.io/schema/vega-lite/v6.json",
-    title: spec.title,
+    config,
+    title,
     width: spec.width ?? 600,
     height: spec.height ?? 320,
     data: { values: spec.data },
-    mark: spec.type === "point" ? "point" : spec.type,
+    mark:
+      spec.type === "point"
+        ? { type: "point", filled: true, size: 64 }
+        : spec.type === "line"
+          ? { type: "line", point: { size: 32, filled: true } }
+          : spec.type === "area"
+            ? { type: "area", line: true }
+            : { type: "bar", cornerRadiusEnd: 3 },
     encoding: {
-      x: { field: spec.x, type: inferType(spec.data, spec.x) },
-      y: { field: spec.y, type: "quantitative" },
+      x: {
+        field: spec.x,
+        type: xType,
+        axis: { labelAngle: 0, ...(xType === "quantitative" ? siAxis : {}) },
+      },
+      y: { field: spec.y, type: "quantitative", axis: siAxis },
       ...(spec.color
-        ? { color: { field: spec.color, type: inferType(spec.data, spec.color) } }
+        ? {
+            color: {
+              field: spec.color,
+              type: inferType(spec.data, spec.color),
+              legend: { orient: "right" },
+            },
+          }
         : {}),
+      tooltip: [
+        { field: spec.x, type: xType },
+        { field: spec.y, type: "quantitative", format: ",.0f" },
+        ...(spec.color ? [{ field: spec.color, type: inferType(spec.data, spec.color) }] : []),
+      ],
     },
-  };
+  } as vegaLite.TopLevelSpec;
 }
 
 export async function renderChartSvg(spec: ChartSpec): Promise<string> {

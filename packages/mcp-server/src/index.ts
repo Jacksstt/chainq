@@ -11,6 +11,8 @@ export { MetricRegistry } from "./metrics.js";
 export type { MetricSpec, MetricRenderArgs } from "./metrics.js";
 export { renderChartSvg, renderChartHtml, renderChartVegaLiteJson, renderChartPng, saveChart, inferFormatFromExt as inferChartFormat } from "./charts.js";
 export type { ChartSpec, ChartType, ChartFormat, PngOptions } from "./charts.js";
+export { LIGHT_THEME, DARK_THEME, pickTheme, SI_FORMAT_EXPR, COMMA_FORMAT_EXPR } from "./chart-theme.js";
+export type { ChartThemeName } from "./chart-theme.js";
 export { writeReport, renderMarkdown, renderHtml, inferFormatFromExt as inferReportFormat } from "./report.js";
 export type { ReportSpec, ReportSection, ReportFormat, ReportLocale, I18nString, Localizable, ReportBrand, DownloadLink } from "./report.js";
 export { TOOL_CATALOG, describe as describeTool } from "./tool-catalog.js";
