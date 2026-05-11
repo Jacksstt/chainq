@@ -137,7 +137,7 @@ MCP client.
 | Recall | `chainq_recall` | BM25-ranked search across past queries (SQL + label) |
 | Recall | `chainq_recall_by_id` | Pull a cached result preview |
 | Render | `chainq_chart_render` | Vega-Lite → `svg` / `html` / `vegalite-json` |
-| Report | `chainq_report` | Markdown reports with frontmatter, tables, chart embeds |
+| Report | `chainq_report` | Single-file HTML reports (inline CSS, dark/light auto, print-ready); Markdown via `.md` filename |
 | Budget | `chainq_budget_set` | Per-session caps on credits / rows / bytes / seconds |
 | Budget | `chainq_budget_status` | Active caps, running totals, remaining headroom |
 | Budget | `chainq_budget_clear` | Clear caps and consumption counters |

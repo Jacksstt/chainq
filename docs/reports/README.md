@@ -10,10 +10,13 @@ Use them as:
 - **Sanity check**: when you wire chainq into a new MCP client, ask the agent to reproduce one of these.
 - **Prompt-engineering reference**: each report header includes the rough prompt that produced it.
 
-| # | Report                                                  | Tools touched                                     |
-|---|---------------------------------------------------------|---------------------------------------------------|
-| 1 | [DEX volume on Base — Jan 2026](./01-dex-volume-base.md) | `list_tables`, `describe`, `metric`, `chart_render`, `report` |
-| 2 | [Filecoin storage-provider concentration](./02-filecoin-concentration.md) | `describe`, `query`, `report`                     |
-| 3 | [Whuffie score distribution](./03-whuffie-distribution.md) | `list_metrics`, `metric`, `chart_render`, `report` |
+| # | Report                                                  | Formats                              | Tools touched |
+|---|---------------------------------------------------------|--------------------------------------|---------------|
+| 1 | DEX volume on Base — Jan 2026                           | [HTML](./01-dex-volume-base.html) · [MD](./01-dex-volume-base.md) | `list_tables`, `describe`, `metric`, `chart_render`, `report` |
+| 2 | [Filecoin storage-provider concentration](./02-filecoin-concentration.md) | MD only | `describe`, `query`, `report` |
+| 3 | [Whuffie score distribution](./03-whuffie-distribution.md) | MD only | `list_metrics`, `metric`, `chart_render`, `report` |
 
-Generation prompts and provenance notes are in each file's frontmatter.
+The default `chainq_report` output is now **HTML** (single-file, inline
+CSS, dark/light auto, print-friendly). Pass `format: "markdown"` or use a
+`.md` filename if you want Markdown. Provenance notes live in each
+report's frontmatter / metadata block.

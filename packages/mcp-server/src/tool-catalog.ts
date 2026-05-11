@@ -114,8 +114,10 @@ export const TOOL_CATALOG: readonly ToolDoc[] = [
     title: "Write report",
     group: "report",
     description:
-      "Write a Markdown report file. Supports YAML frontmatter, tables (from row arrays), " +
-      "and chart embeds (relative path + caption). Obsidian-compatible.",
+      "Write a single-file report. Defaults to a polished HTML page (inline CSS, " +
+      "system fonts, dark/light auto, print-friendly) with frontmatter, tables, " +
+      "and chart embeds (`.svg` / `.png` inline, `.html` linked). Pass " +
+      "`format: \"markdown\"` (or use a `.md` filename) for Obsidian-compatible Markdown.",
   },
   {
     name: "chainq_budget_set",

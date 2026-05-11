@@ -72,15 +72,16 @@ async function main() {
 
   const report = writeReport({
     title: "Base daily DEX volume — Jan 2026",
-    outPath: join(out, "report.md"),
-    summary: `Base saw activity across ${r.actualRows} day-row(s); see chart.`,
-    frontmatter: { generated_by: "agent-demo", chains: ["base"] },
+    outPath: join(out, "report.html"),
+    summary: `Base saw activity across ${r.actualRows} day-row(s) in the seeded dataset. **Top day** topped \`$350k\` in synthetic volume; trend is roughly flat.`,
+    frontmatter: { generated_by: "agent-demo", chain: "base", window: "2026-01-01 → 2026-02-01" },
     sections: [
       { heading: "Volume by day", chartPath: "./chart.svg", caption: "USD volume, all DEXes" },
-      { heading: "Top 3 rows", table: r.rows.slice(0, 3) as Record<string, unknown>[] },
+      { heading: "Top rows", table: r.rows.slice(0, 5) as Record<string, unknown>[] },
+      { heading: "Caveats", body: "Numbers are illustrative — they come from `pnpm seed`'s synthetic dataset, not live mainnet. Replace with `chainq pull --chain base` output to reproduce against real data." },
     ],
   });
-  log(7, "agent → chainq_report(...)", { path: report });
+  log(7, "agent → chainq_report(...) → HTML", { path: report });
 
   const recalled = await engine.recall("base daily", 3);
   log(

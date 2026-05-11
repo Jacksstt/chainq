@@ -17,7 +17,7 @@ import {
   type ChartType,
   type ChartFormat,
 } from "./charts.js";
-import { writeReport } from "./report.js";
+import { writeReport, type ReportFormat } from "./report.js";
 import { BudgetTracker } from "./budget.js";
 import { describe as toolDesc } from "./tool-catalog.js";
 
@@ -276,7 +276,7 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
     toolDesc("chainq_report"),
     {
       title: z.string(),
-      filename: z.string().describe("Markdown filename relative to outDir."),
+      filename: z.string().describe("Report filename relative to outDir. Format is inferred from the extension: .html (default), .md / .markdown for Markdown."),
       summary: z.string().optional(),
       frontmatter: z.record(z.string(), z.unknown()).optional(),
       sections: z.array(
@@ -288,17 +288,21 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
           caption: z.string().optional(),
         }),
       ),
+      format: z.enum(["html", "markdown"]).optional().describe("Output format. Defaults to HTML (or inferred from filename)."),
     },
-    async ({ title, filename, summary, frontmatter, sections }) => {
+    async ({ title, filename, summary, frontmatter, sections, format }) => {
       try {
-        const path = writeReport({
-          title,
-          outPath: join(outDir, "reports", filename),
-          summary,
-          frontmatter,
-          sections,
-        });
-        return json({ path });
+        const path = writeReport(
+          {
+            title,
+            outPath: join(outDir, "reports", filename),
+            summary,
+            frontmatter,
+            sections,
+          },
+          format as ReportFormat | undefined,
+        );
+        return json({ path, format: format ?? (filename.endsWith(".md") || filename.endsWith(".markdown") ? "markdown" : "html") });
       } catch (err) {
         return error(`report failed: ${(err as Error).message}`, "REPORT_FAILED");
       }
