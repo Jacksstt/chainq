@@ -386,11 +386,14 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
       title: z.string().optional(),
       filename: z.string().describe("Filename (relative to the configured outDir)."),
       format: z
-        .enum(["svg", "html", "vegalite-json"])
+        .enum(["svg", "html", "vegalite-json", "png"])
         .optional()
         .describe("Output format. Inferred from filename extension if omitted."),
+      pngWidth: z.number().int().positive().optional().describe("PNG output width in pixels. Only used when format=png. Default 600."),
+      pngScale: z.number().positive().optional().describe("PNG pixel-density multiplier (2 = retina). Default 1."),
+      pngBackground: z.string().optional().describe("CSS color for PNG background. Default `#ffffff`."),
     },
-    async ({ type, data, x, y, color, title, filename, format }) => {
+    async ({ type, data, x, y, color, title, filename, format, pngWidth, pngScale, pngBackground }) => {
       try {
         const outPath = join(outDir, "charts", filename);
         const chosen: ChartFormat = format ?? inferFormatFromExt(outPath) ?? "svg";
@@ -398,6 +401,7 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
           { type: type as ChartType, data, x, y, color, title },
           outPath,
           chosen,
+          { pngWidth, pngScale, pngBackground },
         );
         return json({ path, format: chosen, rows: data.length });
       } catch (err) {

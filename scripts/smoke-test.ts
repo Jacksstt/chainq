@@ -96,6 +96,20 @@ async function main() {
   assert.ok(svg.startsWith("<svg"), "chart should be SVG");
   console.log(`[smoke] chart written to ${chartPath} (${svg.length} bytes)`);
 
+  // PNG rasterization
+  const pngPath = await saveChart(
+    { type: "bar", data: sample, x: "chain", y: "n", title: "Trades by chain" },
+    resolve(outDir, "charts/trades-by-chain.png"),
+    "png",
+  );
+  const pngBytes = readFileSync(pngPath);
+  // Canonical PNG signature: 89 50 4E 47 0D 0A 1A 0A
+  const pngMagic = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  for (let i = 0; i < pngMagic.length; i++) {
+    assert.equal(pngBytes[i], pngMagic[i], `PNG magic byte ${i} mismatch`);
+  }
+  console.log(`[smoke] png written to ${pngPath} (${pngBytes.length} bytes)`);
+
   const reportSpec = {
     title: "Smoke test report",
     outPath: "ignored",

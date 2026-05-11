@@ -141,9 +141,11 @@ export const TOOL_CATALOG: readonly ToolDoc[] = [
     title: "Render chart",
     group: "render",
     description:
-      "Render a vega-lite chart from a result-set and save it. Supports three formats: " +
-      "`svg` (static), `html` (single-file interactive page loading vega from CDN), " +
-      "and `vegalite-json` (raw spec for downstream rendering). " +
+      "Render a vega-lite chart from a result-set and save it. Supports four formats: " +
+      "`svg` (static, server-rendered), `html` (single-file interactive page loading vega " +
+      "from CDN), `vegalite-json` (raw spec for downstream rendering), and `png` (rasterized " +
+      "via @resvg/resvg-js — no native canvas dependency). When `format=png`, optional " +
+      "`pngWidth` / `pngScale` / `pngBackground` control output dimensions and background. " +
       "If `format` is omitted, it is inferred from the filename extension and defaults to `svg`.",
   },
   {

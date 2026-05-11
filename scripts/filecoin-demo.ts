@@ -174,11 +174,17 @@ async function main() {
   }));
 
   // ---------- 8. Charts ----------
-  // svg() emits a static SVG; html() emits a self-contained interactive vega-embed file.
+  // svg() emits a static SVG; html() emits a self-contained interactive
+  // vega-embed file; png() rasterizes via @resvg/resvg-js (retina by default).
   const svg = async (suffix: string, spec: Parameters<typeof saveChart>[0]) => {
     const out = resolve(REPORT_DIR, `${CHART_PREFIX}-${suffix}.svg`);
     await saveChart(spec, out);
     return `./${CHART_PREFIX}-${suffix}.svg`;
+  };
+  const png = async (suffix: string, spec: Parameters<typeof saveChart>[0]) => {
+    const out = resolve(REPORT_DIR, `${CHART_PREFIX}-${suffix}.png`);
+    await saveChart(spec, out, "png", { pngWidth: 800, pngScale: 2 });
+    return `./${CHART_PREFIX}-${suffix}.png`;
   };
   const html = async (suffix: string, spec: Parameters<typeof saveChart>[0]) => {
     const out = resolve(REPORT_DIR, `${CHART_PREFIX}-${suffix}.html`);
@@ -215,6 +221,7 @@ async function main() {
     title: "Top 25 storage providers (TiB) / 上位25社の格納容量 (TiB)",
   });
   await svg("top25", { type: "bar", data: top25Data, x: "rank", y: "tib", title: "Top 25 storage providers (TiB)" });
+  const top25Png = await png("top25", { type: "bar", data: top25Data, x: "rank", y: "tib", title: "Top 25 storage providers (TiB)" });
   const top25CsvPath = csv("top25", top25Data);
 
   // Lorenz curve — interactive HTML this time.
@@ -330,6 +337,7 @@ async function main() {
     downloads: [
       { path: top25CsvPath,                       label: { en: "Top 25 raw rows", ja: "上位25 生データ" }, format: "csv" },
       { path: `./${CHART_PREFIX}-top25.svg`,      label: { en: "Static SVG fallback", ja: "静的SVG" },      format: "svg" },
+      { path: top25Png,                           label: { en: "PNG (1600w retina)",  ja: "PNG (1600px retina)" }, format: "png" },
     ],
   });
   sections.push({

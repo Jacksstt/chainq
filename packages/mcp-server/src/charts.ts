@@ -2,25 +2,38 @@
  * Chart rendering via vega-lite.
  *
  * The chart spec is generated from a result-set + a chart type and rendered
- * to SVG with vega's headless renderer. We deliberately avoid node-canvas
- * so the package stays pure-JS and easy to install on CI / Linux.
+ * to SVG with vega's headless renderer (no node-canvas, stays pure-JS).
  *
- * Three output formats are supported:
+ * Four output formats are supported:
  *   - "svg"           — headless SVG string (the original behavior).
  *   - "html"          — single-file HTML that loads vega/vega-lite/vega-embed
  *                       from a CDN and renders the spec client-side. Useful
  *                       for interactive charts shared as static files.
  *   - "vegalite-json" — the raw vega-lite TopLevelSpec, pretty-printed.
  *                       Lets downstream tools re-style or re-render.
+ *   - "png"           — rasterized via @resvg/resvg-js (pure-JS / WASM-ish,
+ *                       no native canvas). Returns/writes binary PNG bytes,
+ *                       suitable for embedding in slide decks, social cards,
+ *                       PDFs, or Markdown for Obsidian / GitHub.
  */
 
 import * as vega from "vega";
 import * as vegaLite from "vega-lite";
+import { Resvg } from "@resvg/resvg-js";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, extname, resolve } from "node:path";
 
 export type ChartType = "line" | "bar" | "area" | "point";
-export type ChartFormat = "svg" | "html" | "vegalite-json";
+export type ChartFormat = "svg" | "html" | "vegalite-json" | "png";
+
+export interface PngOptions {
+  /** Output pixel width. SVG is scaled to fit. Default: spec.width or 600. */
+  pngWidth?: number;
+  /** Pixel-density multiplier. Use 2 for retina. Default 1. */
+  pngScale?: number;
+  /** Optional CSS background applied behind the chart. Default `#ffffff`. */
+  pngBackground?: string;
+}
 
 export interface ChartSpec {
   type: ChartType;
@@ -99,6 +112,33 @@ export function renderChartVegaLiteJson(spec: ChartSpec): string {
 }
 
 /**
+ * Render a chart to a PNG buffer. Internally rasterizes the SVG output via
+ * `@resvg/resvg-js` — no native canvas dependency, works the same on macOS,
+ * Linux, and CI runners.
+ */
+export async function renderChartPng(
+  spec: ChartSpec,
+  opts: PngOptions = {},
+): Promise<Uint8Array> {
+  const svg = await renderChartSvg(spec);
+  const width = opts.pngWidth ?? spec.width ?? 600;
+  const scale = Math.max(0.5, Math.min(4, opts.pngScale ?? 1));
+  const background = opts.pngBackground ?? "#ffffff";
+  const resvg = new Resvg(svg, {
+    background,
+    fitTo: { mode: "width", value: Math.round(width * scale) },
+    font: {
+      // resvg-js cannot load system fonts by default on every platform;
+      // disabling font-loading lets the rasterizer use its built-in
+      // fallback. Vega's default font is "sans-serif" which resvg
+      // handles fine with the built-in glyphs.
+      loadSystemFonts: true,
+    },
+  });
+  return resvg.render().asPng();
+}
+
+/**
  * Persist a chart to disk. Format selection rules:
  *   1. If `format` is passed, use it.
  *   2. Else infer from the file extension (.svg / .html / .json).
@@ -110,16 +150,22 @@ export async function saveChart(
   spec: ChartSpec,
   outPath: string,
   format?: ChartFormat,
+  opts: PngOptions = {},
 ): Promise<string> {
   const abs = resolve(outPath);
   const chosen = format ?? inferFormatFromExt(abs) ?? "svg";
-  const body = await renderChartFormat(spec, chosen);
   mkdirSync(dirname(abs), { recursive: true });
-  writeFileSync(abs, body, "utf8");
+  if (chosen === "png") {
+    const bytes = await renderChartPng(spec, opts);
+    writeFileSync(abs, bytes);
+  } else {
+    const body = await renderChartTextFormat(spec, chosen);
+    writeFileSync(abs, body, "utf8");
+  }
   return abs;
 }
 
-async function renderChartFormat(spec: ChartSpec, format: ChartFormat): Promise<string> {
+async function renderChartTextFormat(spec: ChartSpec, format: Exclude<ChartFormat, "png">): Promise<string> {
   switch (format) {
     case "svg":
       return renderChartSvg(spec);
@@ -139,6 +185,7 @@ export function inferFormatFromExt(path: string): ChartFormat | undefined {
   if (ext === ".svg") return "svg";
   if (ext === ".html" || ext === ".htm") return "html";
   if (ext === ".json") return "vegalite-json";
+  if (ext === ".png") return "png";
   return undefined;
 }
 
