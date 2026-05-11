@@ -21,6 +21,7 @@ import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { runInit } from "./init.js";
 import { runBackfill, type BackfillRange } from "./backfill.js";
+import { runWatch } from "./watch.js";
 
 const args = process.argv.slice(2);
 
@@ -35,6 +36,7 @@ const COMMANDS = [
   ["pull --chain <id> --from N --to N [--topic0 0x...]", "Pull a Parquet snapshot from a public archive."],
   ["ingest backfill --plan <plan.json>", "Run multi-range backfill from a JSON plan."],
   ["ingest backfill --chains <list> --from N --to M [--concurrency K]", "Backfill a uniform range across multiple chains."],
+  ["watch --chain <id> --from N [--to M] [--max-batches K]", "Stream new blocks from a public Subsquid archive into local Parquet shards."],
   ["mcp serve [--stdio]", "Start the MCP server (stdio transport)."],
 ] as const;
 
@@ -48,6 +50,7 @@ const KNOWN_TOP_LEVEL = new Set([
   "seed",
   "pull",
   "ingest",
+  "watch",
   "mcp",
 ]);
 
@@ -136,6 +139,10 @@ async function main() {
       await runIngestBackfill(rest.slice(1));
       return;
     }
+
+    case "watch":
+      await runWatchCmd(rest);
+      return;
 
     default: {
       console.error(`Unknown command: ${cmd}`);
@@ -624,6 +631,41 @@ async function runIngestBackfill(restArgs: string[]): Promise<void> {
   console.error(`elapsed: ${result.elapsedSeconds.toFixed(2)}s`);
 
   if (result.failed.length > 0) process.exit(1);
+}
+
+async function runWatchCmd(restArgs: string[]): Promise<void> {
+  const opts = parseFlags(restArgs);
+  const chain = opts["chain"];
+  const from = Number(opts["from"]);
+  if (!chain || !Number.isFinite(from)) {
+    console.error("usage: chainq watch --chain <id> --from N [--to M] [--max-batches K] [--max-rows N]");
+    process.exit(1);
+  }
+  const { PUBLIC_ARCHIVES } = await import("@chainq/snapshot");
+  const archiveUrl = opts["archive"] ?? PUBLIC_ARCHIVES[chain];
+  if (!archiveUrl) {
+    console.error(`No public archive known for chain '${chain}'. Pass --archive <url>.`);
+    process.exit(1);
+  }
+  const outDir = resolve(process.env.CHAINQ_DATA_DIR ?? "./data");
+  const to = opts["to"] ? Number(opts["to"]) : undefined;
+  const maxBatches = opts["max-batches"] ? Number(opts["max-batches"]) : undefined;
+  const maxRows = opts["max-rows"] ? Number(opts["max-rows"]) : undefined;
+
+  console.error(`[watch] starting chain=${chain} archive=${archiveUrl}`);
+  const result = await runWatch({
+    chain,
+    archiveUrl,
+    fromBlock: from,
+    ...(to != null ? { toBlock: to } : {}),
+    ...(maxBatches != null ? { maxBatches } : {}),
+    ...(maxRows != null ? { maxRowsPerShard: maxRows } : {}),
+    outDir,
+  });
+  console.error("");
+  console.error(`done. chain=${result.chain} blocks=${result.rangeFrom}..${result.rangeTo} batches=${result.batches} rows=${result.rows} elapsed=${result.elapsedSeconds.toFixed(2)}s`);
+  console.error(`checkpoint: ${result.checkpointPath}`);
+  for (const s of result.shardsWritten) console.error(`  shard: ${s}`);
 }
 
 function nodeMajor(): number {

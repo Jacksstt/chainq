@@ -29,12 +29,18 @@ importers:
       '@chainq/core':
         specifier: workspace:*
         version: link:../core
+      '@chainq/ingest-evm':
+        specifier: workspace:*
+        version: link:../ingest-evm
       '@chainq/mcp-server':
         specifier: workspace:*
         version: link:../mcp-server
       '@chainq/snapshot':
         specifier: workspace:*
         version: link:../snapshot
+      '@duckdb/node-api':
+        specifier: 1.5.2-r.1
+        version: 1.5.2-r.1
       '@modelcontextprotocol/sdk':
         specifier: ^1.29.0
         version: 1.29.0(zod@4.4.3)
