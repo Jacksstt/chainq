@@ -234,6 +234,7 @@ export function normalize(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(normalize);
   if (typeof value === "object") {
     if (isDuckDbDecimal(value)) return decimalToString(value);
+    if (isDuckDbTimestamp(value)) return timestampToIso(value);
     const obj = value as Record<string, unknown>;
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(obj)) {
@@ -279,6 +280,37 @@ export function decimalToString(d: DuckDbDecimal): string {
     body = digits.slice(0, -scale) + "." + digits.slice(-scale);
   }
   return neg ? "-" + body : body;
+}
+
+interface DuckDbTimestamp {
+  micros: bigint | string | number;
+}
+
+function isDuckDbTimestamp(v: object): v is DuckDbTimestamp {
+  const o = v as Record<string, unknown>;
+  if (!("micros" in o)) return false;
+  // Single-key envelope so we don't accidentally match arbitrary user objects.
+  if (Object.keys(o).length !== 1) return false;
+  const t = typeof o.micros;
+  return t === "bigint" || t === "string" || t === "number";
+}
+
+/**
+ * Convert a DuckDB TIMESTAMP value (microseconds since Unix epoch) to an ISO
+ * 8601 string. Preserves microsecond precision when the value has any: a
+ * timestamp landing on a whole millisecond renders as `2026-01-01T00:00:00Z`
+ * (Date#toISOString form), and a sub-millisecond value renders with six
+ * fractional digits, e.g. `2026-01-01T00:00:00.123456Z`.
+ */
+export function timestampToIso(v: DuckDbTimestamp): string {
+  const m = typeof v.micros === "bigint" ? v.micros : BigInt(String(v.micros));
+  const totalMs = m / 1000n;
+  const subMs = Number(m - totalMs * 1000n); // microsecond remainder, 0..999
+  const ms = Number(totalMs);
+  const iso = new Date(ms).toISOString();
+  if (subMs === 0) return iso;
+  const microStr = subMs.toString().padStart(3, "0");
+  return iso.replace(/\.(\d{3})Z$/, (_, milli: string) => `.${milli}${microStr}Z`);
 }
 
 /**
