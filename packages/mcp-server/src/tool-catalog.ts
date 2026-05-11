@@ -120,6 +120,27 @@ export const TOOL_CATALOG: readonly ToolDoc[] = [
       "ranges. Each bucket has `{ min, max, label }`; `min` is inclusive, `max` exclusive.",
   },
   {
+    name: "chainq_anomalies",
+    title: "Find anomalies",
+    group: "analytics",
+    description:
+      "Detect outliers in a numeric column via z-score (default, threshold 2.0) or Tukey IQR fence. " +
+      "Returns the distribution summary plus a list of anomalous rows sorted by |z| descending, with " +
+      "baseline / stdev / direction. Feed the result straight into `anomalyCallout()` in your report " +
+      "writer for a quantified \"X stands out because…\" callout.",
+  },
+  {
+    name: "chainq_score_report",
+    title: "Score report quality",
+    group: "report",
+    description:
+      "Score a draft `ReportSpec` (title / summary / sections) against the chainq writing rubric. " +
+      "Returns total 0..100 score, per-criterion breakdown, top failures, and concrete suggestions. " +
+      "Criteria: lead-with-insight (not methodology), insight density ≥ 2 numeric claims/section, " +
+      "anomaly callouts, quantified comparisons, action items, specific caveats, filler-phrase " +
+      "penalty, reproducibility. Call BEFORE `chainq_report` to catch low-quality drafts.",
+  },
+  {
     name: "chainq_recall",
     title: "Recall (search)",
     group: "recall",

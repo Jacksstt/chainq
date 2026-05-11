@@ -1,0 +1,55 @@
+{
+  "total": 100,
+  "criteria": [
+    {
+      "id": "lead_with_insight",
+      "description": "Open with a quantified finding, not the methodology.",
+      "score": 1,
+      "evidence": "Summary contains numbers and the first section is a finding."
+    },
+    {
+      "id": "insight_density",
+      "description": "Quantitative claims per section ≥ 2.0 (numbers anchor every finding).",
+      "score": 1,
+      "evidence": "27 numeric claims across 11 sections (density 2.45 / section)"
+    },
+    {
+      "id": "anomaly_callouts",
+      "description": "At least one explicit anomaly callout (something deviates from baseline).",
+      "score": 1,
+      "evidence": "4 anomaly markers found"
+    },
+    {
+      "id": "explicit_comparisons",
+      "description": "At least 2 quantified comparisons (vs baseline, vs peer chain, vs prior period).",
+      "score": 1,
+      "evidence": "6 explicit comparison phrases"
+    },
+    {
+      "id": "action_items",
+      "description": "Connects findings to actions or implications for specific personas.",
+      "score": 1,
+      "evidence": "4 action/implication markers"
+    },
+    {
+      "id": "specific_caveats",
+      "description": "Caveats reference real numbers / specific tables, not generic warnings.",
+      "score": 1,
+      "evidence": "caveats section: 511 chars, with quantitative anchors"
+    },
+    {
+      "id": "filler_penalty",
+      "description": "Filler / hedge phrases per 100 words ≤ 1.0.",
+      "score": 1,
+      "evidence": "0 filler phrases / 673 words = 0.00 per 100 words"
+    },
+    {
+      "id": "reproducibility",
+      "description": "Provides downloadable data (CSV / parquet) alongside the rendered figures.",
+      "score": 1,
+      "evidence": "tables=1, charts=3, sections-with-downloads=3"
+    }
+  ],
+  "failures": [],
+  "suggestions": []
+}

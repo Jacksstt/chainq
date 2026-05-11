@@ -25,6 +25,8 @@ import {
   type BucketSpec,
   bucketize,
 } from "./analytics.js";
+import { findZScoreAnomalies, findIqrAnomalies, describeDistribution } from "./anomaly.js";
+import { scoreReport } from "./report-rubric.js";
 import { BudgetTracker } from "./budget.js";
 import { describe as toolDesc } from "./tool-catalog.js";
 
@@ -338,6 +340,86 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
         });
       } catch (err) {
         return error(`bucketize failed: ${(err as Error).message}`, "QUERY_FAILED");
+      }
+    },
+  );
+
+  // -------- writing-quality / anomaly ------------------------------------
+  server.tool(
+    "chainq_anomalies",
+    toolDesc("chainq_anomalies"),
+    {
+      sql: z.string().describe("SELECT that produces (group_key, value) pairs. The value column is fed into the detector."),
+      value_field: z.string().describe("Name of the numeric column to scan for outliers."),
+      method: z.enum(["zscore", "iqr"]).optional().describe("Detector: zscore (default) or iqr."),
+      z_threshold: z.number().positive().optional().describe("Z-score threshold (default 2.0). Used only for method=zscore."),
+      iqr_multiplier: z.number().positive().optional().describe("IQR multiplier (default 1.5, Tukey's fence). Used only for method=iqr."),
+      limit: z.number().int().positive().optional(),
+    },
+    async ({ sql, value_field, method, z_threshold, iqr_multiplier, limit }) => {
+      try {
+        const estimate = await engine.estimate(sql);
+        const decision = budget.checkEstimate(estimate);
+        if (!decision.allowed) {
+          return error(
+            `budget exceeded: ${decision.reason ?? "cap would be breached"} ${JSON.stringify(decision.wouldExceed ?? {})}`,
+            "BUDGET_EXCEEDED",
+            decision.wouldExceed,
+          );
+        }
+        const result = await engine.query(sql, { cacheLabel: `analytics:anomalies:${value_field}` });
+        budget.record({ rows: result.actualRows, bytes: result.actualBytes, seconds: result.actualSeconds });
+        const rows = result.rows as Array<Record<string, unknown>>;
+        const accessor = (r: Record<string, unknown>) => Number(r[value_field] ?? 0);
+        const dist = describeDistribution(rows, accessor);
+        const hits = method === "iqr"
+          ? findIqrAnomalies(rows, accessor, { ...(iqr_multiplier != null ? { multiplier: iqr_multiplier } : {}), ...(limit != null ? { limit } : {}) })
+          : findZScoreAnomalies(rows, accessor, { ...(z_threshold != null ? { zThreshold: z_threshold } : {}), ...(limit != null ? { limit } : {}) });
+        return json({
+          distribution: dist,
+          anomalies: hits.map((h) => ({ row: h.row, value: h.value, z: +h.z.toFixed(3), direction: h.direction, baseline: h.baseline, stdev: h.stdev })),
+          method: method ?? "zscore",
+          sql,
+          budget: budget.status(),
+        });
+      } catch (err) {
+        return error(`anomalies failed: ${(err as Error).message}`, "QUERY_FAILED");
+      }
+    },
+  );
+
+  server.tool(
+    "chainq_score_report",
+    toolDesc("chainq_score_report"),
+    {
+      title: z.union([z.string(), z.object({ en: z.string().optional(), ja: z.string().optional() })]),
+      summary: z.union([z.string(), z.object({ en: z.string().optional(), ja: z.string().optional() })]).optional(),
+      sections: z.array(z.object({
+        heading: z.union([z.string(), z.object({ en: z.string().optional(), ja: z.string().optional() })]),
+        body: z.union([z.string(), z.object({ en: z.string().optional(), ja: z.string().optional() })]).optional(),
+        table: z.array(z.record(z.string(), z.unknown())).optional(),
+        chartPath: z.string().optional(),
+        caption: z.union([z.string(), z.object({ en: z.string().optional(), ja: z.string().optional() })]).optional(),
+        downloads: z.array(z.object({
+          path: z.string(),
+          label: z.union([z.string(), z.object({ en: z.string().optional(), ja: z.string().optional() })]).optional(),
+          format: z.enum(["csv","json","parquet","html","svg","png","other"]).optional(),
+        })).optional(),
+      })),
+      locale: z.enum(["en","ja","both"]).optional(),
+    },
+    async (args) => {
+      try {
+        const score = scoreReport({
+          title: args.title,
+          outPath: "(unused)",
+          ...(args.summary ? { summary: args.summary } : {}),
+          sections: args.sections,
+          ...(args.locale ? { locale: args.locale } : {}),
+        });
+        return json(score);
+      } catch (err) {
+        return error(`score_report failed: ${(err as Error).message}`, "INVALID_INPUT");
       }
     },
   );

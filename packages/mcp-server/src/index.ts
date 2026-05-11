@@ -16,6 +16,33 @@ export type { ReportSpec, ReportSection, ReportFormat, ReportLocale, I18nString,
 export { TOOL_CATALOG, describe as describeTool } from "./tool-catalog.js";
 export type { ToolDoc } from "./tool-catalog.js";
 export {
+  scoreReport,
+  executiveBullet,
+  anomalyCallout,
+  comparison,
+  actionItem,
+  executiveSummarySection,
+} from "./report-rubric.js";
+export type {
+  RubricScore,
+  RubricCriterion,
+  ExecutiveBulletInput,
+  AnomalyCalloutInput,
+  ComparisonInput,
+  ActionItemInput,
+  ExecutiveSummarySection,
+} from "./report-rubric.js";
+export {
+  findZScoreAnomalies,
+  findIqrAnomalies,
+  describeDistribution,
+} from "./anomaly.js";
+export type {
+  AnomalyHit,
+  AnomalyOptions,
+  DistributionSummary,
+} from "./anomaly.js";
+export {
   concentrationSuite,
   distributionSummary,
   histogram,

@@ -307,17 +307,33 @@ input[type="radio"][name="locale"] {
     <p class="eyebrow">CHAINQ · MULTI-CHAIN LIVE</p>
     <h1 lang="ja">マルチチェーン live スナップショット — 8 EVM チェーン並列</h1>
     <h1 lang="en">Multi-chain live snapshot — 8 EVM chains in parallel</h1>
-    <p class="meta" lang="ja">生成: 2026-05-11T21:42:59.639Z</p>
-    <p class="meta" lang="en">Generated 2026-05-11T21:42:59.639Z</p>
-    <details class="frontmatter"><summary><span lang="ja">メタデータ · 9 項目</span><span lang="en">Metadata · 9 fields</span></summary><table><tr><th scope="row">target_chains</th><td>8</td></tr><tr><th scope="row">successful_pulls</th><td>8</td></tr><tr><th scope="row">failed_pulls</th><td>0</td></tr><tr><th scope="row">total_logs</th><td>64326</td></tr><tr><th scope="row">total_distinct_contracts</th><td>4660</td></tr><tr><th scope="row">max_pull_ms</th><td>20539</td></tr><tr><th scope="row">total_pull_ms_sequential</th><td>62116</td></tr><tr><th scope="row">parallelism</th><td>8</td></tr><tr><th scope="row">pulled_at</th><td>2026-05-11T21:42:59.639Z</td></tr></table></details>
-    <p class="summary" lang="ja">8 EVM チェーンを 1 つの単一 HTML レポートに統合。<code>chainq pull → DuckDB 分析 → チャート → バイリンガル HTML</code> の全パイプラインが end-to-end で動作。成功 8、失敗 0。</p><p class="summary" lang="en">Single self-contained report covering 8 EVM chains. The full <code>chainq pull → DuckDB analytics → chart → bilingual HTML report</code> pipeline executed end-to-end. 8 chains succeeded, 0 failed.</p>
+    <p class="meta" lang="ja">生成: 2026-05-11T22:01:33.061Z</p>
+    <p class="meta" lang="en">Generated 2026-05-11T22:01:33.061Z</p>
+    <details class="frontmatter"><summary><span lang="ja">メタデータ · 11 項目</span><span lang="en">Metadata · 11 fields</span></summary><table><tr><th scope="row">target_chains</th><td>8</td></tr><tr><th scope="row">successful_pulls</th><td>8</td></tr><tr><th scope="row">failed_pulls</th><td>0</td></tr><tr><th scope="row">total_logs</th><td>64326</td></tr><tr><th scope="row">total_distinct_contracts</th><td>4660</td></tr><tr><th scope="row">max_pull_ms</th><td>14327</td></tr><tr><th scope="row">total_pull_ms_sequential</th><td>45840</td></tr><tr><th scope="row">parallelism</th><td>8</td></tr><tr><th scope="row">pulled_at</th><td>2026-05-11T22:01:33.060Z</td></tr><tr><th scope="row">rubric_score</th><td>100/100</td></tr><tr><th scope="row">rubric_failures</th><td>0</td></tr></table></details>
+    <p class="summary" lang="ja">Base (OP Stack) は 291.1 logs/秒で、Unichain (Uniswap L2) の 100 倍の活動量。公開 Subsquid アーカイブから 8 中 8 チェーンを 14.3 秒で取得。chainq pull → DuckDB → 3 チャート + CSV → バイリンガル HTML の全パイプラインが動作。</p><p class="summary" lang="en">Base (OP Stack) runs at 291.1 logs/sec — 100× the activity of Unichain (Uniswap L2). 8 of 8 chains pulled in 14.3s wall-clock against public Subsquid archives. Full pipeline: chainq pull → DuckDB → 3 charts + CSV → bilingual HTML.</p>
   </header>
   <article>
     <section class="section">
       <h2 lang="ja">エグゼクティブサマリー</h2>
       <h2 lang="en">Executive summary</h2>
-      <div lang="ja"><p>- <strong>8 中 8 チェーン</strong> を並列で pull、所要時間 <strong>20.5s</strong>（最も遅いプル）。<br>- <strong>64,326 ログ</strong> を <strong>4,660 コントラクト</strong> から取得。全て公開 Subsquid アーカイブ経由、API キーなし、RPC ノード運用なし。<br>- 全チェーンで同じ <code>chainq pull</code> コードパス。9 チェーン目を追加するのは <strong>PUBLIC_ARCHIVES に 1 行追加するだけ</strong>。<br>- このレポート自体が「45 チェーン対応は願望ではない」ことの証拠 — 生成のために 8 チェーンを live で叩いています。</p></div>
-      <div lang="en"><p>- <strong>8 of 8 chains</strong> pulled successfully in <strong>20.5s</strong> wall-clock (parallelised).<br>- <strong>64,326 log events</strong> across <strong>4,660 distinct contracts</strong>, all from public Subsquid archives — no API keys, no operated nodes.<br>- Same <code>chainq pull</code> code path for every chain. Adding the 9th chain is <strong>one row in PUBLIC_ARCHIVES</strong>.<br>- This report is itself the proof that 45-chain support is not aspirational: 8 chains were touched live to build it.</p></div>
+      <div lang="ja"><p>- <strong>本スナップショットで秒あたりログ件数が最大なのは Base (OP Stack)</strong> — 291.1 logs/秒、8チェーン平均 80.3 に対して 3.6 倍. 今日 DeFi / NFT コントラクトをデプロイするなら出来高は Base (OP Stack) にある。<br>- <strong>Unichain (Uniswap L2) は 8 チェーン中最も活動が薄く、Base (OP Stack) の 100 分の 1</strong> — 2.90 logs/秒、ウィンドウ内のユニークコントラクト数 25. 新規 dApp にとって未開拓地 — ブロックスペースの競争もユーザの注目もまだ薄い。<br>- <strong>並列 pull で 31.5 秒短縮、直列実行比 3.2 倍速</strong> — 8 チェーン中 8 成功、壁時計 14.3 秒、直列なら 45.8 秒、ボトルネックは最も遅い 1 archive.<br>- <strong>64,326 件の実ログを 4,660 個の実コントラクトから取得</strong> — 全て公開 Subsquid アーカイブ経由 — API キー無し、RPC ノード運用無し、月額コスト無し. 同じパイプラインが docs/SUPPORTED-CHAINS.md の 43 EVM チェーン全てに拡張可能 — TARGETS 配列に 1 行追加するだけ。</p></div>
+      <div lang="en"><p>- <strong>Base (OP Stack) is the busiest chain per second in this snapshot</strong> — 291.1 logs/sec vs the 8-chain mean of 80.3 — 3.6× the average. If you ship a DeFi or NFT contract today, Base (OP Stack) is where the volume is.<br>- <strong>Unichain (Uniswap L2) is the thinnest of the 8 — by 100×</strong> — 2.90 logs/sec, 25 distinct contracts in the window. Open territory for new dApps — competition for blockspace and user attention is markedly lower.<br>- <strong>Parallel pull saved 31.513 seconds — 3.2× speedup over sequential</strong> — 8 chains, 8 successful, 14.3s wall-clock vs 45.8s sequential — bottleneck is the slowest single archive.<br>- <strong>64,326 real log events across 4,660 distinct contracts</strong> — All from public Subsquid archives — zero API keys, zero operated RPC nodes, zero monthly cost. Same pipeline scales to any of the 43 EVM chains in docs/SUPPORTED-CHAINS.md by adding one row to the TARGETS array.</p></div>
+    </section>
+    <section class="section">
+      <h2 lang="ja">異常値（自動検出）</h2>
+      <h2 lang="en">Anomalies (auto-detected)</h2>
+      <div lang="ja"><p><strong>Base (OP Stack) のログ/秒 は 8チェーン平均（80.3 logs/秒）に対し 291.1 logs/秒 — 3.6倍高い。</strong> AMM / lending の高密度活動が要因と推測。</p>
+      <p><strong>Polygon PoS のログ/秒 は 8チェーン平均（80.3 logs/秒）に対し 195.9 logs/秒 — 2.4倍高い。</strong> AMM / lending の高密度活動が要因と推測。</p></div>
+      <div lang="en"><p><strong>Base (OP Stack) log-rate stands out at 291.1 logs/sec against the 8-chain mean (80.3 logs/sec) — 3.6× higher.</strong> Likely driven by dense AMM / lending activity.</p>
+      <p><strong>Polygon PoS log-rate stands out at 195.9 logs/sec against the 8-chain mean (80.3 logs/sec) — 2.4× higher.</strong> Likely driven by dense AMM / lending activity.</p></div>
+    </section>
+    <section class="section">
+      <h2 lang="ja">ヘッド to ヘッド</h2>
+      <h2 lang="en">Head-to-head</h2>
+      <div lang="ja"><p>Base (OP Stack)（291.1 logs/秒）は Polygon PoS（195.9 logs/秒）の 1.5倍。</p>
+      <p>Base (OP Stack)（1,629 ユニークコントラクト）は Polygon PoS（984 ユニークコントラクト）の 1.7倍。</p></div>
+      <div lang="en"><p>Base (OP Stack) (291.1 logs/sec) is 1.5× higher than Polygon PoS (195.9 logs/sec).</p>
+      <p>Base (OP Stack) (1,629 distinct contracts) is 1.7× higher than Polygon PoS (984 distinct contracts).</p></div>
     </section>
     <section class="section">
       <h2 lang="ja">1. チェーン別ログ件数</h2>
@@ -329,35 +345,37 @@ input[type="radio"][name="locale"] {
       <h2 lang="ja">2. チェーン別コントラクト数</h2>
       <h2 lang="en">2. Distinct contracts per chain</h2>
       <figure><img src="./07-multichain-contracts-per-chain.svg" alt="How many unique contracts emitted at least one event during the window." loading="lazy"><figcaption lang="ja">ウィンドウ内で 1 つ以上のイベントを発行したユニークなコントラクト数。</figcaption><figcaption lang="en">How many unique contracts emitted at least one event during the window.</figcaption></figure>
+      <div class="downloads"><a class="dl-chip dl-csv" href="/Users/shibuyaryuukyou/Documents/projects/chainq/docs/reports/07-multichain-stats.csv" download><span class="dl-fmt">CSV</span> <span lang="ja">全統計 CSV</span><span lang="en">All stats CSV</span></a></div>
     </section>
     <section class="section">
       <h2 lang="ja">3. チェーン別取引数</h2>
       <h2 lang="en">3. Distinct transactions per chain</h2>
       <figure><img src="./07-multichain-txs-per-chain.svg" alt="Unique transaction count. Combined with contract count, gives a rough activity profile per chain." loading="lazy"><figcaption lang="ja">ユニークなトランザクション数。コントラクト数と組み合わせるとチェーンごとの大まかな活動プロファイルが見えます。</figcaption><figcaption lang="en">Unique transaction count. Combined with contract count, gives a rough activity profile per chain.</figcaption></figure>
+      <div class="downloads"><a class="dl-chip dl-csv" href="/Users/shibuyaryuukyou/Documents/projects/chainq/docs/reports/07-multichain-stats.csv" download><span class="dl-fmt">CSV</span> <span lang="ja">全統計 CSV</span><span lang="en">All stats CSV</span></a></div>
     </section>
     <section class="section">
       <h2 lang="ja">4. チェーン別詳細</h2>
       <h2 lang="en">4. Per-chain detail</h2>
       <div class="table-wrap"><table><thead><tr><th>chain</th><th>label</th><th>status</th><th>rows</th><th>blocks</th><th>contracts</th><th>topic0s</th><th>txs</th><th>window_s</th><th>pull_ms</th><th>top_emitter</th></tr></thead><tbody>
-        <tr><td>ethereum</td><td>Ethereum L1</td><td>✓</td><td class="num">7808</td><td class="num">21</td><td class="num">1024</td><td class="num">324</td><td class="num">2911</td><td class="num">240.0</td><td class="num">8729</td><td>0xc02aaa39… (1402)</td></tr>
-        <tr><td>base</td><td>Base (OP Stack)</td><td>✓</td><td class="num">28529</td><td class="num">50</td><td class="num">1629</td><td class="num">671</td><td class="num">4995</td><td class="num">98.0</td><td class="num">20539</td><td>0x42000000… (5841)</td></tr>
-        <tr><td>arbitrum</td><td>Arbitrum One</td><td>✓</td><td class="num">647</td><td class="num">47</td><td class="num">138</td><td class="num">119</td><td class="num">105</td><td class="num">12.0</td><td class="num">2465</td><td>0x82af4944… (60)</td></tr>
-        <tr><td>optimism</td><td>Optimism</td><td>✓</td><td class="num">4729</td><td class="num">50</td><td class="num">545</td><td class="num">263</td><td class="num">722</td><td class="num">98.0</td><td class="num">5945</td><td>0x42000000… (458)</td></tr>
-        <tr><td>polygon</td><td>Polygon PoS</td><td>✓</td><td class="num">20377</td><td class="num">50</td><td class="num">984</td><td class="num">537</td><td class="num">4878</td><td class="num">104.0</td><td class="num">17256</td><td>0x00000000… (5882)</td></tr>
-        <tr><td>linea</td><td>Linea (zkEVM)</td><td>✓</td><td class="num">955</td><td class="num">50</td><td class="num">145</td><td class="num">130</td><td class="num">204</td><td class="num">98.0</td><td class="num">2522</td><td>0xe5d7c2a4… (123)</td></tr>
-        <tr><td>scroll</td><td>Scroll (zkEVM)</td><td>✓</td><td class="num">1139</td><td class="num">50</td><td class="num">170</td><td class="num">131</td><td class="num">285</td><td class="num">146.0</td><td class="num">2588</td><td>0x53000000… (200)</td></tr>
-        <tr><td>unichain</td><td>Unichain (Uniswap L2)</td><td>✓</td><td class="num">142</td><td class="num">30</td><td class="num">25</td><td class="num">19</td><td class="num">63</td><td class="num">49.0</td><td class="num">2072</td><td>0xec4a5606… (30)</td></tr>
+        <tr><td>ethereum</td><td>Ethereum L1</td><td>✓</td><td class="num">7808</td><td class="num">21</td><td class="num">1024</td><td class="num">324</td><td class="num">2911</td><td class="num">240.0</td><td class="num">6307</td><td>0xc02aaa39… (1402)</td></tr>
+        <tr><td>base</td><td>Base (OP Stack)</td><td>✓</td><td class="num">28529</td><td class="num">50</td><td class="num">1629</td><td class="num">671</td><td class="num">4995</td><td class="num">98.0</td><td class="num">14327</td><td>0x42000000… (5841)</td></tr>
+        <tr><td>arbitrum</td><td>Arbitrum One</td><td>✓</td><td class="num">647</td><td class="num">47</td><td class="num">138</td><td class="num">119</td><td class="num">105</td><td class="num">12.0</td><td class="num">2100</td><td>0x82af4944… (60)</td></tr>
+        <tr><td>optimism</td><td>Optimism</td><td>✓</td><td class="num">4729</td><td class="num">50</td><td class="num">545</td><td class="num">263</td><td class="num">722</td><td class="num">98.0</td><td class="num">4985</td><td>0x42000000… (458)</td></tr>
+        <tr><td>polygon</td><td>Polygon PoS</td><td>✓</td><td class="num">20377</td><td class="num">50</td><td class="num">984</td><td class="num">537</td><td class="num">4878</td><td class="num">104.0</td><td class="num">11621</td><td>0x00000000… (5882)</td></tr>
+        <tr><td>linea</td><td>Linea (zkEVM)</td><td>✓</td><td class="num">955</td><td class="num">50</td><td class="num">145</td><td class="num">130</td><td class="num">204</td><td class="num">98.0</td><td class="num">2163</td><td>0xe5d7c2a4… (123)</td></tr>
+        <tr><td>scroll</td><td>Scroll (zkEVM)</td><td>✓</td><td class="num">1139</td><td class="num">50</td><td class="num">170</td><td class="num">131</td><td class="num">285</td><td class="num">146.0</td><td class="num">2551</td><td>0x53000000… (200)</td></tr>
+        <tr><td>unichain</td><td>Unichain (Uniswap L2)</td><td>✓</td><td class="num">142</td><td class="num">30</td><td class="num">25</td><td class="num">19</td><td class="num">63</td><td class="num">49.0</td><td class="num">1786</td><td>0xec4a5606… (30)</td></tr>
       </tbody></table></div>
     </section>
     <section class="section">
       <h2 lang="ja">5. メソドロジー</h2>
       <h2 lang="en">5. Methodology</h2>
       <div lang="ja"><p><strong>対象</strong>: 8 チェーン。L1（Ethereum, Polygon）、OP Stack L2（Base, Optimism, Unichain）、Arbitrum stack（Arbitrum One）、zkEVM L2（Linea, Scroll）を横断。</p>
-      <p><strong>pull</strong>: 各チェーンに対し <code>chainq pull --chain &lt;id&gt; --from N --to N+49</code> を <strong><code>Promise.all</code> で並列実行</strong>。所要時間は最も遅いプルが決定（20.5s）— 直列なら 62.1s 相当でした。</p>
+      <p><strong>pull</strong>: 各チェーンに対し <code>chainq pull --chain &lt;id&gt; --from N --to N+49</code> を <strong><code>Promise.all</code> で並列実行</strong>。所要時間は最も遅いプルが決定（14.3s）— 直列なら 45.8s 相当でした。</p>
       <p><strong>分析</strong>: チェーンごとに DuckDB <code>read_parquet</code> + 集約 SELECT（COUNT, COUNT DISTINCT）。エンジンもコードパスも他の chainq 機能と同一。</p>
       <p><strong>ブロック範囲</strong>: 各チェーン 50 ブロック。壁時計の長さはチェーンごとに違います（Ethereum 12秒/block, Polygon 2秒, Arbitrum 0.25秒など）。詳細テーブルの <code>window_s</code> 列で明示しています。</p></div>
       <div lang="en"><p><strong>Targets</strong>: 8 chains spanning L1 (Ethereum, Polygon), OP Stack L2 (Base, Optimism, Unichain), Arbitrum stack (Arbitrum One), and zkEVM L2 (Linea, Scroll).</p>
-      <p><strong>Pull</strong>: <code>chainq pull --chain &lt;id&gt; --from N --to N+49</code> against each chain&#39;s public Subsquid archive in <strong>parallel via <code>Promise.all</code></strong>. The slowest pull determined wall-clock time (20.5s); sequential would have been ~62.1s.</p>
+      <p><strong>Pull</strong>: <code>chainq pull --chain &lt;id&gt; --from N --to N+49</code> against each chain&#39;s public Subsquid archive in <strong>parallel via <code>Promise.all</code></strong>. The slowest pull determined wall-clock time (14.3s); sequential would have been ~45.8s.</p>
       <p><strong>Analytics</strong>: per-chain DuckDB <code>read_parquet</code> + aggregate SELECTs (COUNT, COUNT DISTINCT). Same engine, same code path as the rest of chainq.</p>
       <p><strong>Block windows</strong>: 50 blocks each chain. Wall-clock window differs because block time differs (Ethereum 12s, Polygon 2s, Arbitrum 0.25s, etc.). The <code>window_s</code> column in the detail table makes this explicit.</p></div>
     </section>
@@ -368,6 +386,16 @@ input[type="radio"][name="locale"] {
       <p><strong>CI では pull 失敗が珍しくありません。</strong> ここで選んだブロック範囲は任意の値です — slug 追加後に Subsquid 側で worker がリシャードされている場合、historical range が 404 することがあります。<code>scripts/probe-archives.ts</code> のプローブは URL の到達性は検証しますが、任意の historical range が引けるかまでは保証しません。</p></div>
       <div lang="en"><p><strong>Cross-chain comparison is shape, not magnitude.</strong> A chain with 50× more logs in the same block window may simply have 50× shorter block times — not 50× more activity. Always normalize by the <code>window_s</code> column when ranking.</p>
       <p><strong>Pull failures are common in CI.</strong> The selected block ranges are arbitrary; if a chain has re-shard&#39;d workers since the slug was first added, the pull will 404. The probe at <code>scripts/probe-archives.ts</code> validates the URL is reachable but not that every historical range still resolves.</p></div>
+    </section>
+    <section class="section">
+      <h2 lang="ja">アクションアイテム</h2>
+      <h2 lang="en">Action items</h2>
+      <div lang="ja"><p><strong>DeFi プロトコル創業者 へ:</strong> Base (OP Stack)（291.1 logs/秒）にリクイディティマイニング予算を集中させるべき — ユーザーは既にそこで取引している。（今四半期）</p>
+      <p><strong>コンシューマー dApp 創業者 へ:</strong> Unichain (Uniswap L2)（2.90 logs/秒）に展開を検討 — 競争はほぼ無く、ガス代も安く、トラクションが目立つ。（今すぐ）</p>
+      <p><strong>リサーチ / データアナリスト へ:</strong> 本スクリプトを週次実行し、8 チェーンのログ/秒分布の経時変化を追うこと — トップチェーンの持続的な交代は資本ローテーションの先行指標になる。（継続）</p></div>
+      <div lang="en"><p><strong>If you are a DeFi protocol founder:</strong> Concentrate liquidity-mining incentives on Base (OP Stack) (291.1 logs/sec) where the user base already trades. (this quarter)</p>
+      <p><strong>If you are a consumer-app founder:</strong> Deploy on Unichain (Uniswap L2) (2.90 logs/sec) — almost no competition, gas costs are low, and any traction stands out. (now)</p>
+      <p><strong>If you are a research / data analyst:</strong> Run this same script weekly and compare the 8-chain log-rate distribution over time — a sustained shift in the fastest chain is a leading indicator of capital rotation. (watch)</p></div>
     </section>
     <section class="section">
       <h2 lang="ja">再現手順</h2>
