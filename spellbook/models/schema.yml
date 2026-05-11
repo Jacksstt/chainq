@@ -87,3 +87,36 @@ models:
         tests: [not_null]
       - name: dst_chain
         tests: [not_null]
+
+  - name: base_raw_logs
+    description: Raw EVM logs from `chainq pull --chain base` (live or seeded).
+    columns:
+      - name: block_number
+        tests: [not_null]
+      - name: block_time
+        tests: [not_null]
+      - name: chain
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["base"]
+      - name: tx_hash
+        tests: [not_null]
+      - name: address
+        tests: [not_null]
+
+  - name: base_log_activity_hourly
+    description: Hourly aggregate over `base_raw_logs`.
+    columns:
+      - name: hour
+        tests: [not_null, unique]
+      - name: logs
+        tests: [not_null]
+
+  - name: base_top_emitters
+    description: Top emitters in the current Base log window.
+    columns:
+      - name: address
+        tests: [not_null, unique]
+      - name: logs
+        tests: [not_null]

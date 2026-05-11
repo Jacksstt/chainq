@@ -301,6 +301,40 @@ async function main() {
   `);
   await conn.run(`COPY bridge_transfers TO '${resolve(OUT_DIR, "bridge.transfers.parquet")}' (FORMAT 'parquet')`);
 
+  // base.logs --------------------------------------------------------------
+  // Schema that EXACTLY matches what `chainq pull --chain base` produces
+  // against the live Subsquid archive: block_number, block_time, chain,
+  // tx_hash, log_index, address, topic0..3, data. This is so the
+  // `models/live/base_raw_logs.sql` dbt model can be built and tested in
+  // CI without requiring a live pull every run. A real deployment
+  // replaces this file via `chainq pull` before running dbt.
+  const ROWS_BASE_LOGS = 5_000 * SCALE;
+  await conn.run(`
+    CREATE TABLE base_logs AS
+    WITH base AS (SELECT range AS i FROM range(${ROWS_BASE_LOGS}))
+    SELECT
+      24000000 + (i / 100)::BIGINT                                       AS block_number,
+      TIMESTAMP '2024-12-21 13:55:47' + ((i / 100) * INTERVAL '2 seconds') AS block_time,
+      'base'                                                              AS chain,
+      '0x' || lpad(format('{:x}', i * 17), 64, '0')                       AS tx_hash,
+      (i % 100)::INTEGER                                                  AS log_index,
+      list_extract(['0x4200000000000000000000000000000000000006',
+                    '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913',
+                    '0x4200000000000000000000000000000000000010',
+                    '0x' || lpad(format('{:x}', (i * 37) % 5000), 40, '0')],
+                   1 + (i % 4))                                          AS address,
+      list_extract(['0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
+                    '0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925',
+                    '0x4dec04e750ca11537cabcd8a9eab06494de08da3735bc8871cd41250e190bc04'],
+                   1 + (i % 3))                                          AS topic0,
+      '0x' || lpad(format('{:x}', (i * 31) % 100000), 64, '0')           AS topic1,
+      '0x' || lpad(format('{:x}', (i * 53) % 100000), 64, '0')           AS topic2,
+      CAST(NULL AS VARCHAR)                                              AS topic3,
+      '0x' || lpad(format('{:x}', i * 11), 128, '0')                     AS data
+    FROM base;
+  `);
+  await conn.run(`COPY base_logs TO '${resolve(OUT_DIR, "base.logs.parquet")}' (FORMAT 'parquet')`);
+
   conn.disconnectSync();
 
   console.log(`wrote sample parquet files to ${OUT_DIR}`);

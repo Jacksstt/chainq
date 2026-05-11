@@ -35,5 +35,7 @@ models:
       +materialized: view
     bridge:
       +materialized: view
+    live:
+      +materialized: view
     whuffie:
       +materialized: view

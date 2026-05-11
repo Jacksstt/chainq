@@ -73,6 +73,46 @@ export const CATALOG: TableDescriptor[] = [
     ],
   },
   {
+    name: "base.logs",
+    description:
+      "Raw EVM log events on Base, one row per log. Produced verbatim by " +
+      "`chainq pull --chain base --from N --to M` against the public Subsquid " +
+      "archive. Use as the **load-bearing real-data source** for downstream " +
+      "models — `dex.trades`, `erc20.transfers`, etc. should be derivable " +
+      "from this by topic0-keyed decoding (Spellbook v0.2 work).",
+    chains: ["base"],
+    columns: [
+      { name: "block_number", type: "BIGINT",    description: "Base block height.", nullable: false },
+      { name: "block_time",   type: "TIMESTAMP", description: "Block timestamp (UTC).", nullable: false },
+      { name: "chain",        type: "VARCHAR",   description: "Always `base`.", nullable: false },
+      { name: "tx_hash",      type: "VARCHAR",   description: "Transaction hash.", nullable: false },
+      { name: "log_index",    type: "INTEGER",   description: "Log index within the transaction.", nullable: false },
+      { name: "address",      type: "VARCHAR",   description: "Emitting contract address (lowercase hex).", nullable: false },
+      { name: "topic0",       type: "VARCHAR",   description: "Event signature hash (keccak256 of the signature).", nullable: true },
+      { name: "topic1",       type: "VARCHAR",   description: "First indexed parameter.", nullable: true },
+      { name: "topic2",       type: "VARCHAR",   description: "Second indexed parameter.", nullable: true },
+      { name: "topic3",       type: "VARCHAR",   description: "Third indexed parameter.", nullable: true },
+      { name: "data",         type: "VARCHAR",   description: "ABI-encoded non-indexed parameters (hex).", nullable: true },
+    ],
+    partitions: ["block_number"],
+    lineage: [
+      {
+        source: "Public Subsquid archive (https://v2.archive.subsquid.io/network/base-mainnet) via @chainq/snapshot.pull().",
+        transform: "Worker-discovery → POST stream → COPY TO parquet. No decoding.",
+        dbtModel: "models/live/base_raw_logs.sql",
+      },
+    ],
+    sampleQueries: [
+      { title: "Top emitters in a block range", sql: "SELECT address, COUNT(*) AS logs FROM base_logs GROUP BY 1 ORDER BY 2 DESC LIMIT 25" },
+      { title: "Logs per hour", sql: "SELECT date_trunc('hour', block_time) AS hour, COUNT(*) AS logs FROM base_logs GROUP BY 1 ORDER BY 1" },
+    ],
+    gotchas: [
+      "topic3 is typically NULL — only 3-indexed-param events use it (rare).",
+      "When `chainq pull` has not been run, this table will be the synthetic seed (5,000 rows). Live deployments overwrite with real pulled data.",
+      "All addresses and topics are lowercase hex with `0x` prefix. Don't compare case-sensitively across sources.",
+    ],
+  },
+  {
     name: "nft.trades",
     description:
       "NFT sales across major marketplaces (OpenSea, Blur, LooksRare, X2Y2, Magic Eden). One row " +

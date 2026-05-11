@@ -1,0 +1,27 @@
+metric: base_logs_hourly
+description: |
+  Hourly Base mainnet activity: total log count, distinct contracts,
+  distinct event signatures, distinct transactions. Derives from
+  `base.logs` which is populated by `chainq pull --chain base` against
+  the public Subsquid archive. Use as the canonical "Base on-chain
+  pulse" signal.
+dimensions:
+  - hour
+filters: []
+sql_template: |
+  SELECT
+    {{select_dimensions}},
+    COUNT(*) AS logs,
+    COUNT(DISTINCT address) AS distinct_contracts,
+    COUNT(DISTINCT topic0) AS distinct_event_signatures,
+    COUNT(DISTINCT tx_hash) AS distinct_transactions
+  FROM "base.logs"
+  WHERE block_time BETWEEN {{start}} AND {{end}}
+  GROUP BY {{group_dimensions}}
+  ORDER BY {{group_dimensions}}
+dimension_expressions:
+  hour: "date_trunc('hour', block_time)"
+guardrails:
+  max_range_days: 7
+  max_rows: 50000
+  timeout_seconds: 20
