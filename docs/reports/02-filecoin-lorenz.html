@@ -1,0 +1,14 @@
+<!doctype html>
+<html><head>
+  <meta charset="utf-8" />
+  <title>chainq chart</title>
+  <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-lite@6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+</head><body>
+  <div id="chart"></div>
+  <script>
+    const spec = {"$schema":"https://vega.github.io/schema/vega-lite/v6.json","title":"Lorenz curve — providers vs. cumulative bytes / ローレンツ曲線","width":600,"height":320,"data":{"values":[{"p_groups":0,"p_value":0},{"p_groups":0.005,"p_value":0.0013},{"p_groups":0.025,"p_value":0.0067},{"p_groups":0.045,"p_value":0.012},{"p_groups":0.065,"p_value":0.0173},{"p_groups":0.085,"p_value":0.0227},{"p_groups":0.105,"p_value":0.028},{"p_groups":0.125,"p_value":0.0333},{"p_groups":0.145,"p_value":0.0387},{"p_groups":0.165,"p_value":0.044},{"p_groups":0.185,"p_value":0.0493},{"p_groups":0.205,"p_value":0.0547},{"p_groups":0.225,"p_value":0.06},{"p_groups":0.245,"p_value":0.0653},{"p_groups":0.265,"p_value":0.0747},{"p_groups":0.285,"p_value":0.0853},{"p_groups":0.305,"p_value":0.096},{"p_groups":0.325,"p_value":0.1067},{"p_groups":0.345,"p_value":0.1173},{"p_groups":0.365,"p_value":0.128},{"p_groups":0.385,"p_value":0.1387},{"p_groups":0.405,"p_value":0.1493},{"p_groups":0.425,"p_value":0.16},{"p_groups":0.445,"p_value":0.1707},{"p_groups":0.465,"p_value":0.1813},{"p_groups":0.485,"p_value":0.192},{"p_groups":0.505,"p_value":0.2053},{"p_groups":0.525,"p_value":0.2267},{"p_groups":0.545,"p_value":0.248},{"p_groups":0.565,"p_value":0.2693},{"p_groups":0.585,"p_value":0.2907},{"p_groups":0.605,"p_value":0.312},{"p_groups":0.625,"p_value":0.3333},{"p_groups":0.645,"p_value":0.3547},{"p_groups":0.665,"p_value":0.376},{"p_groups":0.685,"p_value":0.3973},{"p_groups":0.705,"p_value":0.4187},{"p_groups":0.725,"p_value":0.44},{"p_groups":0.745,"p_value":0.4613},{"p_groups":0.765,"p_value":0.4987},{"p_groups":0.785,"p_value":0.5413},{"p_groups":0.805,"p_value":0.584},{"p_groups":0.825,"p_value":0.6267},{"p_groups":0.845,"p_value":0.6693},{"p_groups":0.865,"p_value":0.712},{"p_groups":0.885,"p_value":0.7547},{"p_groups":0.905,"p_value":0.7973},{"p_groups":0.925,"p_value":0.84},{"p_groups":0.945,"p_value":0.8827},{"p_groups":0.965,"p_value":0.9253},{"p_groups":0.985,"p_value":0.968},{"p_groups":1,"p_value":1}]},"mark":"line","encoding":{"x":{"field":"p_groups","type":"quantitative"},"y":{"field":"p_value","type":"quantitative"}}};
+    vegaEmbed("#chart", spec, { actions: false });
+  </script>
+</body></html>

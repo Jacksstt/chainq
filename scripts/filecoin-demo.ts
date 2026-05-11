@@ -32,7 +32,7 @@ import {
   histogramChartData,
   bucketChartData,
 } from "../packages/mcp-server/src/analytics.ts";
-import { mkdtempSync, mkdirSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -174,31 +174,62 @@ async function main() {
   }));
 
   // ---------- 8. Charts ----------
-  const chart = async (suffix: string, spec: Parameters<typeof saveChart>[0]) => {
+  // svg() emits a static SVG; html() emits a self-contained interactive vega-embed file.
+  const svg = async (suffix: string, spec: Parameters<typeof saveChart>[0]) => {
     const out = resolve(REPORT_DIR, `${CHART_PREFIX}-${suffix}.svg`);
     await saveChart(spec, out);
     return `./${CHART_PREFIX}-${suffix}.svg`;
   };
+  const html = async (suffix: string, spec: Parameters<typeof saveChart>[0]) => {
+    const out = resolve(REPORT_DIR, `${CHART_PREFIX}-${suffix}.html`);
+    await saveChart(spec, out);
+    return `./${CHART_PREFIX}-${suffix}.html`;
+  };
+
+  // CSV dumps for download chips.
+  const csv = (suffix: string, rows: Array<Record<string, unknown>>): string => {
+    const filePath = resolve(REPORT_DIR, `${CHART_PREFIX}-${suffix}.csv`);
+    if (rows.length === 0) {
+      writeFileSync(filePath, "");
+      return `./${CHART_PREFIX}-${suffix}.csv`;
+    }
+    const cols = Object.keys(rows[0]!);
+    const escapeCsv = (v: unknown) => {
+      const s = v == null ? "" : String(v);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const lines = [cols.join(",")];
+    for (const r of rows) lines.push(cols.map((c) => escapeCsv(r[c])).join(","));
+    writeFileSync(filePath, lines.join("\n"));
+    return `./${CHART_PREFIX}-${suffix}.csv`;
+  };
 
   const top25 = rows.slice(0, 25);
-  const chartTop25 = await chart("top25", {
+  // Interactive Vega chart for top 25; static SVG fallback also generated.
+  const top25Data = top25.map((r, i) => ({ rank: i + 1, provider: r.provider, tib: Number(r.tib.toFixed(2)) }));
+  const chartTop25 = await html("top25", {
     type: "bar",
-    data: top25.map((r, i) => ({ rank: i + 1, provider: r.provider, tib: Number(r.tib.toFixed(2)) })),
+    data: top25Data,
     x: "rank",
     y: "tib",
     title: "Top 25 storage providers (TiB) / 上位25社の格納容量 (TiB)",
   });
+  await svg("top25", { type: "bar", data: top25Data, x: "rank", y: "tib", title: "Top 25 storage providers (TiB)" });
+  const top25CsvPath = csv("top25", top25Data);
 
-  // Lorenz curve is already on `suite.lorenz`; renamed columns to match.
-  const chartLorenz = await chart("lorenz", {
+  // Lorenz curve — interactive HTML this time.
+  const lorenzData = lorenzChartData(suite.lorenz);
+  const chartLorenz = await html("lorenz", {
     type: "line",
-    data: lorenzChartData(suite.lorenz),
+    data: lorenzData,
     x: "p_groups",
     y: "p_value",
     title: "Lorenz curve — providers vs. cumulative bytes / ローレンツ曲線",
   });
+  await svg("lorenz", { type: "line", data: lorenzData, x: "p_groups", y: "p_value", title: "Lorenz curve" });
+  const lorenzCsvPath = csv("lorenz", lorenzData as Array<Record<string, unknown>>);
 
-  const chartTiers = await chart("tiers", {
+  const chartTiers = await svg("tiers", {
     type: "bar",
     data: tiers.map((t) => ({ tier: t.label, count: t.count })),
     x: "tier",
@@ -212,7 +243,7 @@ async function main() {
     const tierVerified = tierProviders.reduce((s, p) => s + (verifiedByProvider.get(p.provider) ?? 0), 0);
     return { tier: t.label, verified_share: tierBytes > 0 ? +(tierVerified / tierBytes).toFixed(4) : 0 };
   });
-  const chartVerifiedByTier = await chart("verified-by-tier", {
+  const chartVerifiedByTier = await svg("verified-by-tier", {
     type: "bar",
     data: verifiedByTier,
     x: "tier",
@@ -222,7 +253,7 @@ async function main() {
 
   // Duration histogram in 30-day buckets — reused analytics.histogram.
   const durationHist = histogram(durations.map(durationDays), 30);
-  const chartDuration = await chart("duration", {
+  const chartDuration = await svg("duration", {
     type: "bar",
     data: histogramChartData(durationHist),
     x: "from",
@@ -290,11 +321,16 @@ async function main() {
   // 9d. Top 25 providers
   sections.push({
     heading: { en: "3. Top 25 providers", ja: "3. 上位25プロバイダ" },
-    chartPath: chartTop25,
+    chartPath: chartTop25,        // interactive HTML
+    chartHeight: 420,
     caption: {
-      en: "TiB stored per provider, rank 1-25. Power-law fall-off is characteristic.",
-      ja: "プロバイダ別 TiB（上位1-25位）。べき分布的な減衰がはっきり見えます。",
+      en: "TiB stored per provider, rank 1-25 (interactive — hover for exact values). Power-law fall-off is characteristic.",
+      ja: "プロバイダ別 TiB（上位1-25位）。インタラクティブ表示 — ホバーで正確な値が見えます。べき分布的な減衰がはっきり見えます。",
     },
+    downloads: [
+      { path: top25CsvPath,                       label: { en: "Top 25 raw rows", ja: "上位25 生データ" }, format: "csv" },
+      { path: `./${CHART_PREFIX}-top25.svg`,      label: { en: "Static SVG fallback", ja: "静的SVG" },      format: "svg" },
+    ],
   });
   sections.push({
     heading: { en: "3a. Top 25 (raw)", ja: "3a. 上位25（生の数値）" },
@@ -311,11 +347,16 @@ async function main() {
   // 9e. Lorenz curve
   sections.push({
     heading: { en: "4. Lorenz curve & Gini", ja: "4. ローレンツ曲線と Gini" },
-    chartPath: chartLorenz,
+    chartPath: chartLorenz,        // interactive HTML
+    chartHeight: 380,
     caption: {
       en: `Cumulative provider count (X) vs. cumulative bytes (Y). The diagonal is perfect equality. Gini = ${gini.toFixed(3)}.`,
       ja: `プロバイダの累積比率 (X) と 累積バイトの比率 (Y)。対角線が完全平等。Gini = ${gini.toFixed(3)}。`,
     },
+    downloads: [
+      { path: lorenzCsvPath,                      label: { en: "Lorenz curve data", ja: "ローレンツ曲線データ" }, format: "csv" },
+      { path: `./${CHART_PREFIX}-lorenz.svg`,     label: { en: "Static SVG fallback", ja: "静的SVG" },           format: "svg" },
+    ],
   });
   sections.push({
     heading: { en: "4a. Provider tier distribution", ja: "4a. 容量帯ごとのプロバイダ数" },
@@ -501,6 +542,14 @@ async function main() {
     },
     outPath: out,
     locale: "both",
+    brand: {
+      name: "PRIME BEAT · CHAINQ",
+      accentColor: "#0ea5e9",
+      footer: {
+        en: "Authored by **Prime Beat** via [chainq](https://github.com/Jacksstt/chainq). Self-hosted, MCP-native. © 2026 Prime Beat Inc. — MIT.",
+        ja: "**Prime Beat** が [chainq](https://github.com/Jacksstt/chainq) 経由で作成。セルフホスト、MCPネイティブ。© 2026 Prime Beat Inc. — MIT。",
+      },
+    },
     summary: {
       en: `An analyst-grade walkthrough of Filecoin storage concentration: top-N shares, Herfindahl, Gini, Lorenz curve, provider tiers, Filecoin Plus verified-deal share, deal-duration distribution, client diversity, and cohort analysis — all from the same \`filecoin.deals\` table via chainq's MCP surface.`,
       ja: `Filecoin のストレージ集中度をアナリスト水準で分解しています。 top-N シェア、Herfindahl、Gini、ローレンツ曲線、プロバイダ階層、Filecoin Plus 検証済みディール比率、ディール期間分布、クライアント多様性、コホート分析まで、すべて単一の \`filecoin.deals\` テーブルから chainq の MCP インターフェース経由で生成しています。`,

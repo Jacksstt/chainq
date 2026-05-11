@@ -426,12 +426,24 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
           table: z.array(z.record(z.string(), z.unknown())).optional(),
           chartPath: z.string().optional(),
           caption: localized.optional(),
+          chartHeight: z.number().int().positive().optional().describe("Pixel height for interactive (.html) chart embeds. Default 360."),
+          downloads: z.array(z.object({
+            path: z.string(),
+            label: localized.optional(),
+            format: z.enum(["csv", "json", "parquet", "html", "svg", "png", "other"]).optional(),
+          })).optional().describe("Download chips rendered under the section (CSV / JSON / Parquet …)."),
         }),
       ),
       format: z.enum(["html", "markdown"]).optional().describe("Output format. Defaults to HTML (or inferred from filename)."),
-      locale: z.enum(["en", "ja", "both"]).optional().describe("Render locale: 'en' (default) / 'ja' / 'both' (CSS-only language toggle, no JS). 'both' requires at least one field to be `{ en, ja }`; otherwise falls back to 'en'."),
+      locale: z.enum(["en", "ja", "both"]).optional().describe("Render locale: 'en' (default) / 'ja' / 'both' (CSS-only language toggle, no JS)."),
+      brand: z.object({
+        name: z.string().optional(),
+        logoUrl: z.string().optional(),
+        accentColor: z.string().optional(),
+        footer: localized.optional(),
+      }).optional().describe("Brand overrides: eyebrow `name`, header `logoUrl`, CSS `accentColor`, footer text."),
     },
-    async ({ title, filename, summary, frontmatter, sections, format, locale }) => {
+    async ({ title, filename, summary, frontmatter, sections, format, locale, brand }) => {
       try {
         const path = writeReport(
           {
@@ -441,6 +453,7 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
             frontmatter,
             sections,
             locale,
+            brand,
           },
           format as ReportFormat | undefined,
         );

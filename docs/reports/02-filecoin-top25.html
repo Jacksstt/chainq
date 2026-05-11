@@ -1,0 +1,14 @@
+<!doctype html>
+<html><head>
+  <meta charset="utf-8" />
+  <title>chainq chart</title>
+  <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-lite@6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+</head><body>
+  <div id="chart"></div>
+  <script>
+    const spec = {"$schema":"https://vega.github.io/schema/vega-lite/v6.json","title":"Top 25 storage providers (TiB) / 上位25社の格納容量 (TiB)","width":600,"height":320,"data":{"values":[{"rank":1,"provider":"f01143","tib":2.5},{"rank":2,"provider":"f01163","tib":2.5},{"rank":3,"provider":"f01179","tib":2.5},{"rank":4,"provider":"f01147","tib":2.5},{"rank":5,"provider":"f01155","tib":2.5},{"rank":6,"provider":"f01127","tib":2.5},{"rank":7,"provider":"f01115","tib":2.5},{"rank":8,"provider":"f01055","tib":2.5},{"rank":9,"provider":"f01051","tib":2.5},{"rank":10,"provider":"f01119","tib":2.5},{"rank":11,"provider":"f01003","tib":2.5},{"rank":12,"provider":"f01023","tib":2.5},{"rank":13,"provider":"f01067","tib":2.5},{"rank":14,"provider":"f01195","tib":2.5},{"rank":15,"provider":"f01131","tib":2.5},{"rank":16,"provider":"f01019","tib":2.5},{"rank":17,"provider":"f01083","tib":2.5},{"rank":18,"provider":"f01199","tib":2.5},{"rank":19,"provider":"f01071","tib":2.5},{"rank":20,"provider":"f01095","tib":2.5},{"rank":21,"provider":"f01063","tib":2.5},{"rank":22,"provider":"f01027","tib":2.5},{"rank":23,"provider":"f01059","tib":2.5},{"rank":24,"provider":"f01075","tib":2.5},{"rank":25,"provider":"f01167","tib":2.5}]},"mark":"bar","encoding":{"x":{"field":"rank","type":"quantitative"},"y":{"field":"tib","type":"quantitative"}}};
+    vegaEmbed("#chart", spec, { actions: false });
+  </script>
+</body></html>

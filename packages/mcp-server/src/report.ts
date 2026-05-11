@@ -22,12 +22,40 @@ export type Localizable = string | I18nString;
 
 export type ReportLocale = "en" | "ja" | "both";
 
+export interface DownloadLink {
+  /** Relative path or URL of the artefact. */
+  path: string;
+  /** Display label. Defaults to `basename(path)`. */
+  label?: Localizable;
+  /** Hint about file type. Affects the chip styling, not download behaviour. */
+  format?: "csv" | "json" | "parquet" | "html" | "svg" | "png" | "other";
+}
+
 export interface ReportSection {
   heading: Localizable;
   body?: Localizable;
   table?: Record<string, unknown>[];
   chartPath?: string;
   caption?: Localizable;
+  /** Optional download chips rendered under the section (CSV / JSON / Parquet …). */
+  downloads?: DownloadLink[];
+  /**
+   * For interactive HTML charts: `chartPath` can already point at a `.html`
+   * artefact, in which case it is embedded via `<iframe>` (sandboxed). Set
+   * `chartHeight` to control iframe height; default 360px.
+   */
+  chartHeight?: number;
+}
+
+export interface ReportBrand {
+  /** Overrides the "chainq report" eyebrow text and footer attribution. */
+  name?: string;
+  /** URL or relative path to a logo image (SVG / PNG). Rendered in the header. */
+  logoUrl?: string;
+  /** Any valid CSS color. Overrides the report's --accent token. */
+  accentColor?: string;
+  /** Custom footer line (replaces the default attribution string). */
+  footer?: Localizable;
 }
 
 export interface ReportSpec {
@@ -38,6 +66,8 @@ export interface ReportSpec {
   sections: ReportSection[];
   /** "en" / "ja" / "both". Defaults to "en" for back-compat. */
   locale?: ReportLocale;
+  /** Optional brand overrides (logo / accent / footer). */
+  brand?: ReportBrand;
 }
 
 export type ReportFormat = "html" | "markdown";
@@ -124,6 +154,15 @@ function renderHtmlSingle(spec: ReportSpec, lang: "en" | "ja"): string {
   const title = escape(pick(spec.title, lang));
   const generated = new Date().toISOString();
   const chrome = CHROME[lang];
+  const brand = spec.brand ?? {};
+  const eyebrow = escape(brand.name ?? "chainq report");
+  const brandStyle = brand.accentColor
+    ? `<style>:root, .report { --accent: ${escape(brand.accentColor)}; }</style>`
+    : "";
+  const logo = brand.logoUrl
+    ? `<img class="report-logo" src="${escape(brand.logoUrl)}" alt="">`
+    : "";
+  const footerText = pick(brand.footer, lang);
 
   const frontmatter = spec.frontmatter && Object.keys(spec.frontmatter).length > 0
     ? renderFrontmatter(spec.frontmatter, chrome)
@@ -140,12 +179,13 @@ function renderHtmlSingle(spec: ReportSpec, lang: "en" | "ja"): string {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${title}</title>
-<style>${REPORT_CSS}</style>
+<style>${REPORT_CSS}</style>${brandStyle}
 </head>
 <body>
 <main class="report">
   <header class="report-head">
-    <p class="eyebrow">chainq report</p>
+    ${logo}
+    <p class="eyebrow">${eyebrow}</p>
     <h1>${title}</h1>
     <p class="meta">${escape(chrome.generated(generated))}</p>
     ${frontmatter}
@@ -155,7 +195,7 @@ function renderHtmlSingle(spec: ReportSpec, lang: "en" | "ja"): string {
 ${sections}
   </article>
   <footer class="report-foot">
-    <p>${escape(chrome.authoredBy)} <a href="https://github.com/Jacksstt/chainq" target="_blank" rel="noopener">chainq</a>. ${escape(chrome.mit)}</p>
+    <p>${footerText ? renderInline(footerText) : `${escape(chrome.authoredBy)} <a href="https://github.com/Jacksstt/chainq" target="_blank" rel="noopener">chainq</a>. ${escape(chrome.mit)}`}</p>
   </footer>
 </main>
 </body>
@@ -167,6 +207,16 @@ function renderHtmlBilingual(spec: ReportSpec): string {
   const titleEn = escape(pick(spec.title, "en"));
   const titleJa = escape(pick(spec.title, "ja"));
   const generated = new Date().toISOString();
+  const brand = spec.brand ?? {};
+  const eyebrow = escape(brand.name ?? "chainq report");
+  const brandStyle = brand.accentColor
+    ? `<style>:root, .report { --accent: ${escape(brand.accentColor)}; }</style>`
+    : "";
+  const logo = brand.logoUrl
+    ? `<img class="report-logo" src="${escape(brand.logoUrl)}" alt="">`
+    : "";
+  const footerJa = pick(brand.footer, "ja");
+  const footerEn = pick(brand.footer, "en");
 
   const frontmatterBlock = spec.frontmatter && Object.keys(spec.frontmatter).length > 0
     ? renderFrontmatterBilingual(spec.frontmatter)
@@ -188,7 +238,7 @@ function renderHtmlBilingual(spec: ReportSpec): string {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${docTitle}</title>
-<style>${REPORT_CSS}${BILINGUAL_CSS}</style>
+<style>${REPORT_CSS}${BILINGUAL_CSS}</style>${brandStyle}
 </head>
 <body>
 <input id="loc-ja" type="radio" name="locale" checked aria-hidden="true">
@@ -199,7 +249,8 @@ function renderHtmlBilingual(spec: ReportSpec): string {
     <label for="loc-en">English</label>
   </nav>
   <header class="report-head">
-    <p class="eyebrow">chainq report</p>
+    ${logo}
+    <p class="eyebrow">${eyebrow}</p>
     ${titleJa ? `<h1 lang="ja">${titleJa}</h1>` : ""}
     ${titleEn ? `<h1 lang="en">${titleEn}</h1>` : ""}
     <p class="meta" lang="ja">${escape(CHROME.ja.generated(generated))}</p>
@@ -211,8 +262,8 @@ function renderHtmlBilingual(spec: ReportSpec): string {
 ${sections}
   </article>
   <footer class="report-foot">
-    <p lang="ja">${escape(CHROME.ja.authoredBy)} <a href="https://github.com/Jacksstt/chainq" target="_blank" rel="noopener">chainq</a> ${escape("経由で作成")}。${escape(CHROME.ja.mit)}</p>
-    <p lang="en">${escape(CHROME.en.authoredBy)} <a href="https://github.com/Jacksstt/chainq" target="_blank" rel="noopener">chainq</a>. ${escape(CHROME.en.mit)}</p>
+    <p lang="ja">${footerJa ? renderInline(footerJa) : `${escape(CHROME.ja.authoredBy)} <a href="https://github.com/Jacksstt/chainq" target="_blank" rel="noopener">chainq</a> ${escape("経由で作成")}。${escape(CHROME.ja.mit)}`}</p>
+    <p lang="en">${footerEn ? renderInline(footerEn) : `${escape(CHROME.en.authoredBy)} <a href="https://github.com/Jacksstt/chainq" target="_blank" rel="noopener">chainq</a>. ${escape(CHROME.en.mit)}`}</p>
   </footer>
 </main>
 </body>
@@ -232,7 +283,10 @@ function renderSectionSingle(section: ReportSection, lang: "en" | "ja"): string 
   if (bodyText) parts.push(`      ${renderBody(bodyText)}`);
   if (section.table && section.table.length > 0) parts.push(`      ${renderTable(section.table)}`);
   if (section.chartPath) {
-    parts.push(`      ${renderChart(section.chartPath, pick(section.caption, lang) || headingText)}`);
+    parts.push(`      ${renderChart(section.chartPath, pick(section.caption, lang) || headingText, section.chartHeight)}`);
+  }
+  if (section.downloads && section.downloads.length > 0) {
+    parts.push(`      ${renderDownloads(section.downloads, lang)}`);
   }
   parts.push(`    </section>`);
   return parts.join("\n");
@@ -260,7 +314,10 @@ function renderSectionBilingual(section: ReportSection): string {
   if (section.chartPath) {
     const captionJa = pick(section.caption, "ja") || headingJa;
     const captionEn = pick(section.caption, "en") || headingEn;
-    parts.push(`      ${renderChartBilingual(section.chartPath, captionJa, captionEn)}`);
+    parts.push(`      ${renderChartBilingual(section.chartPath, captionJa, captionEn, section.chartHeight)}`);
+  }
+  if (section.downloads && section.downloads.length > 0) {
+    parts.push(`      ${renderDownloadsBilingual(section.downloads)}`);
   }
   parts.push(`    </section>`);
   return parts.join("\n");
@@ -301,7 +358,7 @@ function renderTable(rows: Record<string, unknown>[]): string {
       </tbody></table></div>`;
 }
 
-function renderChart(chartPath: string, caption: string): string {
+function renderChart(chartPath: string, caption: string, chartHeight = 360): string {
   const ext = extname(chartPath).toLowerCase();
   const safePath = escape(chartPath);
   const safeCaption = escape(caption);
@@ -309,23 +366,68 @@ function renderChart(chartPath: string, caption: string): string {
     return `<figure><img src="${safePath}" alt="${safeCaption}" loading="lazy"><figcaption>${safeCaption}</figcaption></figure>`;
   }
   if (ext === ".html" || ext === ".htm") {
-    return `<figure class="chart-link"><a href="${safePath}" target="_blank" rel="noopener">${escape(basename(chartPath))}</a><figcaption>${safeCaption}</figcaption></figure>`;
+    // Interactive chart: embed via sandboxed iframe so the vega runtime works
+    // in-page. Sandbox keeps it scripted but isolated; allow-popups lets the
+    // chart's "View source" / "Export PNG" actions open externally.
+    return `<figure class="chart-interactive"><iframe src="${safePath}" title="${safeCaption}" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" loading="lazy" style="width:100%; height:${Math.max(120, chartHeight)}px; border:0; border-radius:8px; background:var(--bg-card);"></iframe><figcaption>${safeCaption}</figcaption></figure>`;
   }
   return `<figure class="chart-link"><a href="${safePath}" target="_blank" rel="noopener">${escape(basename(chartPath))}</a><figcaption>${safeCaption}</figcaption></figure>`;
 }
 
-function renderChartBilingual(chartPath: string, captionJa: string, captionEn: string): string {
+function renderChartBilingual(chartPath: string, captionJa: string, captionEn: string, chartHeight = 360): string {
   const ext = extname(chartPath).toLowerCase();
   const safePath = escape(chartPath);
   const altCaption = captionEn || captionJa;
   const imgish = ext === ".svg" || ext === ".png" || ext === ".jpg" || ext === ".jpeg" || ext === ".gif" || ext === ".webp";
-  const head = imgish
-    ? `<img src="${safePath}" alt="${escape(altCaption)}" loading="lazy">`
-    : `<a href="${safePath}" target="_blank" rel="noopener">${escape(basename(chartPath))}</a>`;
+  const interactive = ext === ".html" || ext === ".htm";
+  let head: string;
+  if (imgish) {
+    head = `<img src="${safePath}" alt="${escape(altCaption)}" loading="lazy">`;
+  } else if (interactive) {
+    head = `<iframe src="${safePath}" title="${escape(altCaption)}" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" loading="lazy" style="width:100%; height:${Math.max(120, chartHeight)}px; border:0; border-radius:8px; background:var(--bg-card);"></iframe>`;
+  } else {
+    head = `<a href="${safePath}" target="_blank" rel="noopener">${escape(basename(chartPath))}</a>`;
+  }
   const captions: string[] = [];
   if (captionJa) captions.push(`<figcaption lang="ja">${escape(captionJa)}</figcaption>`);
   if (captionEn) captions.push(`<figcaption lang="en">${escape(captionEn)}</figcaption>`);
-  return `<figure${imgish ? "" : " class=\"chart-link\""}>${head}${captions.join("")}</figure>`;
+  const wrapperClass = imgish ? "" : interactive ? " class=\"chart-interactive\"" : " class=\"chart-link\"";
+  return `<figure${wrapperClass}>${head}${captions.join("")}</figure>`;
+}
+
+function renderDownloads(downloads: DownloadLink[], lang: "en" | "ja"): string {
+  return renderDownloadChips(downloads, (d) => pick(d.label, lang) || basename(d.path), "");
+}
+
+function renderDownloadsBilingual(downloads: DownloadLink[]): string {
+  // Render BOTH locales' labels — CSS will hide the appropriate one.
+  const parts = downloads.map((d) => {
+    const ja = pick(d.label, "ja") || basename(d.path);
+    const en = pick(d.label, "en") || basename(d.path);
+    const fmt = (d.format ?? guessFormat(d.path)).toUpperCase();
+    return `<a class="dl-chip dl-${escape((d.format ?? guessFormat(d.path)))}" href="${escape(d.path)}" download><span class="dl-fmt">${escape(fmt)}</span> <span lang="ja">${escape(ja)}</span><span lang="en">${escape(en)}</span></a>`;
+  });
+  return `<div class="downloads">${parts.join("")}</div>`;
+}
+
+function renderDownloadChips(
+  downloads: DownloadLink[],
+  labelFn: (d: DownloadLink) => string,
+  _suffix: string,
+): string {
+  const parts = downloads.map((d) => {
+    const fmt = (d.format ?? guessFormat(d.path)).toUpperCase();
+    return `<a class="dl-chip dl-${escape((d.format ?? guessFormat(d.path)))}" href="${escape(d.path)}" download><span class="dl-fmt">${escape(fmt)}</span> ${escape(labelFn(d))}</a>`;
+  });
+  return `<div class="downloads">${parts.join("")}</div>`;
+}
+
+function guessFormat(path: string): NonNullable<DownloadLink["format"]> {
+  const ext = extname(path).toLowerCase().replace(/^\./, "");
+  if (ext === "csv" || ext === "json" || ext === "parquet" || ext === "html" || ext === "svg" || ext === "png") {
+    return ext as NonNullable<DownloadLink["format"]>;
+  }
+  return "other";
 }
 
 function renderFrontmatter(frontmatter: Record<string, unknown>, chrome: Chrome): string {
@@ -618,6 +720,54 @@ figcaption + figcaption { margin-top: 2px; }
   background: var(--bg-soft);
 }
 .chart-link a { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 14px; }
+.chart-interactive { margin: 16px 0; }
+
+.report-logo {
+  display: block;
+  max-height: 36px;
+  margin: 0 0 12px;
+}
+
+.downloads {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0 0;
+}
+.dl-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+  background: var(--bg-soft);
+  color: var(--fg-dim);
+  text-decoration: none;
+  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+}
+.dl-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  text-decoration: none;
+  background: var(--bg-card);
+}
+.dl-fmt {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.dl-csv .dl-fmt    { background: #16a34a22; color: #16a34a; }
+.dl-json .dl-fmt   { background: #eab30822; color: #c08303; }
+.dl-parquet .dl-fmt{ background: #6366f122; color: #6366f1; }
+.dl-html .dl-fmt   { background: #ef444422; color: #ef4444; }
 
 .report-foot {
   margin-top: 64px;

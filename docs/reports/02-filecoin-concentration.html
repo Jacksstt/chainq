@@ -188,6 +188,54 @@ figcaption + figcaption { margin-top: 2px; }
   background: var(--bg-soft);
 }
 .chart-link a { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 14px; }
+.chart-interactive { margin: 16px 0; }
+
+.report-logo {
+  display: block;
+  max-height: 36px;
+  margin: 0 0 12px;
+}
+
+.downloads {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0 0;
+}
+.dl-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+  background: var(--bg-soft);
+  color: var(--fg-dim);
+  text-decoration: none;
+  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+}
+.dl-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  text-decoration: none;
+  background: var(--bg-card);
+}
+.dl-fmt {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.dl-csv .dl-fmt    { background: #16a34a22; color: #16a34a; }
+.dl-json .dl-fmt   { background: #eab30822; color: #c08303; }
+.dl-parquet .dl-fmt{ background: #6366f122; color: #6366f1; }
+.dl-html .dl-fmt   { background: #ef444422; color: #ef4444; }
 
 .report-foot {
   margin-top: 64px;
@@ -244,7 +292,7 @@ input[type="radio"][name="locale"] {
 }
 #loc-ja:checked ~ .report [lang="en"] { display: none; }
 #loc-en:checked ~ .report [lang="ja"] { display: none; }
-</style>
+</style><style>:root, .report { --accent: #0ea5e9; }</style>
 </head>
 <body>
 <input id="loc-ja" type="radio" name="locale" checked aria-hidden="true">
@@ -255,11 +303,12 @@ input[type="radio"][name="locale"] {
     <label for="loc-en">English</label>
   </nav>
   <header class="report-head">
-    <p class="eyebrow">chainq report</p>
+    
+    <p class="eyebrow">PRIME BEAT · CHAINQ</p>
     <h1 lang="ja">Filecoin ストレージプロバイダの集中度</h1>
     <h1 lang="en">Filecoin storage-provider concentration</h1>
-    <p class="meta" lang="ja">生成: 2026-05-11T14:34:31.026Z</p>
-    <p class="meta" lang="en">Generated 2026-05-11T14:34:31.026Z</p>
+    <p class="meta" lang="ja">生成: 2026-05-11T15:02:37.455Z</p>
+    <p class="meta" lang="en">Generated 2026-05-11T15:02:37.455Z</p>
     <details class="frontmatter"><summary><span lang="ja">メタデータ · 10 項目</span><span lang="en">Metadata · 10 fields</span></summary><table><tr><th scope="row">generated_by</th><td>chainq + scripts/filecoin-demo.ts (synthetic data)</td></tr><tr><th scope="row">table</th><td>filecoin.deals</td></tr><tr><th scope="row">metric</th><td>filecoin_provider_storage + 4 ad-hoc queries</td></tr><tr><th scope="row">providers_total</th><td>200</td></tr><tr><th scope="row">deals_total</th><td>2000</td></tr><tr><th scope="row">total_tib</th><td>234.38</td></tr><tr><th scope="row">verified_share</th><td>0.3337</td></tr><tr><th scope="row">hhi</th><td>0.0076</td></tr><tr><th scope="row">gini</th><td>0.3833</td></tr><tr><th scope="row">top10_share</th><td>0.1067</td></tr></table></details>
     <p class="summary" lang="ja">Filecoin のストレージ集中度をアナリスト水準で分解しています。 top-N シェア、Herfindahl、Gini、ローレンツ曲線、プロバイダ階層、Filecoin Plus 検証済みディール比率、ディール期間分布、クライアント多様性、コホート分析まで、すべて単一の <code>filecoin.deals</code> テーブルから chainq の MCP インターフェース経由で生成しています。</p><p class="summary" lang="en">An analyst-grade walkthrough of Filecoin storage concentration: top-N shares, Herfindahl, Gini, Lorenz curve, provider tiers, Filecoin Plus verified-deal share, deal-duration distribution, client diversity, and cohort analysis — all from the same <code>filecoin.deals</code> table via chainq&#39;s MCP surface.</p>
   </header>
@@ -274,11 +323,11 @@ input[type="radio"][name="locale"] {
       <h2 lang="ja">1. メソドロジー &amp; データ範囲</h2>
       <h2 lang="en">1. Methodology &amp; data scope</h2>
       <div lang="ja"><p><strong>ソーステーブル</strong>: <code>filecoin.deals</code>。1行=1ディール。Filfox / Spacescan API を <code>@chainq/ingest-filecoin</code> で取り込みます。本実行では <code>pnpm seed</code> の合成データ（プロバイダ 200 社 × 計 2,000 件）を使用。メインネット相当の出力で再現するには <code>chainq pull --chain filecoin</code> の結果に差し替えてください。</p>
-      <p><strong>エンジン</strong>: DuckDB（Node v23.7 互換ビルド）。<code>./data</code> の Parquet ファイル群に対しメモリ内ビューを構築。下記5本のクエリは合算 0.02 秒で完了。</p>
+      <p><strong>エンジン</strong>: DuckDB（Node v23.7 互換ビルド）。<code>./data</code> の Parquet ファイル群に対しメモリ内ビューを構築。下記5本のクエリは合算 0.04 秒で完了。</p>
       <p><strong>期間</strong>: <code>start_epoch BETWEEN 0 AND 10000000</code>（epoch は 2020-08-24 22:00:00 UTC からの 30 秒スロット — 用語集参照）。コホート分析以外でのフィルタはなし。</p>
       <p><strong>指標の定義</strong>: 集中度は Herfindahl（Σsᵢ²、バイト加重）と Gini（バイト質量によるローレンツ曲線の積分）。プロバイダ階層は TiB ベースで &lt;0.5 / 0.5-2 / 2-10 / 10-50 / &gt;50 にバケット化。</p></div>
       <div lang="en"><p><strong>Source table.</strong> <code>filecoin.deals</code> — one row per protocol deal, ingested from public Filfox / Spacescan endpoints via <code>@chainq/ingest-filecoin</code>. In this run the table comes from <code>pnpm seed</code>&#39;s synthetic dataset (2,000 deals across 200 providers); replace with <code>chainq pull --chain filecoin</code> output to reproduce against mainnet.</p>
-      <p><strong>Engine.</strong> DuckDB v23.7-compatible build, in-memory views over Parquet files in <code>./data</code>. All five queries below ran in under 0.02s combined.</p>
+      <p><strong>Engine.</strong> DuckDB v23.7-compatible build, in-memory views over Parquet files in <code>./data</code>. All five queries below ran in under 0.04s combined.</p>
       <p><strong>Window.</strong> <code>start_epoch BETWEEN 0 AND 10000000</code> (epochs are 30-second slots since 2020-08-24 22:00:00 UTC — see Glossary). No cohort-level filtering except where noted.</p>
       <p><strong>Metric definitions.</strong> Concentration via Herfindahl (Σ sᵢ², bytes-weighted) and Gini (full Lorenz integration over byte mass). Provider tiers are bucketed by TiB stored: &lt;0.5 / 0.5-2 / 2-10 / 10-50 / &gt;50.</p></div>
     </section>
@@ -300,43 +349,45 @@ input[type="radio"][name="locale"] {
     <section class="section">
       <h2 lang="ja">3. 上位25プロバイダ</h2>
       <h2 lang="en">3. Top 25 providers</h2>
-      <figure><img src="./02-filecoin-top25.svg" alt="TiB stored per provider, rank 1-25. Power-law fall-off is characteristic." loading="lazy"><figcaption lang="ja">プロバイダ別 TiB（上位1-25位）。べき分布的な減衰がはっきり見えます。</figcaption><figcaption lang="en">TiB stored per provider, rank 1-25. Power-law fall-off is characteristic.</figcaption></figure>
+      <figure class="chart-interactive"><iframe src="./02-filecoin-top25.html" title="TiB stored per provider, rank 1-25 (interactive — hover for exact values). Power-law fall-off is characteristic." sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" loading="lazy" style="width:100%; height:420px; border:0; border-radius:8px; background:var(--bg-card);"></iframe><figcaption lang="ja">プロバイダ別 TiB（上位1-25位）。インタラクティブ表示 — ホバーで正確な値が見えます。べき分布的な減衰がはっきり見えます。</figcaption><figcaption lang="en">TiB stored per provider, rank 1-25 (interactive — hover for exact values). Power-law fall-off is characteristic.</figcaption></figure>
+      <div class="downloads"><a class="dl-chip dl-csv" href="./02-filecoin-top25.csv" download><span class="dl-fmt">CSV</span> <span lang="ja">上位25 生データ</span><span lang="en">Top 25 raw rows</span></a><a class="dl-chip dl-svg" href="./02-filecoin-top25.svg" download><span class="dl-fmt">SVG</span> <span lang="ja">静的SVG</span><span lang="en">Static SVG fallback</span></a></div>
     </section>
     <section class="section">
       <h2 lang="ja">3a. 上位25（生の数値）</h2>
       <h2 lang="en">3a. Top 25 (raw)</h2>
       <div class="table-wrap"><table><thead><tr><th>rank</th><th>provider</th><th>tib_stored</th><th>deal_count</th><th>share</th><th>cumulative</th></tr></thead><tbody>
-        <tr><td class="num">1</td><td>f01155</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>1.07%</td></tr>
-        <tr><td class="num">2</td><td>f01095</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
-        <tr><td class="num">3</td><td>f01167</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
-        <tr><td class="num">4</td><td>f01067</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
-        <tr><td class="num">5</td><td>f01099</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>5.33%</td></tr>
-        <tr><td class="num">6</td><td>f01187</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
-        <tr><td class="num">7</td><td>f01071</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
-        <tr><td class="num">8</td><td>f01159</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
-        <tr><td class="num">9</td><td>f01011</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
-        <tr><td class="num">10</td><td>f01195</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>10.67%</td></tr>
-        <tr><td class="num">11</td><td>f01131</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
-        <tr><td class="num">12</td><td>f01035</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
-        <tr><td class="num">13</td><td>f01183</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
-        <tr><td class="num">14</td><td>f01175</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
-        <tr><td class="num">15</td><td>f01147</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
-        <tr><td class="num">16</td><td>f01079</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
-        <tr><td class="num">17</td><td>f01015</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
-        <tr><td class="num">18</td><td>f01091</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
-        <tr><td class="num">19</td><td>f01007</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
-        <tr><td class="num">20</td><td>f01171</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
-        <tr><td class="num">21</td><td>f01179</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
-        <tr><td class="num">22</td><td>f01103</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
-        <tr><td class="num">23</td><td>f01047</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
-        <tr><td class="num">24</td><td>f01083</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
-        <tr><td class="num">25</td><td>f01143</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>26.67%</td></tr>
+        <tr><td class="num">1</td><td>f01143</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>1.07%</td></tr>
+        <tr><td class="num">2</td><td>f01163</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">3</td><td>f01179</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">4</td><td>f01147</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">5</td><td>f01155</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>5.33%</td></tr>
+        <tr><td class="num">6</td><td>f01127</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">7</td><td>f01115</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">8</td><td>f01055</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">9</td><td>f01051</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">10</td><td>f01119</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>10.67%</td></tr>
+        <tr><td class="num">11</td><td>f01003</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">12</td><td>f01023</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">13</td><td>f01067</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">14</td><td>f01195</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">15</td><td>f01131</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">16</td><td>f01019</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">17</td><td>f01083</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">18</td><td>f01199</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">19</td><td>f01071</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">20</td><td>f01095</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">21</td><td>f01063</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">22</td><td>f01027</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">23</td><td>f01059</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">24</td><td>f01075</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">25</td><td>f01167</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>26.67%</td></tr>
       </tbody></table></div>
     </section>
     <section class="section">
       <h2 lang="ja">4. ローレンツ曲線と Gini</h2>
       <h2 lang="en">4. Lorenz curve &amp; Gini</h2>
-      <figure><img src="./02-filecoin-lorenz.svg" alt="Cumulative provider count (X) vs. cumulative bytes (Y). The diagonal is perfect equality. Gini = 0.383." loading="lazy"><figcaption lang="ja">プロバイダの累積比率 (X) と 累積バイトの比率 (Y)。対角線が完全平等。Gini = 0.383。</figcaption><figcaption lang="en">Cumulative provider count (X) vs. cumulative bytes (Y). The diagonal is perfect equality. Gini = 0.383.</figcaption></figure>
+      <figure class="chart-interactive"><iframe src="./02-filecoin-lorenz.html" title="Cumulative provider count (X) vs. cumulative bytes (Y). The diagonal is perfect equality. Gini = 0.383." sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" loading="lazy" style="width:100%; height:380px; border:0; border-radius:8px; background:var(--bg-card);"></iframe><figcaption lang="ja">プロバイダの累積比率 (X) と 累積バイトの比率 (Y)。対角線が完全平等。Gini = 0.383。</figcaption><figcaption lang="en">Cumulative provider count (X) vs. cumulative bytes (Y). The diagonal is perfect equality. Gini = 0.383.</figcaption></figure>
+      <div class="downloads"><a class="dl-chip dl-csv" href="./02-filecoin-lorenz.csv" download><span class="dl-fmt">CSV</span> <span lang="ja">ローレンツ曲線データ</span><span lang="en">Lorenz curve data</span></a><a class="dl-chip dl-svg" href="./02-filecoin-lorenz.svg" download><span class="dl-fmt">SVG</span> <span lang="ja">静的SVG</span><span lang="en">Static SVG fallback</span></a></div>
     </section>
     <section class="section">
       <h2 lang="ja">4a. 容量帯ごとのプロバイダ数</h2>
@@ -380,16 +431,16 @@ input[type="radio"][name="locale"] {
       <div lang="ja"><p><strong>provider_diversity</strong> = 異なるプロバイダ数 ÷ ディール数。1.0 に近いほど「毎回別のプロバイダに分散して保存」、0 に近いほど「特定のプロバイダに依存」を示します。</p></div>
       <div lang="en"><p><strong>provider_diversity</strong> = distinct providers / deals. Values near 1.0 indicate a client that spreads each new deal across a new provider; values near 0 indicate concentration on a small set of preferred SPs.</p></div>
       <div class="table-wrap"><table><thead><tr><th>rank</th><th>client</th><th>deals</th><th>distinct_providers</th><th>provider_diversity</th></tr></thead><tbody>
-        <tr><td class="num">1</td><td>f1client0</td><td class="num">20</td><td class="num">2</td><td class="num">0.10</td></tr>
-        <tr><td class="num">2</td><td>f1client39</td><td class="num">20</td><td class="num">2</td><td class="num">0.10</td></tr>
-        <tr><td class="num">3</td><td>f1client61</td><td class="num">20</td><td class="num">2</td><td class="num">0.10</td></tr>
-        <tr><td class="num">4</td><td>f1client68</td><td class="num">20</td><td class="num">2</td><td class="num">0.10</td></tr>
-        <tr><td class="num">5</td><td>f1client69</td><td class="num">20</td><td class="num">2</td><td class="num">0.10</td></tr>
-        <tr><td class="num">6</td><td>f1client84</td><td class="num">20</td><td class="num">2</td><td class="num">0.10</td></tr>
-        <tr><td class="num">7</td><td>f1client99</td><td class="num">20</td><td class="num">2</td><td class="num">0.10</td></tr>
-        <tr><td class="num">8</td><td>f1client6</td><td class="num">20</td><td class="num">2</td><td class="num">0.10</td></tr>
-        <tr><td class="num">9</td><td>f1client13</td><td class="num">20</td><td class="num">2</td><td class="num">0.10</td></tr>
-        <tr><td class="num">10</td><td>f1client16</td><td class="num">20</td><td class="num">2</td><td class="num">0.10</td></tr>
+        <tr><td class="num">1</td><td>f1client1</td><td class="num">20</td><td class="num">2</td><td class="num">0.10</td></tr>
+        <tr><td class="num">2</td><td>f1client37</td><td class="num">20</td><td class="num">2</td><td class="num">0.10</td></tr>
+        <tr><td class="num">3</td><td>f1client44</td><td class="num">20</td><td class="num">2</td><td class="num">0.10</td></tr>
+        <tr><td class="num">4</td><td>f1client48</td><td class="num">20</td><td class="num">2</td><td class="num">0.10</td></tr>
+        <tr><td class="num">5</td><td>f1client79</td><td class="num">20</td><td class="num">2</td><td class="num">0.10</td></tr>
+        <tr><td class="num">6</td><td>f1client25</td><td class="num">20</td><td class="num">2</td><td class="num">0.10</td></tr>
+        <tr><td class="num">7</td><td>f1client30</td><td class="num">20</td><td class="num">2</td><td class="num">0.10</td></tr>
+        <tr><td class="num">8</td><td>f1client47</td><td class="num">20</td><td class="num">2</td><td class="num">0.10</td></tr>
+        <tr><td class="num">9</td><td>f1client63</td><td class="num">20</td><td class="num">2</td><td class="num">0.10</td></tr>
+        <tr><td class="num">10</td><td>f1client88</td><td class="num">20</td><td class="num">2</td><td class="num">0.10</td></tr>
       </tbody></table></div>
     </section>
     <section class="section">
@@ -452,8 +503,8 @@ input[type="radio"][name="locale"] {
     </section>
   </article>
   <footer class="report-foot">
-    <p lang="ja">AIエージェントが <a href="https://github.com/Jacksstt/chainq" target="_blank" rel="noopener">chainq</a> 経由で作成。セルフホスト、MCPネイティブ、MITライセンス。</p>
-    <p lang="en">Authored by an AI agent via <a href="https://github.com/Jacksstt/chainq" target="_blank" rel="noopener">chainq</a>. Self-hosted, MCP-native. MIT.</p>
+    <p lang="ja"><strong>Prime Beat</strong> が [chainq](<a href="https://github.com/Jacksstt/chainq)" target="_blank" rel="noopener">https://github.com/Jacksstt/chainq)</a> 経由で作成。セルフホスト、MCPネイティブ。© 2026 Prime Beat Inc. — MIT。</p>
+    <p lang="en">Authored by <strong>Prime Beat</strong> via [chainq](<a href="https://github.com/Jacksstt/chainq)." target="_blank" rel="noopener">https://github.com/Jacksstt/chainq).</a> Self-hosted, MCP-native. © 2026 Prime Beat Inc. — MIT.</p>
   </footer>
 </main>
 </body>
