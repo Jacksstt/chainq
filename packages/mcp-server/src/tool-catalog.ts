@@ -18,7 +18,7 @@ export interface ToolDoc {
   /** Description shown to MCP clients and registered on the server. */
   description: string;
   /** Logical grouping for documentation rendering. */
-  group: "discovery" | "execution" | "semantic" | "recall" | "render" | "report" | "budget";
+  group: "discovery" | "execution" | "semantic" | "analytics" | "recall" | "render" | "report" | "budget";
 }
 
 export const TOOL_CATALOG: readonly ToolDoc[] = [
@@ -38,6 +38,7 @@ export const TOOL_CATALOG: readonly ToolDoc[] = [
       "Search curated tables by free-text name / description, optionally filtered by chain. " +
       "Returns the same shape as `chainq_describe` for matching rows.",
   },
+  // analytics block placed AFTER discovery / execution / semantic for catalog grouping.
   {
     name: "chainq_describe",
     title: "Describe table",
@@ -81,6 +82,42 @@ export const TOOL_CATALOG: readonly ToolDoc[] = [
       "Execute a named metric from the semantic layer with the requested dimensions / filters / " +
       "time-or-epoch window. Subject to the same budget pre-check as `chainq_query`. " +
       "Returns `{ metric, sql, result, budget }` on success.",
+  },
+  {
+    name: "chainq_concentration",
+    title: "Concentration suite",
+    group: "analytics",
+    description:
+      "Compute the full concentration suite (top-N shares, Herfindahl, Gini, Lorenz curve) " +
+      "in one call. Pass an SQL SELECT that produces (group, value) pairs plus the name of the " +
+      "value column. Returns `{ groups, total, topN, hhi, gini, lorenz }` — feed `lorenz` straight " +
+      "into `chainq_chart_render` for a Lorenz visualisation.",
+  },
+  {
+    name: "chainq_distribution",
+    title: "Distribution summary",
+    group: "analytics",
+    description:
+      "Compute count / min / P25 / median / P75 / P95 / P99 / max / mean over a numeric column. " +
+      "Pass an SQL SELECT that produces the column.",
+  },
+  {
+    name: "chainq_histogram",
+    title: "Histogram",
+    group: "analytics",
+    description:
+      "Build a fixed-width histogram from a numeric column. Buckets are aligned to multiples of " +
+      "`bucket_size`. Returns `{ bucketSize, buckets: [{ from, to, count }] }` — feed straight " +
+      "into `chainq_chart_render` for a bar chart.",
+  },
+  {
+    name: "chainq_bucketize",
+    title: "Tier buckets",
+    group: "analytics",
+    description:
+      "Partition rows into custom-defined tiers and report count / sum / share per tier. Use this " +
+      "for size-tier provider analyses, balance-band wallet bucketing, anything that needs labelled " +
+      "ranges. Each bucket has `{ min, max, label }`; `min` is inclusive, `max` exclusive.",
   },
   {
     name: "chainq_recall",

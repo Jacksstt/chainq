@@ -15,3 +15,22 @@ export { writeReport, renderMarkdown, renderHtml, inferFormatFromExt as inferRep
 export type { ReportSpec, ReportSection, ReportFormat, ReportLocale, I18nString, Localizable } from "./report.js";
 export { TOOL_CATALOG, describe as describeTool } from "./tool-catalog.js";
 export type { ToolDoc } from "./tool-catalog.js";
+export {
+  concentrationSuite,
+  distributionSummary,
+  histogram,
+  bucketize,
+  percentile,
+  computeGini,
+  computeLorenz,
+  lorenzChartData,
+  histogramChartData,
+  bucketChartData,
+} from "./analytics.js";
+export type {
+  ConcentrationSuite,
+  PercentileSummary,
+  Histogram,
+  BucketSpec,
+  BucketResult,
+} from "./analytics.js";

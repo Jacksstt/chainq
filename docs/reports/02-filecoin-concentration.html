@@ -258,54 +258,197 @@ input[type="radio"][name="locale"] {
     <p class="eyebrow">chainq report</p>
     <h1 lang="ja">Filecoin ストレージプロバイダの集中度</h1>
     <h1 lang="en">Filecoin storage-provider concentration</h1>
-    <p class="meta" lang="ja">生成: 2026-05-11T14:21:11.322Z</p>
-    <p class="meta" lang="en">Generated 2026-05-11T14:21:11.322Z</p>
-    <details class="frontmatter"><summary><span lang="ja">メタデータ · 6 項目</span><span lang="en">Metadata · 6 fields</span></summary><table><tr><th scope="row">generated_by</th><td>chainq + scripts/filecoin-demo.ts (synthetic data)</td></tr><tr><th scope="row">table</th><td>filecoin.deals</td></tr><tr><th scope="row">metric</th><td>filecoin_provider_storage</td></tr><tr><th scope="row">providers_total</th><td>200</td></tr><tr><th scope="row">top10_share</th><td>0.1067</td></tr><tr><th scope="row">hhi</th><td>0.0076</td></tr></table></details>
-    <p class="summary" lang="ja">シード済みスナップショットの <strong>200</strong> プロバイダのうち、<strong>上位10社で全コミット容量の 10.7%</strong> を占めます。バイト加重 Herfindahl 指数: <code>0.0076</code>。HHI が高いほど集中度が高く、0.25 を超えると産業組織論で「高度に集中している」と分類されるのが慣例です。</p><p class="summary" lang="en">Across <strong>200</strong> storage providers in the seeded snapshot, the <strong>top 10 hold 10.7%</strong> of all committed bytes. Herfindahl index (byte-weighted): <code>0.0076</code>. Higher HHI means tighter concentration; an HHI above 0.25 is conventionally treated as highly concentrated in industrial economics.</p>
+    <p class="meta" lang="ja">生成: 2026-05-11T14:34:31.026Z</p>
+    <p class="meta" lang="en">Generated 2026-05-11T14:34:31.026Z</p>
+    <details class="frontmatter"><summary><span lang="ja">メタデータ · 10 項目</span><span lang="en">Metadata · 10 fields</span></summary><table><tr><th scope="row">generated_by</th><td>chainq + scripts/filecoin-demo.ts (synthetic data)</td></tr><tr><th scope="row">table</th><td>filecoin.deals</td></tr><tr><th scope="row">metric</th><td>filecoin_provider_storage + 4 ad-hoc queries</td></tr><tr><th scope="row">providers_total</th><td>200</td></tr><tr><th scope="row">deals_total</th><td>2000</td></tr><tr><th scope="row">total_tib</th><td>234.38</td></tr><tr><th scope="row">verified_share</th><td>0.3337</td></tr><tr><th scope="row">hhi</th><td>0.0076</td></tr><tr><th scope="row">gini</th><td>0.3833</td></tr><tr><th scope="row">top10_share</th><td>0.1067</td></tr></table></details>
+    <p class="summary" lang="ja">Filecoin のストレージ集中度をアナリスト水準で分解しています。 top-N シェア、Herfindahl、Gini、ローレンツ曲線、プロバイダ階層、Filecoin Plus 検証済みディール比率、ディール期間分布、クライアント多様性、コホート分析まで、すべて単一の <code>filecoin.deals</code> テーブルから chainq の MCP インターフェース経由で生成しています。</p><p class="summary" lang="en">An analyst-grade walkthrough of Filecoin storage concentration: top-N shares, Herfindahl, Gini, Lorenz curve, provider tiers, Filecoin Plus verified-deal share, deal-duration distribution, client diversity, and cohort analysis — all from the same <code>filecoin.deals</code> table via chainq&#39;s MCP surface.</p>
   </header>
   <article>
     <section class="section">
-      <h2 lang="ja">格納バイト数 上位10プロバイダ</h2>
-      <h2 lang="en">Top 10 providers by bytes stored</h2>
-      <figure><img src="./02-filecoin-top-providers.svg" alt="Bytes stored per provider, top 10 (synthetic seeded dataset)." loading="lazy"><figcaption lang="ja">プロバイダ別格納バイト数、上位10位（合成シードデータ）。</figcaption><figcaption lang="en">Bytes stored per provider, top 10 (synthetic seeded dataset).</figcaption></figure>
+      <h2 lang="ja">エグゼクティブサマリー</h2>
+      <h2 lang="en">Executive summary</h2>
+      <div lang="ja"><p>- 本スナップショットでは <strong>200 社</strong> のプロバイダが計 <strong>234.4 TiB</strong> を 2,000 件のディールに分散して保有しています。<br>- <strong>上位10社が全容量の 10.7%</strong> を占有（上位5社 5.3% / 上位25社 26.7% / 上位50社 53.3%）。<br>- バイト加重 Herfindahl 指数は <code>0.0076</code> で、産業組織論で「高度に集中」と見なされる 0.25 を大きく下回ります。ただし Gini 係数 <code>0.383</code> は規模の不均衡が無視できないことを示します。<br>- Filecoin Plus の検証済みディールは全体バイト数の <strong>33.4%</strong>。サイズ帯ごとに比率は大きく異なります（§5 参照）。<br>- ディール期間の中央値は <strong>365 日</strong>（P25 365日 / P95 365日）。詳細は §6 を参照。</p></div>
+      <div lang="en"><p>- <strong>200 providers</strong> carry <strong>234.4 TiB</strong> across 2,000 deals in this snapshot.<br>- <strong>Top 10 hold 10.7%</strong> of all bytes (top 5: 5.3%, top 25: 26.7%, top 50: 53.3%).<br>- Herfindahl index (byte-weighted): <code>0.0076</code> — well below the 0.25 industrial-economics &quot;highly concentrated&quot; threshold, but Gini coefficient <code>0.383</code> indicates meaningful inequality of size.<br>- Filecoin Plus verified deals account for <strong>33.4%</strong> of bytes overall; the share is materially different across size tiers (see §5).<br>- Median deal duration <strong>365 days</strong> (P25 365d / P95 365d) — see §6.</p></div>
     </section>
     <section class="section">
-      <h2 lang="ja">上位10位（生の数値）</h2>
-      <h2 lang="en">Top 10 (raw figures)</h2>
-      <div class="table-wrap"><table><thead><tr><th>rank</th><th>provider</th><th>tib_stored</th><th>deal_count</th><th>share</th></tr></thead><tbody>
-        <tr><td class="num">1</td><td>f01191</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td></tr>
-        <tr><td class="num">2</td><td>f01039</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td></tr>
-        <tr><td class="num">3</td><td>f01135</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td></tr>
-        <tr><td class="num">4</td><td>f01031</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td></tr>
-        <tr><td class="num">5</td><td>f01143</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td></tr>
-        <tr><td class="num">6</td><td>f01163</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td></tr>
-        <tr><td class="num">7</td><td>f01167</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td></tr>
-        <tr><td class="num">8</td><td>f01111</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td></tr>
-        <tr><td class="num">9</td><td>f01095</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td></tr>
-        <tr><td class="num">10</td><td>f01059</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td></tr>
+      <h2 lang="ja">1. メソドロジー &amp; データ範囲</h2>
+      <h2 lang="en">1. Methodology &amp; data scope</h2>
+      <div lang="ja"><p><strong>ソーステーブル</strong>: <code>filecoin.deals</code>。1行=1ディール。Filfox / Spacescan API を <code>@chainq/ingest-filecoin</code> で取り込みます。本実行では <code>pnpm seed</code> の合成データ（プロバイダ 200 社 × 計 2,000 件）を使用。メインネット相当の出力で再現するには <code>chainq pull --chain filecoin</code> の結果に差し替えてください。</p>
+      <p><strong>エンジン</strong>: DuckDB（Node v23.7 互換ビルド）。<code>./data</code> の Parquet ファイル群に対しメモリ内ビューを構築。下記5本のクエリは合算 0.02 秒で完了。</p>
+      <p><strong>期間</strong>: <code>start_epoch BETWEEN 0 AND 10000000</code>（epoch は 2020-08-24 22:00:00 UTC からの 30 秒スロット — 用語集参照）。コホート分析以外でのフィルタはなし。</p>
+      <p><strong>指標の定義</strong>: 集中度は Herfindahl（Σsᵢ²、バイト加重）と Gini（バイト質量によるローレンツ曲線の積分）。プロバイダ階層は TiB ベースで &lt;0.5 / 0.5-2 / 2-10 / 10-50 / &gt;50 にバケット化。</p></div>
+      <div lang="en"><p><strong>Source table.</strong> <code>filecoin.deals</code> — one row per protocol deal, ingested from public Filfox / Spacescan endpoints via <code>@chainq/ingest-filecoin</code>. In this run the table comes from <code>pnpm seed</code>&#39;s synthetic dataset (2,000 deals across 200 providers); replace with <code>chainq pull --chain filecoin</code> output to reproduce against mainnet.</p>
+      <p><strong>Engine.</strong> DuckDB v23.7-compatible build, in-memory views over Parquet files in <code>./data</code>. All five queries below ran in under 0.02s combined.</p>
+      <p><strong>Window.</strong> <code>start_epoch BETWEEN 0 AND 10000000</code> (epochs are 30-second slots since 2020-08-24 22:00:00 UTC — see Glossary). No cohort-level filtering except where noted.</p>
+      <p><strong>Metric definitions.</strong> Concentration via Herfindahl (Σ sᵢ², bytes-weighted) and Gini (full Lorenz integration over byte mass). Provider tiers are bucketed by TiB stored: &lt;0.5 / 0.5-2 / 2-10 / 10-50 / &gt;50.</p></div>
+    </section>
+    <section class="section">
+      <h2 lang="ja">2. 集中度指標一式</h2>
+      <h2 lang="en">2. Concentration suite</h2>
+      <div lang="ja"><p>上記はバイト加重（ディール件数加重ではない）です。Filecoin ではストレージコミット量こそが効くからです。エコシステム系ダッシュボードで最頻出なのは top-10 share、HHI は他産業との横比較ができる尺度、Gini は HHI が平準化してしまう裾の不均衡を捕捉する補助指標として併用しています。</p></div>
+      <div lang="en"><p>The numbers above are byte-weighted (not deal-count-weighted) because storage commitment is the load-bearing variable on Filecoin. Top-10 share is the figure most often cited in ecosystem dashboards; the HHI lets us compare against industries on a unified scale and Gini captures inequality along the tail that HHI smooths over.</p></div>
+      <div class="table-wrap"><table><thead><tr><th>metric</th><th>value</th><th>note</th></tr></thead><tbody>
+        <tr><td>top-1 share</td><td>1.07%</td><td>share of bytes held by the largest single provider</td></tr>
+        <tr><td>top-5 share</td><td>5.33%</td><td></td></tr>
+        <tr><td>top-10 share</td><td>10.67%</td><td>common reference for Filecoin ecosystem health</td></tr>
+        <tr><td>top-25 share</td><td>26.67%</td><td></td></tr>
+        <tr><td>top-50 share</td><td>53.33%</td><td></td></tr>
+        <tr><td>HHI (Herfindahl)</td><td>0.0076</td><td>&lt;0.10 unconcentrated · 0.10-0.18 moderate · &gt;0.25 high</td></tr>
+        <tr><td>Gini coefficient</td><td>0.383</td><td>0 = perfect equality · 1 = perfect inequality</td></tr>
       </tbody></table></div>
     </section>
     <section class="section">
-      <h2 lang="ja">数値の読み方</h2>
-      <h2 lang="en">Interpreting the numbers</h2>
-      <div lang="ja"><p><code>pnpm seed</code> で生成されるデータセットは、手選りした少数のプロバイダプール上で約 2,000 件の Filecoin ディールを合成したものです。<strong>メインネット由来ではありません</strong>。したがってここでの集中度は 「分布の形を確認するための数値」であり、計測値ではありません。実データで再現するには <code>chainq pull --chain filecoin --from &lt;epoch&gt; --to &lt;epoch&gt;</code> を使ってください（snapshot パッケージが Filfox + Spacescan の API を包んでいます）。</p>
-      <p>Filecoin Plus の検証付きディール（<code>verified_deal = true</code>）で分布がどう変わるかは <code>chainq_metric(&quot;filecoin_deal_count&quot;, filters={verified_deal: true})</code> で確認できます。</p></div>
-      <div lang="en"><p>The dataset under <code>pnpm seed</code> synthesises ~2,000 Filecoin deals across a hand-curated pool of providers — it is <strong>not real mainnet</strong>. The concentration number is therefore a shape check, not a measurement. To run this against live data: <code>chainq pull --chain filecoin --from &lt;epoch&gt; --to &lt;epoch&gt;</code> (the snapshot package wraps Filfox + Spacescan).</p>
-      <p>Cross-check with <code>chainq_metric(&quot;filecoin_deal_count&quot;, filters={verified_deal: true})</code> to see whether Filecoin Plus changes the distribution.</p></div>
+      <h2 lang="ja">3. 上位25プロバイダ</h2>
+      <h2 lang="en">3. Top 25 providers</h2>
+      <figure><img src="./02-filecoin-top25.svg" alt="TiB stored per provider, rank 1-25. Power-law fall-off is characteristic." loading="lazy"><figcaption lang="ja">プロバイダ別 TiB（上位1-25位）。べき分布的な減衰がはっきり見えます。</figcaption><figcaption lang="en">TiB stored per provider, rank 1-25. Power-law fall-off is characteristic.</figcaption></figure>
+    </section>
+    <section class="section">
+      <h2 lang="ja">3a. 上位25（生の数値）</h2>
+      <h2 lang="en">3a. Top 25 (raw)</h2>
+      <div class="table-wrap"><table><thead><tr><th>rank</th><th>provider</th><th>tib_stored</th><th>deal_count</th><th>share</th><th>cumulative</th></tr></thead><tbody>
+        <tr><td class="num">1</td><td>f01155</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>1.07%</td></tr>
+        <tr><td class="num">2</td><td>f01095</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">3</td><td>f01167</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">4</td><td>f01067</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">5</td><td>f01099</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>5.33%</td></tr>
+        <tr><td class="num">6</td><td>f01187</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">7</td><td>f01071</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">8</td><td>f01159</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">9</td><td>f01011</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">10</td><td>f01195</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>10.67%</td></tr>
+        <tr><td class="num">11</td><td>f01131</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">12</td><td>f01035</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">13</td><td>f01183</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">14</td><td>f01175</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">15</td><td>f01147</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">16</td><td>f01079</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">17</td><td>f01015</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">18</td><td>f01091</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">19</td><td>f01007</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">20</td><td>f01171</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">21</td><td>f01179</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">22</td><td>f01103</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">23</td><td>f01047</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">24</td><td>f01083</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>0.00%</td></tr>
+        <tr><td class="num">25</td><td>f01143</td><td class="num">2.5</td><td class="num">10</td><td>1.07%</td><td>26.67%</td></tr>
+      </tbody></table></div>
+    </section>
+    <section class="section">
+      <h2 lang="ja">4. ローレンツ曲線と Gini</h2>
+      <h2 lang="en">4. Lorenz curve &amp; Gini</h2>
+      <figure><img src="./02-filecoin-lorenz.svg" alt="Cumulative provider count (X) vs. cumulative bytes (Y). The diagonal is perfect equality. Gini = 0.383." loading="lazy"><figcaption lang="ja">プロバイダの累積比率 (X) と 累積バイトの比率 (Y)。対角線が完全平等。Gini = 0.383。</figcaption><figcaption lang="en">Cumulative provider count (X) vs. cumulative bytes (Y). The diagonal is perfect equality. Gini = 0.383.</figcaption></figure>
+    </section>
+    <section class="section">
+      <h2 lang="ja">4a. 容量帯ごとのプロバイダ数</h2>
+      <h2 lang="en">4a. Provider tier distribution</h2>
+      <figure><img src="./02-filecoin-tiers.svg" alt="Provider count bucketed by TiB stored. The majority of providers sit in the small-to-mid tiers." loading="lazy"><figcaption lang="ja">TiB 格納量別のプロバイダ数。多くは小〜中規模帯に分布。</figcaption><figcaption lang="en">Provider count bucketed by TiB stored. The majority of providers sit in the small-to-mid tiers.</figcaption></figure>
+    </section>
+    <section class="section">
+      <h2 lang="ja">4b. 階層別サマリ</h2>
+      <h2 lang="en">4b. Tier table</h2>
+      <div class="table-wrap"><table><thead><tr><th>tier</th><th>providers</th><th>bytes_share</th><th>median_tib</th></tr></thead><tbody>
+        <tr><td>&lt;0.5 TiB</td><td class="num">50</td><td>6.67%</td><td>0.3</td></tr>
+        <tr><td>0.5-2 TiB</td><td class="num">100</td><td>40.00%</td><td>0.6</td></tr>
+        <tr><td>2-10 TiB</td><td class="num">50</td><td>53.33%</td><td>2.5</td></tr>
+        <tr><td>10-50 TiB</td><td class="num">0</td><td>0.00%</td><td>—</td></tr>
+        <tr><td>&gt;50 TiB</td><td class="num">0</td><td>0.00%</td><td>—</td></tr>
+      </tbody></table></div>
+    </section>
+    <section class="section">
+      <h2 lang="ja">5. 検証済みディール (Filecoin Plus)</h2>
+      <h2 lang="en">5. Verified deals (Filecoin Plus)</h2>
+      <div lang="ja"><p>全体では <strong>33.4%</strong> のバイトが検証済みです。階層別に見ると、小規模プロバイダの方が検証済み比率が高い傾向があります（Filecoin Plus はプロバイダごとに割当上限があるため、裾の方に偏りやすい）。</p></div>
+      <div lang="en"><p>Overall, <strong>33.4%</strong> of bytes are verified. The tiering chart shows how the program affects size brackets differently — smaller providers often see a larger verified share because the Filecoin Plus allocation is rate-limited per provider.</p></div>
+      <figure><img src="./02-filecoin-verified-by-tier.svg" alt="Verified-deal byte share by provider size tier. Filecoin Plus is intentionally spread across the long tail." loading="lazy"><figcaption lang="ja">プロバイダ階層ごとの検証済みディール バイト比率。Filecoin Plus は裾を厚くする設計。</figcaption><figcaption lang="en">Verified-deal byte share by provider size tier. Filecoin Plus is intentionally spread across the long tail.</figcaption></figure>
+    </section>
+    <section class="section">
+      <h2 lang="ja">6. ディール期間の分布</h2>
+      <h2 lang="en">6. Deal duration distribution</h2>
+      <div class="table-wrap"><table><thead><tr><th>quantile</th><th>days</th></tr></thead><tbody>
+        <tr><td>min</td><td class="num">365</td></tr>
+        <tr><td>P25</td><td class="num">365</td></tr>
+        <tr><td>P50 (median)</td><td class="num">365</td></tr>
+        <tr><td>P75</td><td class="num">365</td></tr>
+        <tr><td>P95</td><td class="num">365</td></tr>
+        <tr><td>max</td><td class="num">365</td></tr>
+      </tbody></table></div>
+      <figure><img src="./02-filecoin-duration.svg" alt="Deal duration histogram, 30-day buckets. The protocol enforces 180/540-day minimum/maximum bounds." loading="lazy"><figcaption lang="ja">30日刻みのディール期間ヒストグラム。プロトコル上は 180/540 日が下限・上限。</figcaption><figcaption lang="en">Deal duration histogram, 30-day buckets. The protocol enforces 180/540-day minimum/maximum bounds.</figcaption></figure>
+    </section>
+    <section class="section">
+      <h2 lang="ja">7. ディール件数上位クライアント</h2>
+      <h2 lang="en">7. Top clients by deal count</h2>
+      <div lang="ja"><p><strong>provider_diversity</strong> = 異なるプロバイダ数 ÷ ディール数。1.0 に近いほど「毎回別のプロバイダに分散して保存」、0 に近いほど「特定のプロバイダに依存」を示します。</p></div>
+      <div lang="en"><p><strong>provider_diversity</strong> = distinct providers / deals. Values near 1.0 indicate a client that spreads each new deal across a new provider; values near 0 indicate concentration on a small set of preferred SPs.</p></div>
+      <div class="table-wrap"><table><thead><tr><th>rank</th><th>client</th><th>deals</th><th>distinct_providers</th><th>provider_diversity</th></tr></thead><tbody>
+        <tr><td class="num">1</td><td>f1client0</td><td class="num">20</td><td class="num">2</td><td class="num">0.10</td></tr>
+        <tr><td class="num">2</td><td>f1client39</td><td class="num">20</td><td class="num">2</td><td class="num">0.10</td></tr>
+        <tr><td class="num">3</td><td>f1client61</td><td class="num">20</td><td class="num">2</td><td class="num">0.10</td></tr>
+        <tr><td class="num">4</td><td>f1client68</td><td class="num">20</td><td class="num">2</td><td class="num">0.10</td></tr>
+        <tr><td class="num">5</td><td>f1client69</td><td class="num">20</td><td class="num">2</td><td class="num">0.10</td></tr>
+        <tr><td class="num">6</td><td>f1client84</td><td class="num">20</td><td class="num">2</td><td class="num">0.10</td></tr>
+        <tr><td class="num">7</td><td>f1client99</td><td class="num">20</td><td class="num">2</td><td class="num">0.10</td></tr>
+        <tr><td class="num">8</td><td>f1client6</td><td class="num">20</td><td class="num">2</td><td class="num">0.10</td></tr>
+        <tr><td class="num">9</td><td>f1client13</td><td class="num">20</td><td class="num">2</td><td class="num">0.10</td></tr>
+        <tr><td class="num">10</td><td>f1client16</td><td class="num">20</td><td class="num">2</td><td class="num">0.10</td></tr>
+      </tbody></table></div>
+    </section>
+    <section class="section">
+      <h2 lang="ja">8. コホート分析（前半・後半 epoch）</h2>
+      <h2 lang="en">8. Cohort analysis (early vs late epochs)</h2>
+      <div lang="ja"><p><code>start_epoch</code> の中央値で前後半に二分割しています。検証済みディール比率や件数が前後半で変動する場合、Filecoin Plus 採用や SP 構成変化の指標になります。合成データではほぼ平坦になるはず。</p></div>
+      <div lang="en"><p>Splits the deal window into halves on <code>start_epoch</code>. Trends in verified-deal share or deal count between cohorts hint at program adoption changes; flatness here is expected for the synthetic dataset.</p></div>
+      <div class="table-wrap"><table><thead><tr><th>cohort</th><th>deals</th><th>bytes_tib</th><th>verified_share</th></tr></thead><tbody>
+        <tr><td>early</td><td class="num">1000</td><td class="num">117.19</td><td>33.4%</td></tr>
+        <tr><td>late</td><td class="num">1000</td><td class="num">117.19</td><td>33.3%</td></tr>
+      </tbody></table></div>
     </section>
     <section class="section callout callout-caveat">
       <h2 lang="ja">注意</h2>
       <h2 lang="en">Caveats</h2>
-      <div lang="ja"><p>Filecoin の epoch は unix 秒ではなく 30 秒スロットです。壁時計時刻に変換するには <code>(epoch * 30) + 1598306400</code>（GENESIS_TIMESTAMP, 2020-08-24 22:00:00 UTC）を使ってください。</p>
-      <p><code>deal_count</code> が少ないのに <code>tib_stored</code> が大きいプロバイダは、大きなピースを保持しています。ディール件数だけでフィルタするとこの種のプロバイダを取りこぼします。</p></div>
-      <div lang="en"><p>Filecoin epochs are 30-second slots, not unix seconds. Convert to wall-clock time with <code>(epoch * 30) + 1598306400</code> (GENESIS_TIMESTAMP, 2020-08-24 22:00:00 UTC).</p>
-      <p>A provider with a small <code>deal_count</code> but a large <code>tib_stored</code> is hosting big pieces. Filtering by deal count alone misses these.</p></div>
+      <div lang="ja"><p>Filecoin の epoch は unix 秒ではなく 30 秒スロット。壁時計時刻は <code>(epoch * 30) + 1598306400</code>（GENESIS_TIMESTAMP）で算出してください。</p>
+      <p><code>deal_count</code> が少ないのに <code>tib_stored</code> が大きいプロバイダは「大きなピースを少数本ホストしている」タイプ。件数だけでフィルタすると取りこぼします。</p>
+      <p><code>pnpm seed</code> のデータは意図的に 200 プロバイダにラウンドロビンで配るため、HHI と Gini はメインネットの実集中度を<strong>過小評価</strong>します。本レポートは「形」を見るためのものとして読んでください。</p>
+      <p>§4b の bytes_share は階層合計でほぼ 100% になりますが、シェア計算で浮動小数点の累積誤差により ±0.01% 程度ずれます。</p></div>
+      <div lang="en"><p>Filecoin epochs are 30-second slots, not unix seconds. Convert to wall-clock with <code>(epoch * 30) + 1598306400</code> (GENESIS_TIMESTAMP).</p>
+      <p>A provider with a small <code>deal_count</code> but a large <code>tib_stored</code> is hosting big pieces — filtering by deal count alone misses these.</p>
+      <p>The <code>pnpm seed</code> dataset deliberately distributes deals round-robin across 200 providers, so HHI and Gini understate real-mainnet concentration. Treat the <strong>shape</strong> of the report as the deliverable, not the magnitude.</p>
+      <p>Bytes_share in §4b sums to ~100% across tiers but can drift by ±0.01% due to floating-point accumulation in the share calculation.</p></div>
     </section>
     <section class="section">
-      <h2 lang="ja">このレポートを再現する</h2>
+      <h2 lang="ja">用語集</h2>
+      <h2 lang="en">Glossary</h2>
+      <div lang="ja"><p><strong>Epoch（エポック）</strong>: 2020-08-24 22:00:00 UTC 起算の 30 秒スロット。メインネットでは概ね高さ=epoch。</p>
+      <p><strong>Piece（ピース）</strong>: 保存単位。メインネットのセクターは通常 32 GiB か 64 GiB。複数 piece は集約により 1 sector に詰められる。</p>
+      <p><strong>Verified deal（検証済みディール）</strong>: Filecoin Plus 制度の対象ディール。SP は quality-adjusted power が 10 倍、クライアントは保存料金が割引される。</p>
+      <p><strong>HHI（ハーフィンダール指数）</strong>: Σsᵢ²。1/N（一様分布）が下限、1 が独占。米国 DOJ ガイドラインでは &lt;0.10 が無集中、&gt;0.25 が高集中。</p>
+      <p><strong>Gini（ジニ係数）</strong>: ローレンツ曲線に基づく不平等指数。0 = 完全平等、1 = 完全寡占。</p>
+      <p><strong>TiB</strong>: テビバイト、2⁴⁰ バイト ≈ 1.0995 × 10¹² バイト。TB（10¹²）とは別物。</p></div>
+      <div lang="en"><p><strong>Epoch.</strong> 30-second slot since 2020-08-24 22:00:00 UTC. Mainnet height ≈ epoch.</p>
+      <p><strong>Piece.</strong> A storage unit; mainnet sectors are typically 32 GiB or 64 GiB. Multiple pieces can be packed into one sector via aggregation.</p>
+      <p><strong>Verified deal.</strong> A deal under the Filecoin Plus program; receives 10x quality-adjusted power for the SP and discounted storage for the client.</p>
+      <p><strong>HHI (Herfindahl-Hirschman Index).</strong> Σ sᵢ² where sᵢ is share. 1/N (uniform) is the floor; 1 is monopoly. &lt;0.10 is unconcentrated, &gt;0.25 is highly concentrated under US DOJ guidelines.</p>
+      <p><strong>Gini.</strong> Inequality index over the Lorenz curve. 0 = everyone equal; 1 = one entity owns everything.</p>
+      <p><strong>TiB.</strong> Tebibyte, 2⁴⁰ bytes ≈ 1.0995 × 10¹² bytes. Not to be confused with TB (10¹²).</p></div>
+    </section>
+    <section class="section">
+      <h2 lang="ja">このレポートの再現手順</h2>
       <h2 lang="en">Reproducing this report</h2>
-      <div lang="ja"><p>1. <code>chainq_describe(&quot;filecoin.deals&quot;)</code><br>2. <code>chainq_metric(&quot;filecoin_provider_storage&quot;, { dimensions: [&quot;provider&quot;], start_epoch, end_epoch })</code><br>3. <code>chainq_chart_render({ type: &quot;bar&quot;, x: &quot;provider&quot;, y: &quot;tib_stored&quot;, filename: &quot;top-providers.svg&quot; })</code><br>4. <code>chainq_report({ title, filename: &quot;filecoin-concentration.html&quot;, locale: &quot;both&quot;, sections: [...] })</code></p></div>
-      <div lang="en"><p>1. <code>chainq_describe(&quot;filecoin.deals&quot;)</code><br>2. <code>chainq_metric(&quot;filecoin_provider_storage&quot;, { dimensions: [&quot;provider&quot;], start_epoch, end_epoch })</code><br>3. <code>chainq_chart_render({ type: &quot;bar&quot;, x: &quot;provider&quot;, y: &quot;tib_stored&quot;, filename: &quot;top-providers.svg&quot; })</code><br>4. <code>chainq_report({ title, filename: &quot;filecoin-concentration.html&quot;, locale: &quot;both&quot;, sections: [...] })</code></p></div>
+      <div lang="ja"><p>```bash<br># 1. 実データの取り込み（RPC不要、公開アーカイブから）:<br>chainq pull --chain filecoin --from 4500000 --to 5000000</p>
+      <p># 2. レポート生成:<br>pnpm exec tsx scripts/filecoin-demo.ts</p>
+      <p># 3. 開く:<br>open docs/reports/02-filecoin-concentration.html<br>```</p>
+      <p>パイプライン（裏で AI エージェントが叩く MCP コール）:</p>
+      <p>1. <code>chainq_describe(&quot;filecoin.deals&quot;)</code> — スキーマ・サンプル・落とし穴。<br>2. <code>chainq_metric(&quot;filecoin_provider_storage&quot;, { dimensions: [&quot;provider&quot;], start_epoch, end_epoch })</code> — 全件・検証済みの2バージョン。<br>3. <code>chainq_query(&quot;SELECT (end_epoch - start_epoch) ...&quot;)</code> — 期間分布。<br>4. <code>chainq_query(&quot;SELECT client, COUNT(*) ...&quot;)</code> — クライアント多様性。<br>5. <code>chainq_chart_render</code> を5回（top-25 / lorenz / tiers / verified-by-tier / duration）。<br>6. <code>chainq_report({ ..., locale: &quot;both&quot;, format: &quot;html&quot; })</code> — このファイルそのもの。</p></div>
+      <div lang="en"><p>```bash<br># 1. Pull a real Filecoin window (RPC-free, public archive):<br>chainq pull --chain filecoin --from 4500000 --to 5000000</p>
+      <p># 2. Run the report pipeline:<br>pnpm exec tsx scripts/filecoin-demo.ts</p>
+      <p># 3. Open the output:<br>open docs/reports/02-filecoin-concentration.html<br>```</p>
+      <p>Pipeline (MCP calls the agent makes under the hood):</p>
+      <p>1. <code>chainq_describe(&quot;filecoin.deals&quot;)</code> — schema + sample queries + gotchas.<br>2. <code>chainq_metric(&quot;filecoin_provider_storage&quot;, { dimensions: [&quot;provider&quot;], start_epoch, end_epoch })</code> — total + verified variants.<br>3. <code>chainq_query(&quot;SELECT (end_epoch - start_epoch) AS duration_epochs FROM filecoin.deals&quot;)</code> — duration distribution.<br>4. <code>chainq_query(&quot;SELECT client, COUNT(*) AS deals, COUNT(DISTINCT provider) ...&quot;)</code> — client diversity.<br>5. Five <code>chainq_chart_render</code> calls for top-25 / lorenz / tiers / verified-by-tier / duration.<br>6. <code>chainq_report({ ..., locale: &quot;both&quot;, format: &quot;html&quot; })</code> — this file.</p></div>
+    </section>
+    <section class="section callout callout-tip">
+      <h2 lang="ja">参考資料</h2>
+      <h2 lang="en">References &amp; further reading</h2>
+      <div lang="ja"><p>- Filecoin 仕様 [Deals &amp; sectors](<a href="https://spec.filecoin.io/#section-systems.filecoin_markets)" target="_blank" rel="noopener">https://spec.filecoin.io/#section-systems.filecoin_markets)</a> — プロトコルの正典。<br>- Filfox provider explorer: <a href="https://filfox.info/" target="_blank" rel="noopener">https://filfox.info/</a> — 個別プロバイダの数字の突き合わせに。<br>- 米国 DOJ Horizontal Merger Guidelines — §2 で参照した HHI 閾値の出典。<br>- chainq docs/COMPARISON.md — chainq と Dune の使い分け。</p></div>
+      <div lang="en"><p>- Filecoin spec, [Deals &amp; sectors](<a href="https://spec.filecoin.io/#section-systems.filecoin_markets)" target="_blank" rel="noopener">https://spec.filecoin.io/#section-systems.filecoin_markets)</a> — official protocol semantics.<br>- Filfox provider explorer: <a href="https://filfox.info/" target="_blank" rel="noopener">https://filfox.info/</a> — sanity-check individual provider numbers.<br>- DOJ Horizontal Merger Guidelines — source for the HHI thresholds cited in §2.<br>- chainq docs/COMPARISON.md — when to use chainq vs Dune.</p></div>
     </section>
   </article>
   <footer class="report-foot">

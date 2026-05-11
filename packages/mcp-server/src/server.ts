@@ -18,6 +18,13 @@ import {
   type ChartFormat,
 } from "./charts.js";
 import { writeReport, type ReportFormat } from "./report.js";
+import {
+  concentrationSuite,
+  distributionSummary,
+  histogram,
+  type BucketSpec,
+  bucketize,
+} from "./analytics.js";
 import { BudgetTracker } from "./budget.js";
 import { describe as toolDesc } from "./tool-catalog.js";
 
@@ -202,6 +209,135 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
         return json({ metric, sql, result, budget: budget.status() });
       } catch (err) {
         return error(`metric ${metric} failed: ${(err as Error).message}`, "QUERY_FAILED");
+      }
+    },
+  );
+
+  // -------- analytics ----------------------------------------------------
+  server.tool(
+    "chainq_concentration",
+    toolDesc("chainq_concentration"),
+    {
+      sql: z.string().describe("SELECT that produces (group_key, value) pairs. Either column order works; the `value_field` arg picks the numeric column."),
+      value_field: z.string().describe("Name of the numeric column to weight on (e.g. `bytes_stored`)."),
+      top_n: z.array(z.number().int().positive()).optional().describe("List of top-N cutoffs to compute. Default: [1, 5, 10, 25, 50, 100]."),
+      max_lorenz_points: z.number().int().positive().optional(),
+    },
+    async ({ sql, value_field, top_n, max_lorenz_points }) => {
+      try {
+        const estimate = await engine.estimate(sql);
+        const decision = budget.checkEstimate(estimate);
+        if (!decision.allowed) {
+          return error(
+            `budget exceeded: ${decision.reason ?? "cap would be breached"} ${JSON.stringify(decision.wouldExceed ?? {})}`,
+            "BUDGET_EXCEEDED",
+            decision.wouldExceed,
+          );
+        }
+        const result = await engine.query(sql, { cacheLabel: `analytics:concentration:${value_field}` });
+        budget.record({ rows: result.actualRows, bytes: result.actualBytes, seconds: result.actualSeconds });
+        const inputRows = result.rows.map((r) => ({ value: Number((r as Record<string, unknown>)[value_field] ?? 0) }));
+        const suite = concentrationSuite(inputRows, { topN: top_n, maxLorenzPoints: max_lorenz_points });
+        return json({ ...suite, sql, sourceRows: result.actualRows, budget: budget.status() });
+      } catch (err) {
+        return error(`concentration failed: ${(err as Error).message}`, "QUERY_FAILED");
+      }
+    },
+  );
+
+  server.tool(
+    "chainq_distribution",
+    toolDesc("chainq_distribution"),
+    {
+      sql: z.string().describe("SELECT that produces a single numeric column (per row). Other columns are ignored."),
+      value_field: z.string().describe("Name of the numeric column to summarise."),
+    },
+    async ({ sql, value_field }) => {
+      try {
+        const estimate = await engine.estimate(sql);
+        const decision = budget.checkEstimate(estimate);
+        if (!decision.allowed) {
+          return error(
+            `budget exceeded: ${decision.reason ?? "cap would be breached"} ${JSON.stringify(decision.wouldExceed ?? {})}`,
+            "BUDGET_EXCEEDED",
+            decision.wouldExceed,
+          );
+        }
+        const result = await engine.query(sql, { cacheLabel: `analytics:distribution:${value_field}` });
+        budget.record({ rows: result.actualRows, bytes: result.actualBytes, seconds: result.actualSeconds });
+        const values = result.rows.map((r) => Number((r as Record<string, unknown>)[value_field] ?? 0));
+        return json({ ...distributionSummary(values), sql, budget: budget.status() });
+      } catch (err) {
+        return error(`distribution failed: ${(err as Error).message}`, "QUERY_FAILED");
+      }
+    },
+  );
+
+  server.tool(
+    "chainq_histogram",
+    toolDesc("chainq_histogram"),
+    {
+      sql: z.string(),
+      value_field: z.string(),
+      bucket_size: z.number().positive().describe("Histogram bucket width in the value column's units."),
+    },
+    async ({ sql, value_field, bucket_size }) => {
+      try {
+        const estimate = await engine.estimate(sql);
+        const decision = budget.checkEstimate(estimate);
+        if (!decision.allowed) {
+          return error(
+            `budget exceeded: ${decision.reason ?? "cap would be breached"} ${JSON.stringify(decision.wouldExceed ?? {})}`,
+            "BUDGET_EXCEEDED",
+            decision.wouldExceed,
+          );
+        }
+        const result = await engine.query(sql, { cacheLabel: `analytics:histogram:${value_field}:${bucket_size}` });
+        budget.record({ rows: result.actualRows, bytes: result.actualBytes, seconds: result.actualSeconds });
+        const values = result.rows.map((r) => Number((r as Record<string, unknown>)[value_field] ?? 0));
+        return json({ ...histogram(values, bucket_size), sql, budget: budget.status() });
+      } catch (err) {
+        return error(`histogram failed: ${(err as Error).message}`, "QUERY_FAILED");
+      }
+    },
+  );
+
+  server.tool(
+    "chainq_bucketize",
+    toolDesc("chainq_bucketize"),
+    {
+      sql: z.string(),
+      value_field: z.string(),
+      buckets: z.array(z.object({
+        min: z.number(),
+        max: z.number(),
+        label: z.string(),
+      })).describe("Tier definitions. `min` is inclusive, `max` is exclusive (Infinity → use a huge sentinel like 1e308)."),
+    },
+    async ({ sql, value_field, buckets }) => {
+      try {
+        const estimate = await engine.estimate(sql);
+        const decision = budget.checkEstimate(estimate);
+        if (!decision.allowed) {
+          return error(
+            `budget exceeded: ${decision.reason ?? "cap would be breached"} ${JSON.stringify(decision.wouldExceed ?? {})}`,
+            "BUDGET_EXCEEDED",
+            decision.wouldExceed,
+          );
+        }
+        const result = await engine.query(sql, { cacheLabel: `analytics:bucketize:${value_field}` });
+        budget.record({ rows: result.actualRows, bytes: result.actualBytes, seconds: result.actualSeconds });
+        const rows = result.rows as Array<Record<string, unknown>>;
+        const tiers: BucketSpec[] = buckets;
+        const out = bucketize(rows, (r) => Number(r[value_field] ?? 0), tiers);
+        // Strip the per-item arrays from the response — they can be large.
+        return json({
+          tiers: out.map((t) => ({ label: t.label, count: t.count, total: t.total, share: t.share })),
+          sql,
+          budget: budget.status(),
+        });
+      } catch (err) {
+        return error(`bucketize failed: ${(err as Error).message}`, "QUERY_FAILED");
       }
     },
   );

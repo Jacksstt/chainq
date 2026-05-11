@@ -10,11 +10,12 @@ Use them as:
 - **Sanity check**: when you wire chainq into a new MCP client, ask the agent to reproduce one of these.
 - **Prompt-engineering reference**: each report header includes the rough prompt that produced it.
 
-| # | Report                                                  | Formats                              | Tools touched |
-|---|---------------------------------------------------------|--------------------------------------|---------------|
-| 1 | DEX volume on Base — Jan 2026                           | [HTML](./01-dex-volume-base.html) · [MD](./01-dex-volume-base.md) | `list_tables`, `describe`, `metric`, `chart_render`, `report` |
-| 2 | [Filecoin storage-provider concentration](./02-filecoin-concentration.md) | MD only | `describe`, `query`, `report` |
-| 3 | [Whuffie score distribution](./03-whuffie-distribution.md) | MD only | `list_metrics`, `metric`, `chart_render`, `report` |
+| # | Report                                                  | Formats                              | Depth | Tools touched |
+|---|---------------------------------------------------------|--------------------------------------|-------|---------------|
+| 1 | DEX volume on Base — Jan 2026                           | [HTML](./01-dex-volume-base.html) · [MD](./01-dex-volume-base.md) | basic | `list_tables`, `describe`, `metric`, `chart_render`, `report` |
+| 2 | [Filecoin storage-provider concentration](./02-filecoin-concentration.html) (bilingual) · [MD legacy](./02-filecoin-concentration.md) | HTML + MD | **analyst-grade** (13 sections, 5 charts) | `describe`, `metric`, `query`, `concentration`, `distribution`, `histogram`, `bucketize`, `chart_render`, `report` |
+| 3 | [Whuffie score distribution](./03-whuffie-distribution.md) | MD only | basic | `list_metrics`, `metric`, `chart_render`, `report` |
+| 4 | [Base DEX taker concentration](./04-dex-taker-concentration.html) (bilingual) | HTML | minimal (~100 LOC source) | `query`, `concentration`, `chart_render`, `report` |
 
 The default `chainq_report` output is now **HTML** (single-file, inline
 CSS, dark/light auto, print-friendly). Pass `format: "markdown"` or use a
