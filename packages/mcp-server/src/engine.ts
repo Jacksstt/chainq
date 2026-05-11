@@ -104,11 +104,23 @@ export class Engine {
 
     let estimatedRows = -1;
     let estimatedSeconds = -1;
+    // Apply the same logical→physical name rewrite that `query()` uses so
+    // EXPLAIN can resolve `"dex.trades"` / `dex.trades` to the underlying view.
+    const rewritten = rewriteCuratedNames(sql);
     try {
-      const reader = await conn.runAndReadAll(`EXPLAIN ${sql}`);
+      const reader = await conn.runAndReadAll(`EXPLAIN ${rewritten}`);
       const plan = reader.getRowObjects().map((r) => Object.values(r).join(" ")).join("\n");
-      const rowMatch = /(?:cardinality|estimated_rows|EC:)\s*[:=]?\s*(\d+)/i.exec(plan);
-      if (rowMatch && rowMatch[1]) estimatedRows = Number(rowMatch[1]);
+      // DuckDB renders plan-node cardinality estimates as `~<N> row(s)` (comma-thousands).
+      // The topmost node appears first in the rendered output and is the query's
+      // final row estimate. Fall back to the older `cardinality:` / `EC:` patterns
+      // for forward compatibility.
+      const newFmt = /~\s*([\d,]+)\s+rows?\b/.exec(plan);
+      if (newFmt && newFmt[1]) {
+        estimatedRows = Number(newFmt[1].replace(/,/g, ""));
+      } else {
+        const oldFmt = /(?:cardinality|estimated_rows|EC:)\s*[:=]?\s*(\d+)/i.exec(plan);
+        if (oldFmt && oldFmt[1]) estimatedRows = Number(oldFmt[1]);
+      }
     } catch (err) {
       warnings.push(`EXPLAIN failed: ${(err as Error).message}`);
     }
