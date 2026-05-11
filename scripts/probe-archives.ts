@@ -156,6 +156,30 @@ async function main() {
     const out = resolve("docs/SUPPORTED-CHAINS.md");
     writeFileSync(out, lines.join("\n"));
     console.error(`[probe] wrote ${out}`);
+
+    // Versioned machine-readable chains.json for external tooling.
+    const chainsJson = {
+      $schema: "https://chainq.dev/schema/chains.v1.json",
+      generatedAt: new Date().toISOString(),
+      total: results.length,
+      up: up.length,
+      down: down.length,
+      chains: results.map((r) => ({
+        chain: r.chain,
+        archive: r.url,
+        status: r.status,
+        height: r.height ?? null,
+        latencyMs: r.elapsedMs,
+        detail: r.detail ?? null,
+      })),
+      nonEvm: [
+        { chain: "solana", path: "@chainq/ingest-solana", source: "Helius RPC (free tier available)" },
+        { chain: "filecoin", path: "@chainq/ingest-filecoin", source: "Filfox + Spacescan REST" },
+      ],
+    };
+    const jsonOut = resolve("docs/chains.json");
+    writeFileSync(jsonOut, JSON.stringify(chainsJson, null, 2) + "\n");
+    console.error(`[probe] wrote ${jsonOut}`);
   }
 }
 

@@ -22,6 +22,7 @@ import { fileURLToPath } from "node:url";
 import { runInit } from "./init.js";
 import { runBackfill, type BackfillRange } from "./backfill.js";
 import { runWatch } from "./watch.js";
+import { runInstallMcp, defaultConfigPath, type McpClient } from "./install-mcp.js";
 
 const args = process.argv.slice(2);
 
@@ -37,6 +38,7 @@ const COMMANDS = [
   ["ingest backfill --plan <plan.json>", "Run multi-range backfill from a JSON plan."],
   ["ingest backfill --chains <list> --from N --to M [--concurrency K]", "Backfill a uniform range across multiple chains."],
   ["watch --chain <id> --from N [--to M] [--max-batches K]", "Stream new blocks from a public Subsquid archive into local Parquet shards."],
+  ["install-mcp --client <claude-code|cursor|cline|generic> [--config <path>] [--dry-run]", "Wire chainq's MCP server into a host config (Claude Code etc.)."],
   ["mcp serve [--stdio]", "Start the MCP server (stdio transport)."],
 ] as const;
 
@@ -51,6 +53,7 @@ const KNOWN_TOP_LEVEL = new Set([
   "pull",
   "ingest",
   "watch",
+  "install-mcp",
   "mcp",
 ]);
 
@@ -142,6 +145,10 @@ async function main() {
 
     case "watch":
       await runWatchCmd(rest);
+      return;
+
+    case "install-mcp":
+      await runInstallMcpCmd(rest);
       return;
 
     default: {
@@ -651,8 +658,9 @@ async function runWatchCmd(restArgs: string[]): Promise<void> {
   const to = opts["to"] ? Number(opts["to"]) : undefined;
   const maxBatches = opts["max-batches"] ? Number(opts["max-batches"]) : undefined;
   const maxRows = opts["max-rows"] ? Number(opts["max-rows"]) : undefined;
+  const reorgBuffer = opts["reorg-buffer"] ? Number(opts["reorg-buffer"]) : undefined;
 
-  console.error(`[watch] starting chain=${chain} archive=${archiveUrl}`);
+  console.error(`[watch] starting chain=${chain} archive=${archiveUrl}${reorgBuffer ? ` reorg-buffer=${reorgBuffer}` : ""}`);
   const result = await runWatch({
     chain,
     archiveUrl,
@@ -660,12 +668,56 @@ async function runWatchCmd(restArgs: string[]): Promise<void> {
     ...(to != null ? { toBlock: to } : {}),
     ...(maxBatches != null ? { maxBatches } : {}),
     ...(maxRows != null ? { maxRowsPerShard: maxRows } : {}),
+    ...(reorgBuffer != null ? { reorgBufferBlocks: reorgBuffer } : {}),
     outDir,
   });
   console.error("");
   console.error(`done. chain=${result.chain} blocks=${result.rangeFrom}..${result.rangeTo} batches=${result.batches} rows=${result.rows} elapsed=${result.elapsedSeconds.toFixed(2)}s`);
   console.error(`checkpoint: ${result.checkpointPath}`);
   for (const s of result.shardsWritten) console.error(`  shard: ${s}`);
+}
+
+async function runInstallMcpCmd(restArgs: string[]): Promise<void> {
+  const opts = parseFlags(restArgs);
+  const clientArg = opts["client"];
+  const dryRun = opts["dry-run"] === "true";
+  const dataDir = opts["data-dir"];
+  if (!clientArg) {
+    console.error("usage: chainq install-mcp --client <claude-code|cursor|cline|generic> [--config <path>] [--data-dir <dir>] [--dry-run]");
+    process.exit(1);
+  }
+  const validClients: McpClient[] = ["claude-code", "cursor", "cline", "generic"];
+  if (!validClients.includes(clientArg as McpClient)) {
+    console.error(`unknown --client value: ${clientArg}. Valid: ${validClients.join(" / ")}`);
+    process.exit(1);
+  }
+  const client = clientArg as McpClient;
+  const chainqRoot = packageRoot();
+  const result = runInstallMcp({
+    client,
+    chainqRoot,
+    ...(opts["config"] ? { configPath: opts["config"] } : {}),
+    ...(dataDir ? { dataDir } : {}),
+    apply: !dryRun,
+  });
+
+  console.log(`\nchainq install-mcp — client=${client}`);
+  console.log(`  config:  ${result.configPath} ${result.preExisting ? "(updated)" : "(created)"}`);
+  console.log(`  status:  ${result.written ? "written" : "DRY RUN (no file changes)"}`);
+  console.log("");
+  console.log("Proposed config (full file):");
+  console.log(result.proposedConfig.split("\n").map((l) => "    " + l).join("\n"));
+  console.log("");
+  if (!result.written) {
+    console.log("Re-run without --dry-run to apply.");
+  } else {
+    console.log(`Next: restart ${client === "claude-code" ? "Claude Code" : client} so the new MCP server is picked up.`);
+  }
+  console.log("");
+  console.log(`From your MCP client, you can now call:`);
+  console.log(`  chainq_list_tables, chainq_describe, chainq_query, chainq_metric,`);
+  console.log(`  chainq_estimate_cost, chainq_budget_set, chainq_recall,`);
+  console.log(`  chainq_chart_render, chainq_report  (and 11 more — see \`chainq tools\`)`);
 }
 
 function nodeMajor(): number {

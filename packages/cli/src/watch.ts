@@ -40,6 +40,15 @@ export interface WatchOptions {
   };
   /** Optional logger; defaults to console.error. */
   log?: (msg: string) => void;
+  /**
+   * Reorg-safety: when set, rewind the resume cursor by N blocks before
+   * the next pull, so the most recent N blocks are re-fetched and any
+   * minor reorg is corrected on the next iteration. Subsquid's v2 archive
+   * serves finalised blocks (so the default is 0), but if you're pointing
+   * at a head-following archive, set this to your chain's finality
+   * tolerance (e.g. 12 for Ethereum, 30 for Polygon).
+   */
+  reorgBufferBlocks?: number;
 }
 
 export interface WatchCheckpoint {
@@ -81,7 +90,19 @@ export async function runWatch(opts: WatchOptions): Promise<WatchSummary> {
       checkpoint = null;
     }
   }
-  const fromBlock = checkpoint ? checkpoint.lastBlock + 1 : opts.fromBlock;
+  // Reorg-safe resume: if a buffer is configured, rewind the cursor by
+  // `reorgBufferBlocks` so the most recent N blocks are re-fetched on
+  // every run. Re-fetching overwrites the existing shard cleanly (Parquet
+  // shards are append-only per invocation, named by sequence; the next
+  // invocation produces a new shard so duplicates are detectable downstream
+  // by `(block_number, log_index)` dedup if needed).
+  const buffer = Math.max(0, Math.floor(opts.reorgBufferBlocks ?? 0));
+  const fromBlock = checkpoint
+    ? Math.max(opts.fromBlock, checkpoint.lastBlock + 1 - buffer)
+    : opts.fromBlock;
+  if (checkpoint && buffer > 0) {
+    log(`[watch] reorg buffer: rewinding ${buffer} blocks from checkpoint ${checkpoint.lastBlock}`);
+  }
   log(`[watch] chain=${opts.chain} from=${fromBlock}${opts.toBlock ? ` to=${opts.toBlock}` : " (follow head)"} archive=${opts.archiveUrl}`);
 
   const started = Date.now();

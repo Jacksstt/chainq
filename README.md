@@ -2,9 +2,16 @@
 
 <img src="assets/logo.svg" alt="chainq" width="320">
 
-**The open-source Dune + MCP.**
+**Open-source onchain analytics, MCP-native.**
 
-chainq is what Dune Analytics would look like if you self-hosted it and let AI agents drive it. Same architecture (Parquet on disk · dbt curated tables · SQL engine), same Spellbook lineage (MIT-licensed cross-compatible models), plus a first-class MCP server with 20 tools so agents — not just humans clicking buttons — can do the analysis. Pre-alpha; see [Status](#status) for what's proven working today and what's still pending.
+chainq is the self-hosted, AI-agent-driven analogue of Dune Analytics:
+same architecture (Parquet on disk · dbt curated tables · SQL engine),
+same Spellbook lineage (MIT-licensed cross-compatible models), plus a
+first-class MCP server with 20 tools so agents — not just humans
+clicking buttons — drive the analysis. Pre-alpha; see [Status](#status).
+
+> Not affiliated with Dune Analytics, Inc. References to "Dune" here are
+> for architectural comparison only.
 
 [![CI](https://github.com/Jacksstt/chainq/actions/workflows/ci.yml/badge.svg)](https://github.com/Jacksstt/chainq/actions/workflows/ci.yml)
 [![status](https://img.shields.io/badge/status-pre--alpha-orange.svg)](#status)
