@@ -9,6 +9,70 @@ import type { TableDescriptor } from "@chainq/core";
 
 export const CATALOG: TableDescriptor[] = [
   {
+    name: "prices.usd",
+    description:
+      "Daily USD reference prices keyed by `(chain, token)`. Use this as a join partner for any " +
+      "raw on-chain volume that needs USD enrichment. Sourced from upstream aggregators (Pyth / " +
+      "DefiLlama / Coingecko in production; seeded synthetics in this build).",
+    chains: ["ethereum", "base", "polygon", "arbitrum", "optimism"],
+    columns: [
+      { name: "price_time", type: "TIMESTAMP", description: "Snapshot timestamp (UTC, day-aligned).", nullable: false },
+      { name: "token",      type: "VARCHAR",   description: "Symbol matching `dex.trades.token_in/out`.", nullable: false },
+      { name: "chain",      type: "VARCHAR",   description: "Chain id.", nullable: false },
+      { name: "price_usd",  type: "DOUBLE",    description: "Price in USD as of price_time. Decimal-applied.", nullable: false },
+      { name: "source",     type: "VARCHAR",   description: "Provider tag (e.g. `pyth`, `defillama`, `chainq:synthetic`).", nullable: false },
+    ],
+    partitions: ["chain"],
+    lineage: [
+      {
+        source: "External price feed aggregators (Pyth / DefiLlama / Coingecko in production).",
+        transform: "Daily snapshots normalised to USD; symbol mapping handled in spellbook.",
+        dbtModel: "models/prices/prices_usd.sql",
+      },
+    ],
+    sampleQueries: [
+      { title: "Latest price per token", sql: "SELECT token, price_usd FROM prices_usd WHERE price_time = (SELECT MAX(price_time) FROM prices_usd) ORDER BY price_usd DESC" },
+      { title: "Stablecoin drift", sql: "SELECT price_time, token, price_usd FROM prices_usd WHERE token IN ('USDC','USDT','DAI') AND price_usd NOT BETWEEN 0.995 AND 1.005 ORDER BY price_time" },
+    ],
+    gotchas: [
+      "`price_time` is day-aligned. To price an intraday trade exactly, use a per-block oracle (`pyth.prices` in production).",
+      "Symbols are case-sensitive. `WETH` != `weth`; production deployments often canonicalise on lowercase.",
+      "Synthetic build only covers the eight DEX tokens used in dex.trades.",
+    ],
+  },
+  {
+    name: "labels.addresses",
+    description:
+      "Address -> label registry. Each row is one (address, chain, label) assertion with a source " +
+      "and confidence. Use for OFAC screening, exchange-flow analysis, MEV-bot filtering. Seeded " +
+      "synthetics in this build; production wires Chainalysis / Etherscan tags / open OFAC SDN.",
+    chains: ["ethereum", "base", "polygon", "arbitrum", "optimism"],
+    columns: [
+      { name: "address",    type: "VARCHAR", description: "0x-prefixed lowercase EVM address.", nullable: false },
+      { name: "chain",      type: "VARCHAR", description: "Chain id.", nullable: false },
+      { name: "label",      type: "VARCHAR", description: "Canonical tag: cex_hot_wallet / cex_cold_wallet / dex_router / mev_bot / bridge_operator / sanctioned / contract_factory / eoa_whale.", nullable: false },
+      { name: "source",     type: "VARCHAR", description: "Source identifier (e.g. `OFAC SDN List`, `Etherscan tag`).", nullable: false },
+      { name: "confidence", type: "DOUBLE",  description: "0..1 confidence. OFAC = 1.0; heuristic labels ~0.7-0.85.", nullable: false },
+    ],
+    partitions: ["chain"],
+    lineage: [
+      {
+        source: "OFAC SDN List + Etherscan tags + Chainalysis (production); synthetic samples in this build.",
+        transform: "Per-source normalisation, then union with conflict resolution by source priority + confidence.",
+        dbtModel: "models/labels/labels_addresses.sql",
+      },
+    ],
+    sampleQueries: [
+      { title: "Sanctioned addresses", sql: "SELECT address, chain, source FROM labels_addresses WHERE label = 'sanctioned'" },
+      { title: "CEX-bound transfer volume", sql: "SELECT l.label, SUM(TRY_CAST(t.value AS HUGEINT))::DOUBLE AS volume FROM erc20_transfers t JOIN labels_addresses l ON l.address = t.to_addr AND l.chain = t.chain WHERE l.label LIKE 'cex_%' GROUP BY 1 ORDER BY 2 DESC" },
+    ],
+    gotchas: [
+      "Addresses stored lowercase; if you join with raw on-chain logs make sure both sides are normalised.",
+      "Same address can have multiple rows in different sources. Aggregate to a primary tag if you need a single label.",
+      "OFAC entries (`label = 'sanctioned'`) are regulatory-grade. Heuristic labels (`mev_bot`, `eoa_whale`) are best-effort.",
+    ],
+  },
+  {
     name: "dex.trades",
     description:
       "DEX swap events normalized across aggregators (Uniswap V2/V3, Curve, Balancer, etc.). Each row is one swap on one chain.",

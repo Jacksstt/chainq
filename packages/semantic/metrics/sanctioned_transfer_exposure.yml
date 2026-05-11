@@ -1,0 +1,42 @@
+metric: sanctioned_transfer_exposure
+description: |
+  ERC-20 transfer volume where EITHER side of the transfer touches an address
+  on the OFAC SDN list (or any source where `labels.addresses.label =
+  'sanctioned'`). Counts each leg separately so a sanctioned-to-sanctioned
+  hop is double-counted. Used for compliance / risk dashboards.
+dimensions:
+  - chain
+  - token
+  - day
+filters:
+  - chain
+  - token
+sql_template: |
+  WITH sanc AS (
+    SELECT address, chain FROM "labels.addresses" WHERE label = 'sanctioned'
+  ),
+  legs AS (
+    SELECT t.* FROM "erc20.transfers" AS t
+      JOIN sanc s ON s.address = t.from_addr AND s.chain = t.chain
+    UNION ALL
+    SELECT t.* FROM "erc20.transfers" AS t
+      JOIN sanc s ON s.address = t.to_addr AND s.chain = t.chain
+  )
+  SELECT
+    {{select_dimensions}},
+    COUNT(*) AS flagged_legs,
+    SUM(TRY_CAST(value AS HUGEINT))::DOUBLE AS raw_value
+  FROM legs
+  WHERE block_time BETWEEN {{start}} AND {{end}}
+    {{chain_clause}}
+    {{token_clause}}
+  GROUP BY {{group_dimensions}}
+  ORDER BY {{group_dimensions}}
+dimension_expressions:
+  chain: chain
+  token: token
+  day: "date_trunc('day', block_time)"
+guardrails:
+  max_range_days: 90
+  max_rows: 50000
+  timeout_seconds: 30

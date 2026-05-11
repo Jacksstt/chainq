@@ -156,6 +156,82 @@ async function main() {
   `);
   await conn.run(`COPY solana_dex_trades TO '${resolve(OUT_DIR, "solana.dex.trades.parquet")}' (FORMAT 'parquet')`);
 
+  // prices.usd -------------------------------------------------------------
+  // Daily USD reference prices for the eight DEX tokens across 60 days.
+  // Models a smooth random-walk pattern with seeded jitter so percentiles
+  // and aggregate joins produce believable numbers.
+  await conn.run(`
+    CREATE TABLE prices_usd AS
+    WITH days AS (SELECT range AS d FROM range(60)),
+         toks AS (SELECT unnest(${jsList(TOKENS)}) AS token, generate_series AS rank FROM generate_series(1, ${TOKENS.length})),
+         joined AS (
+           SELECT
+             TIMESTAMP '2026-01-01 00:00:00' + (d * INTERVAL '1 day') AS price_time,
+             token,
+             rank,
+             -- Base price per token (deterministic), plus a sine-wave drift.
+             CASE token
+               WHEN 'WETH' THEN 2300.0 + 50.0 * sin(d * 0.21)
+               WHEN 'WBTC' THEN 45000.0 + 800.0 * sin(d * 0.18)
+               WHEN 'USDC' THEN 1.0 + 0.002 * sin(d * 0.31)
+               WHEN 'USDT' THEN 1.0 + 0.003 * sin(d * 0.29)
+               WHEN 'DAI'  THEN 1.0 + 0.001 * sin(d * 0.27)
+               WHEN 'ARB'  THEN 1.2 + 0.15 * sin(d * 0.23)
+               WHEN 'OP'   THEN 2.4 + 0.20 * sin(d * 0.19)
+               WHEN 'PEPE' THEN 0.000012 + 0.0000018 * sin(d * 0.33)
+               ELSE 1.0
+             END AS price_usd,
+             'chainq:synthetic' AS source
+           FROM days, toks
+         )
+    SELECT
+      price_time,
+      token,
+      'ethereum' AS chain,
+      ROUND(price_usd, 6) AS price_usd,
+      source
+    FROM joined;
+  `);
+  await conn.run(`COPY prices_usd TO '${resolve(OUT_DIR, "prices.usd.parquet")}' (FORMAT 'parquet')`);
+
+  // labels.addresses -------------------------------------------------------
+  // 200 synthetic labelled addresses across known categories. Used to
+  // demo label-joined analyses (OFAC checks, exchange routing, MEV bots).
+  await conn.run(`
+    CREATE TABLE labels_addresses AS
+    WITH base AS (SELECT range AS i FROM range(200))
+    SELECT
+      '0x' || lpad(format('{:x}', (i * 113) % 100000), 40, '0') AS address,
+      list_extract(${jsList(CHAINS)}, 1 + (i % ${CHAINS.length})) AS chain,
+      CASE (i % 8)
+        WHEN 0 THEN 'cex_hot_wallet'
+        WHEN 1 THEN 'cex_cold_wallet'
+        WHEN 2 THEN 'dex_router'
+        WHEN 3 THEN 'mev_bot'
+        WHEN 4 THEN 'bridge_operator'
+        WHEN 5 THEN 'sanctioned'
+        WHEN 6 THEN 'contract_factory'
+        ELSE        'eoa_whale'
+      END AS label,
+      CASE (i % 8)
+        WHEN 0 THEN 'Binance'
+        WHEN 1 THEN 'Coinbase Custody'
+        WHEN 2 THEN 'Uniswap Router'
+        WHEN 3 THEN 'jaredfromsubway.eth'
+        WHEN 4 THEN 'Across Bridge'
+        WHEN 5 THEN 'OFAC SDN List'
+        WHEN 6 THEN 'Safe Factory'
+        ELSE        'unknown whale'
+      END AS source,
+      CASE (i % 8)
+        WHEN 5 THEN 1.0
+        WHEN 3 THEN 0.85
+        ELSE        0.7
+      END AS confidence
+    FROM base;
+  `);
+  await conn.run(`COPY labels_addresses TO '${resolve(OUT_DIR, "labels.addresses.parquet")}' (FORMAT 'parquet')`);
+
   conn.disconnectSync();
 
   console.log(`wrote sample parquet files to ${OUT_DIR}`);

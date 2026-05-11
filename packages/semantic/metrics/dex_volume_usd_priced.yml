@@ -1,0 +1,36 @@
+metric: dex_volume_usd_priced
+description: |
+  DEX trade volume re-priced via `prices.usd` rather than the on-chain
+  `amount_usd` (which can be NULL or stale). Joins `dex.trades` to the
+  daily reference price on `(chain, token_out, date_trunc('day', block_time))`
+  and recomputes USD volume = `amount_out * price_usd`. Use when the trade-time
+  `amount_usd` is unreliable or you want a consistent oracle.
+dimensions:
+  - chain
+  - dex_name
+  - day
+filters:
+  - chain
+  - dex_name
+sql_template: |
+  SELECT
+    {{select_dimensions}},
+    SUM(TRY_CAST(t.amount_out AS DOUBLE) * p.price_usd) AS volume_usd
+  FROM "dex.trades" AS t
+  JOIN "prices.usd" AS p
+    ON p.token = t.token_out
+   AND p.chain = t.chain
+   AND p.price_time = date_trunc('day', t.block_time)
+  WHERE t.block_time BETWEEN {{start}} AND {{end}}
+    {{chain_clause}}
+    {{dex_name_clause}}
+  GROUP BY {{group_dimensions}}
+  ORDER BY {{group_dimensions}}
+dimension_expressions:
+  chain: t.chain
+  dex_name: t.dex_name
+  day: "date_trunc('day', t.block_time)"
+guardrails:
+  max_range_days: 90
+  max_rows: 50000
+  timeout_seconds: 30

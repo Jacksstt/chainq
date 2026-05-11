@@ -1,0 +1,39 @@
+metric: cex_inflow_volume
+description: |
+  ERC-20 transfer volume routed INTO labelled centralized-exchange wallets.
+  Joins `erc20.transfers` to `labels.addresses` on the recipient. Useful as
+  a coarse "sell pressure" signal and for tracking CEX deposit flows.
+dimensions:
+  - chain
+  - token
+  - day
+  - label
+filters:
+  - chain
+  - token
+  - label
+sql_template: |
+  SELECT
+    {{select_dimensions}},
+    COUNT(*) AS transfer_count,
+    SUM(TRY_CAST(t.value AS HUGEINT))::DOUBLE AS raw_value
+  FROM "erc20.transfers" AS t
+  JOIN "labels.addresses" AS l
+    ON l.address = t.to_addr
+   AND l.chain = t.chain
+  WHERE t.block_time BETWEEN {{start}} AND {{end}}
+    AND l.label LIKE 'cex_%'
+    {{chain_clause}}
+    {{token_clause}}
+    {{label_clause}}
+  GROUP BY {{group_dimensions}}
+  ORDER BY {{group_dimensions}}
+dimension_expressions:
+  chain: t.chain
+  token: t.token
+  day: "date_trunc('day', t.block_time)"
+  label: l.label
+guardrails:
+  max_range_days: 30
+  max_rows: 50000
+  timeout_seconds: 30
