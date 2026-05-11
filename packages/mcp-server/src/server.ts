@@ -19,6 +19,7 @@ import {
 } from "./charts.js";
 import { writeReport } from "./report.js";
 import { BudgetTracker } from "./budget.js";
+import { describe as toolDesc } from "./tool-catalog.js";
 
 export interface ServerOptions {
   dataDir: string;
@@ -49,14 +50,14 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
   // -------- discovery ----------------------------------------------------
   server.tool(
     "chainq_list_tables",
-    "List every curated table with a one-line summary.",
+    toolDesc("chainq_list_tables"),
     {},
     async () => json(CATALOG.map((t) => ({ name: t.name, chains: t.chains, description: t.description }))),
   );
 
   server.tool(
     "chainq_search_tables",
-    "Search curated tables by name or description.",
+    toolDesc("chainq_search_tables"),
     {
       query: z.string(),
       chain: z.string().optional(),
@@ -66,7 +67,7 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
 
   server.tool(
     "chainq_describe",
-    "Return full schema, sample rows, and gotchas for one table.",
+    toolDesc("chainq_describe"),
     { table: z.string() },
     async ({ table }) => {
       const t = findTable(table);
@@ -77,7 +78,7 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
   // -------- execution ----------------------------------------------------
   server.tool(
     "chainq_estimate_cost",
-    "Estimate rows, bytes, seconds, and credits a SQL query would consume before running it. Also returns the current budget status and an advisory decision (whether running this query now would breach a cap).",
+    toolDesc("chainq_estimate_cost"),
     { sql: z.string() },
     async ({ sql }) => {
       try {
@@ -95,7 +96,7 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
 
   server.tool(
     "chainq_query",
-    "Execute a SQL query with row and timeout caps. Result is cached for `chainq_recall`.",
+    toolDesc("chainq_query"),
     {
       sql: z.string(),
       max_rows: z.number().int().positive().optional(),
@@ -135,7 +136,7 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
   // -------- semantic layer -----------------------------------------------
   server.tool(
     "chainq_list_metrics",
-    "Enumerate all semantic-layer metrics defined in YAML.",
+    toolDesc("chainq_list_metrics"),
     {},
     async () =>
       json(
@@ -151,7 +152,7 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
 
   server.tool(
     "chainq_metric",
-    "Execute a named metric from the semantic layer.",
+    toolDesc("chainq_metric"),
     {
       metric: z.string(),
       dimensions: z.array(z.string()).optional(),
@@ -208,7 +209,7 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
   // -------- recall -------------------------------------------------------
   server.tool(
     "chainq_recall",
-    "Search past query / metric runs cached by this engine.",
+    toolDesc("chainq_recall"),
     {
       query: z.string().describe("Free text — matched against SQL and label."),
       limit: z.number().int().positive().optional(),
@@ -224,7 +225,7 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
 
   server.tool(
     "chainq_recall_by_id",
-    "Return the full cache entry including a sample of the saved result rows.",
+    toolDesc("chainq_recall_by_id"),
     { id: z.string() },
     async ({ id }) => {
       try {
@@ -239,7 +240,7 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
   // -------- chart_render -------------------------------------------------
   server.tool(
     "chainq_chart_render",
-    "Render a vega-lite chart from a result-set and save it. Supports three output formats: 'svg' (static, server-rendered), 'html' (single-file interactive page loading vega via CDN), and 'vegalite-json' (raw vega-lite TopLevelSpec for downstream tooling). If `format` is omitted, it is inferred from the filename extension (.svg / .html / .json) and falls back to 'svg'.",
+    toolDesc("chainq_chart_render"),
     {
       type: z.enum(["line", "bar", "area", "point"]),
       data: z.array(z.record(z.string(), z.unknown())),
@@ -272,7 +273,7 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
   // -------- report -------------------------------------------------------
   server.tool(
     "chainq_report",
-    "Write a Markdown report file. Supports frontmatter, tables, and chart embeds.",
+    toolDesc("chainq_report"),
     {
       title: z.string(),
       filename: z.string().describe("Markdown filename relative to outDir."),
@@ -307,7 +308,7 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
   // -------- budget -------------------------------------------------------
   server.tool(
     "chainq_budget_set",
-    "Set per-session budget caps. Pass an empty object to clear all caps. Subsequent chainq_query / chainq_metric calls pre-check against these caps.",
+    toolDesc("chainq_budget_set"),
     {
       credits: z.number().int().nonnegative().optional(),
       rows: z.number().int().nonnegative().optional(),
@@ -322,14 +323,14 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
 
   server.tool(
     "chainq_budget_status",
-    "Return active budget caps, running totals, and remaining headroom for this session.",
+    toolDesc("chainq_budget_status"),
     {},
     async () => json(budget.status()),
   );
 
   server.tool(
     "chainq_budget_clear",
-    "Clear all budget caps and reset consumption counters.",
+    toolDesc("chainq_budget_clear"),
     {},
     async () => {
       budget.setLimits({});

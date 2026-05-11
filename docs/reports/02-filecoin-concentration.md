@@ -56,7 +56,7 @@ materially:
 This suggests Filecoin Plus is doing some of what it advertises: spreading
 storage demand to mid-tier providers.
 
-## Gotchas
+## Caveats
 
 - Filecoin epochs are 30-second slots, not unix seconds — when prompting
   the agent, convert dates with `(epoch * 30) + 1598306400`.

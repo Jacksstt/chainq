@@ -40,7 +40,7 @@ Source: `chainq_metric(dex_protocol_share, filters={chain: "base"}, start=…, e
 
 (Generated via `chainq_chart_render(type="bar", x="day", y="volume_usd")`.)
 
-## Notes
+## Caveats
 
 - The numbers above are illustrative — they come from `pnpm seed`'s
   synthetic dataset, not live mainnet. Replace with `chainq pull --chain base`

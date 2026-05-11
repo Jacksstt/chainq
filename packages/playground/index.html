@@ -14,7 +14,14 @@
       Paste a Parquet URL, write SQL, get rows.
     </p>
     <p class="tagline">
-      Source: <a href="https://github.com/Jacksstt/chainq" target="_blank">github.com/Jacksstt/chainq</a>
+      Source:
+      <a href="https://github.com/Jacksstt/chainq" target="_blank" rel="noopener">github.com/Jacksstt/chainq</a>
+      &nbsp;·&nbsp;
+      Press
+      <kbd>⌘</kbd><kbd>↵</kbd>
+      (or
+      <kbd>Ctrl</kbd><kbd>↵</kbd>)
+      to run the query.
     </p>
   </header>
 
@@ -30,23 +37,29 @@
 
     <section class="row">
       <label for="sql">SQL</label>
-      <textarea id="sql" rows="6">
-SELECT chain, COUNT(*) AS trades, AVG(amount_usd) AS avg_usd
-FROM 'dataset'
+      <textarea id="sql" rows="6" spellcheck="false">SELECT chain, COUNT(*) AS trades, AVG(amount_usd) AS avg_usd
+FROM dataset
 GROUP BY chain
 ORDER BY trades DESC
-LIMIT 50
-      </textarea>
+LIMIT 50</textarea>
       <button id="run-btn" disabled>Run</button>
     </section>
 
-    <section id="status" class="status">Ready.</section>
+    <section id="samples" class="samples" hidden>
+      <span class="samples-label">Try:</span>
+      <button class="sample-btn" type="button" data-action="head">Head 10 rows</button>
+      <button class="sample-btn" type="button" data-action="count">Row count</button>
+      <button class="sample-btn" type="button" data-action="schema">Columns &amp; types</button>
+    </section>
 
+    <section id="status" class="status">Ready. Paste a Parquet URL and press Load.</section>
+
+    <section id="schema" class="schema" hidden></section>
     <section id="result"></section>
   </main>
 
   <footer>
-    <p>Built by <a href="https://primebeat.jp" target="_blank">Prime Beat</a>. MIT.</p>
+    <p>Built by <a href="https://primebeat.jp" target="_blank" rel="noopener">Prime Beat</a>. MIT.</p>
   </footer>
 
   <script type="module" src="/src/main.ts"></script>

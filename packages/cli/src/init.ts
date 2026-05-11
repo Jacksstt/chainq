@@ -66,7 +66,6 @@ guardrails:
 
 const CONFIG_CONTENT = `${JSON.stringify(
   {
-    $schema: "https://chainq.dev/schema/chainq.config.json",
     version: "0.0.0",
     dataDir: "./data",
     metricsDir: "./metrics",
@@ -135,13 +134,11 @@ function writeFile(
 ): void {
   if (existsSync(path) && !force) {
     skipped.push(path);
-    console.log(`  skip   ${path} (exists; pass --force to overwrite)`);
     return;
   }
   ensureDir(dirname(path));
   writeFileSync(path, contents);
   created.push(path);
-  console.log(`  write  ${path}`);
 }
 
 export async function runInit(opts: InitOptions): Promise<InitResult> {

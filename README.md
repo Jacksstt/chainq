@@ -121,32 +121,49 @@ No node, no RPC key, no monthly bill. See
 
 ### What's working today (v0.0.x)
 
-| Category | Tool | Notes |
+**14 MCP tools** across 7 capability groups. Run `chainq tools` for the
+auto-generated list, or `chainq mcp serve` and send `tools/list` from any
+MCP client.
+
+| Group | Tool | Notes |
 |---|---|---|
 | Discovery | `chainq_list_tables` | Enumerate the catalog |
 | Discovery | `chainq_search_tables` | Free-text + chain filter |
-| Discovery | `chainq_describe` | Schema, sample rows, gotchas |
-| Execution | `chainq_estimate_cost` | Row / cost estimate from `EXPLAIN` |
-| Execution | `chainq_query` | DuckDB SQL with row + timeout caps; result is cached |
+| Discovery | `chainq_describe` | Schema, sample rows, lineage, sample queries, partitions, gotchas |
+| Execution | `chainq_estimate_cost` | Row / cost estimate + budget decision (advisory) |
+| Execution | `chainq_query` | DuckDB SQL with row + timeout caps; budget-aware; cached |
 | Semantic | `chainq_list_metrics` | List YAML-defined metrics |
-| Semantic | `chainq_metric` | Run a named metric with dimensions and filters |
-| Memory | `chainq_recall` | Search past queries by SQL or label |
-| Memory | `chainq_recall_by_id` | Pull a cached result preview |
-| Output | `chainq_chart_render` | Vega-Lite → SVG file |
-| Output | `chainq_report` | Write a Markdown report with frontmatter, tables, chart embeds |
+| Semantic | `chainq_metric` | Run a named metric with dimensions / filters / window |
+| Recall | `chainq_recall` | BM25-ranked search across past queries (SQL + label) |
+| Recall | `chainq_recall_by_id` | Pull a cached result preview |
+| Render | `chainq_chart_render` | Vega-Lite → `svg` / `html` / `vegalite-json` |
+| Report | `chainq_report` | Markdown reports with frontmatter, tables, chart embeds |
+| Budget | `chainq_budget_set` | Per-session caps on credits / rows / bytes / seconds |
+| Budget | `chainq_budget_status` | Active caps, running totals, remaining headroom |
+| Budget | `chainq_budget_clear` | Clear caps and consumption counters |
+
+**12 semantic metrics** loaded by default. Run `chainq metrics` to list.
+Cover DEX volume / trade count / trader count / protocol share / avg trade
+size, ERC-20 transfers + active addresses, Filecoin deals + storage,
+Solana transfers + DEX volume, and Whuffie reputation score.
 
 Supporting code:
 
 - `@chainq/ingest-evm` — `assertCryoInstalled` + `backfill()` that shells out to cryo
 - `@chainq/ingest-filecoin` — Filfox + Spacescan REST wrappers
-- `spellbook/` — dbt-duckdb project with 4 starter models (dex, erc20 ×2, filecoin)
+- `@chainq/ingest-solana` — Helius RPC client (signatures + enriched txs)
+- `@chainq/snapshot` — RPC-free pulls from public Subsquid archives
+- `@chainq/engine-clickhouse` — scaffold for v0.5.0 alternative backend
+- `spellbook/` — dbt-duckdb project with starter models (dex, erc20, filecoin, solana)
+- Structured errors (`@chainq/core` `ChainqError` + `ChainqErrorCode`) so
+  agent harnesses can branch on `BUDGET_EXCEEDED`, `UNKNOWN_TABLE`, etc.
 
 ### What's not yet wired
 
-- cryo / Subsquid actual data fetching (the wrappers exist; data still hand-seeded)
-- Iceberg storage
-- Realtime ingest, Solana, Move chains
-- Multi-machine / Trino backend
+- Yellowstone gRPC realtime stream for Solana (Helius polling works today)
+- Iceberg storage format
+- Trino / Starburst backend (ClickHouse driver is scaffolded only)
+- Multi-machine ingest
 
 See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
