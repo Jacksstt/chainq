@@ -4,7 +4,7 @@
 
 **Self-hosted onchain analytics, redesigned for AI agents.**
 
-The open-source, MCP-native answer to Dune.
+The open-source MCP stage for what an AI-first Dune alternative could look like. Pre-alpha; replacement claims withheld until live-mainnet ingest is reproducibly verified — see [Status](#status).
 
 [![CI](https://github.com/Jacksstt/chainq/actions/workflows/ci.yml/badge.svg)](https://github.com/Jacksstt/chainq/actions/workflows/ci.yml)
 [![status](https://img.shields.io/badge/status-pre--alpha-orange.svg)](#status)
@@ -62,7 +62,26 @@ Nansen shipped an excellent agent-facing CLI in 2026. We respect it. But it's cl
 
 ## Status
 
-**Pre-alpha.** Active development. APIs will break without notice until `0.1.0`. See [docs/ROADMAP.md](docs/ROADMAP.md).
+**Pre-alpha. Not a Dune replacement today.** Active development; APIs will break without notice until `0.1.0`.
+
+What's **proven working** (in CI / smoke tests / dbt run):
+
+- 18 MCP tools across 8 capability groups (discovery / execution / semantic / analytics / recall / render / report / budget)
+- 10 curated catalog tables (`dex.trades`, `erc20.transfers`, `prices.usd`, `labels.addresses`, `filecoin.deals`, `solana.transfers`, `solana.dex.trades`, `nft.trades`, `lending.events`, `bridge.transfers`)
+- 20 semantic-layer metrics, including cross-table joins (DEX × prices, ERC-20 × labels, sanctioned exposure)
+- dbt-duckdb spellbook: **18 working models, 25 dbt tests** — schema constraints (`not_null`, `accepted_values`) enforced at build time
+- Bilingual single-file HTML reports (JA / EN / both with CSS toggle, no JS), brand customisation, interactive vega-embed charts, CSV download chips
+- Per-session cost governor (`chainq_budget_set/status/clear`) with structured `BUDGET_EXCEEDED` errors and BM25-ranked `chainq_recall`
+- Benchmark suite (see [BENCHMARKS.md](docs/BENCHMARKS.md)) — P95 0.5 ms - 27 ms across 10 representative queries on a 103.6 MiB dataset
+
+What's **not yet proven** (and therefore why the "Dune replacement" claim is withheld):
+
+- **Live-mainnet ingest**: `chainq pull` / `chainq watch` compile, smoke-test against a mocked Subsquid fetch, and have offline checkpointing — but **no committed evidence yet** that they pull real Base/Ethereum blocks whose contents match Etherscan
+- **dbt against real data**: the 18 models all read seeded synthetic Parquet. Equivalence against a real Subsquid pull is the next milestone
+- **Operational reliability**: no 90-day uptime trace; no reorg-safe head-following yet (Subsquid archive serves finalised blocks, so the existing path is bounded but not stress-tested)
+- **Real Whuffie / Agentic Finance dogfooding**: pending Phase 2 of [Vault Goals](https://github.com/Jacksstt/chainq/blob/main/docs/ROADMAP.md)
+
+See [docs/ROADMAP.md](docs/ROADMAP.md) and the [9-axis honest assessment in the gallery](docs/reports/README.md) for the full list of distance markers.
 
 ## Quickstart
 
@@ -121,9 +140,10 @@ No node, no RPC key, no monthly bill. See
 
 ### What's working today (v0.0.x)
 
-**14 MCP tools** across 7 capability groups. Run `chainq tools` for the
-auto-generated list, or `chainq mcp serve` and send `tools/list` from any
-MCP client.
+**18 MCP tools** across 8 capability groups (discovery / execution /
+semantic / analytics / recall / render / report / budget). Run
+`chainq tools` for the auto-generated list, or `chainq mcp serve` and
+send `tools/list` from any MCP client.
 
 | Group | Tool | Notes |
 |---|---|---|
@@ -142,10 +162,14 @@ MCP client.
 | Budget | `chainq_budget_status` | Active caps, running totals, remaining headroom |
 | Budget | `chainq_budget_clear` | Clear caps and consumption counters |
 
-**12 semantic metrics** loaded by default. Run `chainq metrics` to list.
-Cover DEX volume / trade count / trader count / protocol share / avg trade
-size, ERC-20 transfers + active addresses, Filecoin deals + storage,
-Solana transfers + DEX volume, and Whuffie reputation score.
+**20 semantic metrics** loaded by default. Run `chainq metrics` to list.
+Cover DEX volume / trade count / trader count / protocol share / avg
+trade size, ERC-20 transfers + active addresses, Filecoin deals +
+storage, Solana transfers + DEX volume, **NFT volume + top collections**,
+**lending borrows + liquidations**, **bridge corridor volume**,
+**USD-priced DEX volume (cross-table join)**, **CEX-inflow volume
+(label-joined)**, **sanctioned-address exposure**, and Whuffie
+reputation score.
 
 Supporting code:
 

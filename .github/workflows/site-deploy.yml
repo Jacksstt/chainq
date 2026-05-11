@@ -1,0 +1,93 @@
+name: Deploy site (landing + playground + reports) to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/site/**"
+      - "docs/reports/**"
+      - "packages/playground/**"
+      - "scripts/filecoin-demo.ts"
+      - "scripts/dex-concentration-minimal.ts"
+      - "scripts/seed-sample-data.ts"
+      - "packages/mcp-server/src/report.ts"
+      - "packages/mcp-server/src/charts.ts"
+      - "packages/mcp-server/src/analytics.ts"
+      - ".github/workflows/site-deploy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Seed sample data
+        run: pnpm seed
+
+      - name: Build playground
+        run: |
+          mkdir -p packages/playground/public
+          cp data/dex.trades.parquet packages/playground/public/sample.parquet
+          pnpm --filter @chainq/playground build
+
+      - name: Regenerate gallery reports (Filecoin + DEX)
+        run: |
+          pnpm exec tsx scripts/filecoin-demo.ts
+          pnpm exec tsx scripts/dex-concentration-minimal.ts
+
+      - name: Assemble combined site
+        run: |
+          mkdir -p _site/playground _site/reports
+          cp docs/site/index.html _site/index.html
+          cp -r packages/playground/dist/* _site/playground/
+          cp docs/reports/*.html docs/reports/*.svg docs/reports/*.csv _site/reports/ 2>/dev/null || true
+          cp docs/reports/README.md _site/reports/index.html.md 2>/dev/null || true
+          # Tiny redirect index for /reports/
+          cat > _site/reports/index.html <<'HTML'
+          <!doctype html><html><head><meta charset="utf-8"><title>chainq reports</title>
+          <style>body{font-family:-apple-system,system-ui,sans-serif;max-width:720px;margin:48px auto;padding:0 24px;line-height:1.6;color:#0f172a}a{color:#2563eb}</style>
+          </head><body>
+          <h1>chainq reports gallery</h1>
+          <p>Example AI-agent-generated reports built with chainq's MCP tools.</p>
+          <ul>
+            <li><a href="./02-filecoin-concentration.html">Filecoin storage-provider concentration</a> — bilingual, analyst-grade, 13 sections, 2 interactive charts, downloads</li>
+            <li><a href="./01-dex-volume-base.html">Base DEX volume — Jan 2026</a></li>
+            <li><a href="./04-dex-taker-concentration.html">Base DEX taker concentration</a> — ~100 LOC source script</li>
+          </ul>
+          <p style="margin-top:24px"><a href="../">← back to chainq</a></p>
+          </body></html>
+          HTML
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
