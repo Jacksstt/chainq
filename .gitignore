@@ -1,0 +1,61 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+pnpm-lock.yaml.bak
+
+# Build artifacts
+dist/
+build/
+*.tsbuildinfo
+.turbo/
+
+# Data (never commit chain data)
+data/
+*.parquet
+*.duckdb
+*.duckdb.wal
+.chainq/
+PrimeBeat-Data/
+
+# dbt
+target/
+dbt_packages/
+logs/
+.user.yml
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+credentials.json
+
+# Test / coverage
+coverage/
+*.lcov
+.nyc_output/
+
+# Python (for any dbt/scripts)
+__pycache__/
+*.pyc
+.venv/
+venv/
+.uv/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Local notes (internal use)
+NOTES.local.md
+TODO.local.md

@@ -1,0 +1,22 @@
+{
+  "name": "@chainq/cli",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Standalone CLI for chainq (thin wrapper over the MCP server).",
+  "type": "module",
+  "main": "./src/index.ts",
+  "bin": {
+    "chainq": "./src/bin.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "tsx src/bin.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "echo 'no tests yet'"
+  },
+  "dependencies": {
+    "@chainq/core": "workspace:*",
+    "@chainq/mcp-server": "workspace:*"
+  },
+  "license": "MIT"
+}
