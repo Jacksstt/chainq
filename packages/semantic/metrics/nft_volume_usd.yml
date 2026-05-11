@@ -1,0 +1,31 @@
+metric: nft_volume_usd
+description: |
+  NFT trade USD volume per chain / marketplace / day. Drops NULL `price_usd`
+  rows. Useful as the headline marketplace activity signal.
+dimensions:
+  - chain
+  - marketplace
+  - day
+filters:
+  - chain
+  - marketplace
+sql_template: |
+  SELECT
+    {{select_dimensions}},
+    COUNT(*) AS trades,
+    SUM(price_usd) AS volume_usd
+  FROM "nft.trades"
+  WHERE price_usd IS NOT NULL
+    AND block_time BETWEEN {{start}} AND {{end}}
+    {{chain_clause}}
+    {{marketplace_clause}}
+  GROUP BY {{group_dimensions}}
+  ORDER BY {{group_dimensions}}
+dimension_expressions:
+  chain: chain
+  marketplace: marketplace
+  day: "date_trunc('day', block_time)"
+guardrails:
+  max_range_days: 90
+  max_rows: 50000
+  timeout_seconds: 20

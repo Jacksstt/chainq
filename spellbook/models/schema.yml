@@ -1,0 +1,89 @@
+version: 2
+
+models:
+  - name: dex_trades
+    description: Normalised DEX swap events across aggregator venues.
+    columns:
+      - name: block_time
+        tests: [not_null]
+      - name: chain
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["ethereum", "base", "polygon", "arbitrum", "optimism"]
+      - name: dex_name
+        tests: [not_null]
+
+  - name: erc20_transfers
+    description: Raw ERC-20 transfer events.
+    columns:
+      - name: block_time
+        tests: [not_null]
+      - name: chain
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["ethereum", "base", "polygon", "arbitrum", "optimism"]
+      - name: token
+        tests: [not_null]
+
+  - name: prices_usd
+    description: Daily USD reference prices.
+    columns:
+      - name: price_time
+        tests: [not_null]
+      - name: token
+        tests: [not_null]
+      - name: price_usd
+        tests: [not_null]
+
+  - name: labels_addresses
+    description: Address-label registry.
+    columns:
+      - name: address
+        tests: [not_null]
+      - name: label
+        tests:
+          - not_null
+          - accepted_values:
+              values:
+                ["cex_hot_wallet","cex_cold_wallet","dex_router","mev_bot",
+                 "bridge_operator","sanctioned","contract_factory","eoa_whale"]
+
+  - name: nft_trades
+    description: NFT marketplace sales.
+    columns:
+      - name: marketplace
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["opensea","blur","looksrare","x2y2","magiceden"]
+      - name: collection_address
+        tests: [not_null]
+
+  - name: lending_events
+    description: Lending protocol events.
+    columns:
+      - name: event_kind
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["deposit","borrow","repay","liquidate"]
+      - name: protocol
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["aave_v3","compound_v3","morpho_blue","spark","moonwell"]
+
+  - name: bridge_transfers
+    description: Cross-chain bridge transfers.
+    columns:
+      - name: bridge
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["across","stargate","hop","wormhole","cctp"]
+      - name: src_chain
+        tests: [not_null]
+      - name: dst_chain
+        tests: [not_null]

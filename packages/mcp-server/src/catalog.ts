@@ -73,6 +73,93 @@ export const CATALOG: TableDescriptor[] = [
     ],
   },
   {
+    name: "nft.trades",
+    description:
+      "NFT sales across major marketplaces (OpenSea, Blur, LooksRare, X2Y2, Magic Eden). One row " +
+      "per sale. `currency` carries the settlement token; `price_usd` is the trade-time USD " +
+      "equivalent (may be NULL when the pricing oracle had no data).",
+    chains: ["ethereum", "base", "polygon", "arbitrum", "optimism"],
+    columns: [
+      { name: "block_time",         type: "TIMESTAMP",     description: "Sale settlement time (UTC).", nullable: false },
+      { name: "block_number",       type: "BIGINT",        description: "Block height.", nullable: false },
+      { name: "chain",              type: "VARCHAR",       description: "Chain id.", nullable: false },
+      { name: "marketplace",        type: "VARCHAR",       description: "Marketplace id.", nullable: false },
+      { name: "collection_address", type: "VARCHAR",       description: "0x-prefixed contract address of the NFT collection.", nullable: false },
+      { name: "token_id",           type: "BIGINT",        description: "Token id within the collection.", nullable: false },
+      { name: "seller",             type: "VARCHAR",       description: "Seller address.", nullable: false },
+      { name: "buyer",              type: "VARCHAR",       description: "Buyer address.", nullable: false },
+      { name: "currency",           type: "VARCHAR",       description: "Settlement currency symbol (e.g. WETH, USDC).", nullable: false },
+      { name: "price",              type: "DECIMAL(24,4)", description: "Sale price in the settlement currency.", nullable: false },
+      { name: "price_usd",          type: "DECIMAL(23,2)", description: "USD equivalent at trade time.", nullable: true },
+    ],
+    partitions: ["chain", "marketplace"],
+    sampleQueries: [
+      { title: "Top 10 collections by 30-day USD volume", sql: "SELECT collection_address, SUM(price_usd) AS volume FROM nft_trades WHERE block_time >= NOW() - INTERVAL '30 days' GROUP BY 1 ORDER BY 2 DESC NULLS LAST LIMIT 10" },
+      { title: "Marketplace share by chain", sql: "SELECT chain, marketplace, COUNT(*) AS trades FROM nft_trades GROUP BY 1, 2 ORDER BY 1, 3 DESC" },
+    ],
+    gotchas: [
+      "`price_usd` is NULL when the pricing oracle had no quote at sale time — exclude or backfill via prices.usd.",
+      "`collection_address` is the contract address, not a human-readable slug. JOIN with a collections registry to label.",
+      "Wash-trading is rampant on some marketplaces; do not treat raw volume as a faithful demand signal without filtering.",
+    ],
+  },
+  {
+    name: "lending.events",
+    description:
+      "On-chain lending events normalised across Aave v3, Compound v3, Morpho Blue, Spark, " +
+      "Moonwell. Each row is one event (`deposit`, `borrow`, `repay`, `liquidate`).",
+    chains: ["ethereum", "base", "polygon", "arbitrum", "optimism"],
+    columns: [
+      { name: "block_time",   type: "TIMESTAMP",     description: "Event time (UTC).", nullable: false },
+      { name: "block_number", type: "BIGINT",        description: "Block height.", nullable: false },
+      { name: "chain",        type: "VARCHAR",       description: "Chain id.", nullable: false },
+      { name: "protocol",     type: "VARCHAR",       description: "Lending protocol id.", nullable: false },
+      { name: "event_kind",   type: "VARCHAR",       description: "One of `deposit` / `borrow` / `repay` / `liquidate`.", nullable: false },
+      { name: "user_addr",    type: "VARCHAR",       description: "Borrower / depositor / liquidator address.", nullable: false },
+      { name: "asset",        type: "VARCHAR",       description: "Asset symbol.", nullable: false },
+      { name: "amount",       type: "DECIMAL(38,6)", description: "Amount in the asset's human-decimal units.", nullable: false },
+      { name: "amount_usd",   type: "DECIMAL(23,2)", description: "USD equivalent at event time.", nullable: true },
+    ],
+    partitions: ["chain", "protocol"],
+    sampleQueries: [
+      { title: "Daily borrow volume per protocol", sql: "SELECT date_trunc('day', block_time) AS day, protocol, SUM(amount_usd) AS borrowed FROM lending_events WHERE event_kind = 'borrow' GROUP BY 1, 2 ORDER BY 1, 2" },
+      { title: "Liquidation events by chain", sql: "SELECT chain, COUNT(*) AS liqs, SUM(amount_usd) AS usd FROM lending_events WHERE event_kind = 'liquidate' GROUP BY 1 ORDER BY 3 DESC NULLS LAST" },
+    ],
+    gotchas: [
+      "`amount` is in asset-native decimals; cross-asset aggregates must use `amount_usd` or a separate price join.",
+      "Aave v3 / Compound v3 emit different event sets — `event_kind` is a normalised label; reach the protocol-specific event_table for fidelity.",
+    ],
+  },
+  {
+    name: "bridge.transfers",
+    description:
+      "Cross-chain token bridge transfers across Across, Stargate, Hop, Wormhole, CCTP. One row " +
+      "per attested transfer (typically counted on the src side; the dst confirmation is in the " +
+      "destination chain's bridge.transfers when ingested).",
+    chains: ["ethereum", "base", "polygon", "arbitrum", "optimism"],
+    columns: [
+      { name: "block_time",   type: "TIMESTAMP",     description: "Source-side event time.", nullable: false },
+      { name: "block_number", type: "BIGINT",        description: "Source block height.", nullable: false },
+      { name: "src_chain",    type: "VARCHAR",       description: "Source chain id.", nullable: false },
+      { name: "dst_chain",    type: "VARCHAR",       description: "Destination chain id.", nullable: false },
+      { name: "bridge",       type: "VARCHAR",       description: "Bridge protocol id.", nullable: false },
+      { name: "sender",       type: "VARCHAR",       description: "Source address that initiated the transfer.", nullable: false },
+      { name: "recipient",    type: "VARCHAR",       description: "Destination address.", nullable: false },
+      { name: "token",        type: "VARCHAR",       description: "Token symbol (canonicalised on the source side).", nullable: false },
+      { name: "amount",       type: "DECIMAL(38,6)", description: "Amount in the token's human-decimal units.", nullable: false },
+      { name: "amount_usd",   type: "DECIMAL(23,2)", description: "USD equivalent at event time.", nullable: true },
+    ],
+    partitions: ["src_chain", "bridge"],
+    sampleQueries: [
+      { title: "Top bridge corridors by USD volume", sql: "SELECT src_chain, dst_chain, SUM(amount_usd) AS v FROM bridge_transfers GROUP BY 1, 2 ORDER BY 3 DESC NULLS LAST LIMIT 20" },
+      { title: "Daily volume per bridge", sql: "SELECT date_trunc('day', block_time) AS day, bridge, SUM(amount_usd) AS v FROM bridge_transfers GROUP BY 1, 2 ORDER BY 1, 3 DESC" },
+    ],
+    gotchas: [
+      "Bridges differ in finality model — CCTP attestations are settled; Wormhole has guardian-signature delay. Don't treat all bridges as instantaneous.",
+      "Sender-side rows only; the destination credit appears in the destination chain's table. JOIN by (bridge, message_id) when both sides are ingested.",
+    ],
+  },
+  {
     name: "dex.trades",
     description:
       "DEX swap events normalized across aggregators (Uniswap V2/V3, Curve, Balancer, etc.). Each row is one swap on one chain.",

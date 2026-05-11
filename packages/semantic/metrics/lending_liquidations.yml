@@ -1,0 +1,31 @@
+metric: lending_liquidations
+description: |
+  Daily liquidation count and USD volume by chain and protocol. Liquidation
+  spikes are a coincident indicator of market stress.
+dimensions:
+  - chain
+  - protocol
+  - day
+filters:
+  - chain
+  - protocol
+sql_template: |
+  SELECT
+    {{select_dimensions}},
+    COUNT(*) AS liquidations,
+    SUM(amount_usd) AS liquidated_usd
+  FROM "lending.events"
+  WHERE event_kind = 'liquidate'
+    AND block_time BETWEEN {{start}} AND {{end}}
+    {{chain_clause}}
+    {{protocol_clause}}
+  GROUP BY {{group_dimensions}}
+  ORDER BY {{group_dimensions}}
+dimension_expressions:
+  chain: chain
+  protocol: protocol
+  day: "date_trunc('day', block_time)"
+guardrails:
+  max_range_days: 90
+  max_rows: 50000
+  timeout_seconds: 20

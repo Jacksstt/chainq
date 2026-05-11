@@ -1,0 +1,26 @@
+metric: nft_top_collections
+description: |
+  Top NFT collections by USD volume across the window. Use small `max_rows`
+  (10-50) — the table is intentionally ordered DESC by volume.
+dimensions:
+  - chain
+  - collection_address
+filters:
+  - chain
+  - marketplace
+sql_template: |
+  SELECT
+    {{select_dimensions}},
+    COUNT(*) AS trades,
+    SUM(price_usd) AS volume_usd
+  FROM "nft.trades"
+  WHERE price_usd IS NOT NULL
+    AND block_time BETWEEN {{start}} AND {{end}}
+    {{chain_clause}}
+    {{marketplace_clause}}
+  GROUP BY {{group_dimensions}}
+  ORDER BY volume_usd DESC NULLS LAST
+guardrails:
+  max_range_days: 90
+  max_rows: 100
+  timeout_seconds: 20

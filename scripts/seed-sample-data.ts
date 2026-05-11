@@ -234,6 +234,73 @@ async function main() {
   `);
   await conn.run(`COPY labels_addresses TO '${resolve(OUT_DIR, "labels.addresses.parquet")}' (FORMAT 'parquet')`);
 
+  // nft.trades --------------------------------------------------------------
+  // One row per NFT sale across the major marketplaces. 100k rows by default
+  // at 1× (100× at large scale). Marketplaces cycle through a known set; the
+  // `collection_address` is a hash of `i % 50` to simulate 50 collections.
+  const NFT_MARKETPLACES = ["opensea", "blur", "looksrare", "x2y2", "magiceden"];
+  await conn.run(`
+    CREATE TABLE nft_trades AS
+    WITH base AS (SELECT range AS i FROM range(${ROWS_DEX}))
+    SELECT
+      TIMESTAMP '2026-01-01 00:00:00' + (i * INTERVAL '120 seconds') AS block_time,
+      18000000 + (i / 10)::BIGINT                AS block_number,
+      list_extract(${jsList(CHAINS)}, 1 + (i % ${CHAINS.length})) AS chain,
+      list_extract(${jsList(NFT_MARKETPLACES)}, 1 + (i % ${NFT_MARKETPLACES.length})) AS marketplace,
+      '0x' || lpad(format('{:x}', (i * 41) % 50), 40, '0')          AS collection_address,
+      ((i * 7) % 10000)::BIGINT                                      AS token_id,
+      '0x' || lpad(format('{:x}', (i * 31) % 100000), 40, '0')       AS seller,
+      '0x' || lpad(format('{:x}', (i * 53) % 100000), 40, '0')       AS buyer,
+      list_extract(${jsList(TOKENS)}, 1 + (i % ${TOKENS.length}))    AS currency,
+      CAST((0.05 + (i % 200) * 0.025) AS DECIMAL(24,4))              AS price,
+      CAST(CASE WHEN (i % 17) = 0 THEN NULL
+                ELSE (0.05 + (i % 200) * 0.025) * 2300.0 END AS DECIMAL(23,2)) AS price_usd
+    FROM base;
+  `);
+  await conn.run(`COPY nft_trades TO '${resolve(OUT_DIR, "nft.trades.parquet")}' (FORMAT 'parquet')`);
+
+  // lending.events ----------------------------------------------------------
+  // Deposit / borrow / repay / liquidate events across major lending protocols.
+  const LENDING_PROTOCOLS = ["aave_v3", "compound_v3", "morpho_blue", "spark", "moonwell"];
+  const LENDING_EVENTS = ["deposit", "borrow", "repay", "liquidate"];
+  await conn.run(`
+    CREATE TABLE lending_events AS
+    WITH base AS (SELECT range AS i FROM range(${ROWS_ERC20}))
+    SELECT
+      TIMESTAMP '2026-01-01 00:00:00' + (i * INTERVAL '24 seconds') AS block_time,
+      18000000 + (i / 6)::BIGINT                                     AS block_number,
+      list_extract(${jsList(CHAINS)}, 1 + (i % ${CHAINS.length}))    AS chain,
+      list_extract(${jsList(LENDING_PROTOCOLS)}, 1 + ((i * 5) % ${LENDING_PROTOCOLS.length})) AS protocol,
+      list_extract(${jsList(LENDING_EVENTS)}, 1 + ((i * 3) % ${LENDING_EVENTS.length})) AS event_kind,
+      '0x' || lpad(format('{:x}', (i * 67) % 100000), 40, '0')        AS user_addr,
+      list_extract(${jsList(TOKENS)}, 1 + (i % ${TOKENS.length}))    AS asset,
+      CAST((1 + (i % 50000)) * 1.0 AS DECIMAL(38,6))                  AS amount,
+      CAST((1 + (i % 50000)) * 1.0 * 2.5 AS DECIMAL(23,2))           AS amount_usd
+    FROM base;
+  `);
+  await conn.run(`COPY lending_events TO '${resolve(OUT_DIR, "lending.events.parquet")}' (FORMAT 'parquet')`);
+
+  // bridge.transfers --------------------------------------------------------
+  // Cross-chain message / token bridge events.
+  const BRIDGES = ["across", "stargate", "hop", "wormhole", "cctp"];
+  await conn.run(`
+    CREATE TABLE bridge_transfers AS
+    WITH base AS (SELECT range AS i FROM range(${ROWS_DEX}))
+    SELECT
+      TIMESTAMP '2026-01-01 00:00:00' + (i * INTERVAL '90 seconds') AS block_time,
+      18000000 + (i / 8)::BIGINT                                    AS block_number,
+      list_extract(${jsList(CHAINS)}, 1 + (i % ${CHAINS.length}))    AS src_chain,
+      list_extract(${jsList(CHAINS)}, 1 + ((i + 1) % ${CHAINS.length})) AS dst_chain,
+      list_extract(${jsList(BRIDGES)}, 1 + (i % ${BRIDGES.length})) AS bridge,
+      '0x' || lpad(format('{:x}', (i * 79) % 100000), 40, '0')        AS sender,
+      '0x' || lpad(format('{:x}', (i * 89) % 100000), 40, '0')        AS recipient,
+      list_extract(${jsList(TOKENS)}, 1 + (i % ${TOKENS.length}))     AS token,
+      CAST((10 + (i % 10000)) * 1.0 AS DECIMAL(38,6))                 AS amount,
+      CAST((10 + (i % 10000)) * 1.0 * 1.2 AS DECIMAL(23,2))          AS amount_usd
+    FROM base;
+  `);
+  await conn.run(`COPY bridge_transfers TO '${resolve(OUT_DIR, "bridge.transfers.parquet")}' (FORMAT 'parquet')`);
+
   conn.disconnectSync();
 
   console.log(`wrote sample parquet files to ${OUT_DIR}`);

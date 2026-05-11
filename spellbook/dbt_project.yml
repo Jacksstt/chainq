@@ -29,5 +29,11 @@ models:
       +materialized: view
     labels:
       +materialized: view
+    nft:
+      +materialized: view
+    lending:
+      +materialized: view
+    bridge:
+      +materialized: view
     whuffie:
       +materialized: view
