@@ -1,0 +1,29 @@
+metric: erc20_transfer_count
+description: |
+  ERC-20 transfer event count per chain / token / day from `erc20.transfers`.
+  Counts events, not addresses; use `erc20_active_addresses` for the latter.
+dimensions:
+  - chain
+  - token
+  - day
+filters:
+  - chain
+  - token
+sql_template: |
+  SELECT
+    {{select_dimensions}},
+    COUNT(*) AS transfer_count
+  FROM "erc20.transfers"
+  WHERE block_time BETWEEN {{start}} AND {{end}}
+    {{chain_clause}}
+    {{token_clause}}
+  GROUP BY {{group_dimensions}}
+  ORDER BY {{group_dimensions}}
+dimension_expressions:
+  chain: chain
+  token: token
+  day: "date_trunc('day', block_time)"
+guardrails:
+  max_range_days: 30
+  max_rows: 50000
+  timeout_seconds: 20

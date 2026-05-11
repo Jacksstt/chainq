@@ -1,0 +1,29 @@
+metric: dex_trader_count
+description: |
+  Distinct trader (taker) addresses per chain / DEX / day on `dex.trades`.
+  Useful as a coarse activity signal; not deduped across chains.
+dimensions:
+  - chain
+  - dex_name
+  - day
+filters:
+  - chain
+  - dex_name
+sql_template: |
+  SELECT
+    {{select_dimensions}},
+    COUNT(DISTINCT taker) AS unique_traders
+  FROM "dex.trades"
+  WHERE block_time BETWEEN {{start}} AND {{end}}
+    {{chain_clause}}
+    {{dex_name_clause}}
+  GROUP BY {{group_dimensions}}
+  ORDER BY {{group_dimensions}}
+dimension_expressions:
+  chain: chain
+  dex_name: dex_name
+  day: "date_trunc('day', block_time)"
+guardrails:
+  max_range_days: 90
+  max_rows: 50000
+  timeout_seconds: 20

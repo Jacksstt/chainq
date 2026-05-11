@@ -1,0 +1,34 @@
+metric: dex_protocol_share
+description: |
+  USD-volume share of each DEX protocol within a chain over the requested
+  window. Returns `volume_usd` and `share` (0..1) per (chain, dex_name).
+dimensions:
+  - chain
+  - dex_name
+filters:
+  - chain
+sql_template: |
+  WITH base AS (
+    SELECT chain, dex_name, SUM(amount_usd) AS volume_usd
+    FROM "dex.trades"
+    WHERE block_time BETWEEN {{start}} AND {{end}}
+      {{chain_clause}}
+    GROUP BY chain, dex_name
+  ),
+  total AS (
+    SELECT chain, SUM(volume_usd) AS chain_volume
+    FROM base
+    GROUP BY chain
+  )
+  SELECT
+    base.chain AS chain,
+    base.dex_name AS dex_name,
+    base.volume_usd,
+    base.volume_usd / NULLIF(total.chain_volume, 0) AS share
+  FROM base
+  JOIN total USING (chain)
+  ORDER BY base.chain, share DESC NULLS LAST
+guardrails:
+  max_range_days: 90
+  max_rows: 5000
+  timeout_seconds: 20

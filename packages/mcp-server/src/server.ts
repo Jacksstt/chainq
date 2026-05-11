@@ -12,6 +12,7 @@ import { Engine } from "./engine.js";
 import { MetricRegistry } from "./metrics.js";
 import { saveChart, type ChartType } from "./charts.js";
 import { writeReport } from "./report.js";
+import { BudgetTracker } from "./budget.js";
 
 export interface ServerOptions {
   dataDir: string;
@@ -31,6 +32,8 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
 
   const registry = new MetricRegistry(metricsDir);
   registry.load();
+
+  const budget = new BudgetTracker();
 
   const server = new McpServer({
     name: opts.name ?? "chainq",
@@ -68,11 +71,16 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
   // -------- execution ----------------------------------------------------
   server.tool(
     "chainq_estimate_cost",
-    "Estimate rows, bytes, seconds, and credits a SQL query would consume before running it.",
+    "Estimate rows, bytes, seconds, and credits a SQL query would consume before running it. Also returns the current budget status and an advisory decision (whether running this query now would breach a cap).",
     { sql: z.string() },
     async ({ sql }) => {
       try {
-        return json(await engine.estimate(sql));
+        const estimate = await engine.estimate(sql);
+        return json({
+          ...estimate,
+          budget: budget.status(),
+          decision: budget.checkEstimate(estimate),
+        });
       } catch (err) {
         return error(`estimate failed: ${(err as Error).message}`);
       }
@@ -90,12 +98,24 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
     },
     async ({ sql, max_rows, timeout_seconds, label }) => {
       try {
+        const estimate = await engine.estimate(sql);
+        const decision = budget.checkEstimate(estimate);
+        if (!decision.allowed) {
+          return error(
+            `budget exceeded: ${decision.reason ?? "cap would be breached"} ${JSON.stringify(decision.wouldExceed ?? {})}`,
+          );
+        }
         const result = await engine.query(sql, {
           maxRows: max_rows,
           timeoutSeconds: timeout_seconds,
           cacheLabel: label ?? null,
         });
-        return json(result);
+        budget.record({
+          rows: result.actualRows,
+          bytes: result.actualBytes,
+          seconds: result.actualSeconds,
+        });
+        return json({ ...result, budget: budget.status() });
       } catch (err) {
         return error(`query failed: ${(err as Error).message}`);
       }
@@ -149,12 +169,24 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
         return error(`render failed: ${(err as Error).message}`);
       }
       try {
+        const estimate = await engine.estimate(sql);
+        const decision = budget.checkEstimate(estimate);
+        if (!decision.allowed) {
+          return error(
+            `budget exceeded: ${decision.reason ?? "cap would be breached"} ${JSON.stringify(decision.wouldExceed ?? {})}`,
+          );
+        }
         const result = await engine.query(sql, {
           maxRows: max_rows ?? spec.guardrails.maxRows,
           timeoutSeconds: spec.guardrails.timeoutSeconds,
           cacheLabel: `metric:${metric}`,
         });
-        return json({ metric, sql, result });
+        budget.record({
+          rows: result.actualRows,
+          bytes: result.actualBytes,
+          seconds: result.actualSeconds,
+        });
+        return json({ metric, sql, result, budget: budget.status() });
       } catch (err) {
         return error(`metric ${metric} failed: ${(err as Error).message}`);
       }
@@ -250,6 +282,40 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
       } catch (err) {
         return error(`report failed: ${(err as Error).message}`);
       }
+    },
+  );
+
+  // -------- budget -------------------------------------------------------
+  server.tool(
+    "chainq_budget_set",
+    "Set per-session budget caps. Pass an empty object to clear all caps. Subsequent chainq_query / chainq_metric calls pre-check against these caps.",
+    {
+      credits: z.number().int().nonnegative().optional(),
+      rows: z.number().int().nonnegative().optional(),
+      bytes: z.number().int().nonnegative().optional(),
+      seconds: z.number().nonnegative().optional(),
+    },
+    async ({ credits, rows, bytes, seconds }) => {
+      budget.setLimits({ credits, rows, bytes, seconds });
+      return json(budget.status());
+    },
+  );
+
+  server.tool(
+    "chainq_budget_status",
+    "Return active budget caps, running totals, and remaining headroom for this session.",
+    {},
+    async () => json(budget.status()),
+  );
+
+  server.tool(
+    "chainq_budget_clear",
+    "Clear all budget caps and reset consumption counters.",
+    {},
+    async () => {
+      budget.setLimits({});
+      budget.clearConsumption();
+      return json(budget.status());
     },
   );
 

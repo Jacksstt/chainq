@@ -47,6 +47,24 @@ export const CATALOG: TableDescriptor[] = [
       "Avoid SELECT * over multi-year ranges without a chain filter — partitioning is by chain/year/month.",
       "Both \"dex.trades\" and dex_trades resolve to the same physical view; pick one and stay consistent for readability.",
     ],
+    lineage: [
+      {
+        source: "Per-DEX raw swap event tables (Uniswap V2/V3, Curve, Balancer) ingested from public Subsquid archives.",
+        transform: "Union + normalisation in the dbt-duckdb spellbook.",
+        dbtModel: "models/dex/dex_trades.sql",
+      },
+    ],
+    sampleQueries: [
+      {
+        title: "Trade count by chain",
+        sql: "SELECT chain, COUNT(*) AS trades FROM dex_trades GROUP BY 1 ORDER BY 2 DESC",
+      },
+      {
+        title: "Daily Base USD volume",
+        sql: "SELECT date_trunc('day', block_time) AS day, SUM(amount_usd) AS volume_usd FROM dex_trades WHERE chain = 'base' GROUP BY 1 ORDER BY 1",
+      },
+    ],
+    partitions: ["chain", "year", "month"],
   },
   {
     name: "erc20.transfers",
@@ -66,6 +84,24 @@ export const CATALOG: TableDescriptor[] = [
       "value is a decimal string, not a number — use TRY_CAST or hugeint for math.",
       "Token decimals are not applied here; join with tokens.erc20 metadata to normalize.",
     ],
+    lineage: [
+      {
+        source: "Raw ERC-20 Transfer event logs ingested per chain from public Subsquid archives.",
+        transform: "Decoded + normalised into a single union table in the dbt-duckdb spellbook.",
+        dbtModel: "models/erc20/erc20_transfers.sql",
+      },
+    ],
+    sampleQueries: [
+      {
+        title: "Most popular tokens by transfer count",
+        sql: "SELECT token, COUNT(*) AS transfers FROM erc20_transfers GROUP BY 1 ORDER BY 2 DESC LIMIT 20",
+      },
+      {
+        title: "Daily transfer count on Ethereum",
+        sql: "SELECT date_trunc('day', block_time) AS day, COUNT(*) AS transfers FROM erc20_transfers WHERE chain = 'ethereum' GROUP BY 1 ORDER BY 1",
+      },
+    ],
+    partitions: ["chain"],
   },
   {
     name: "filecoin.deals",
@@ -84,6 +120,24 @@ export const CATALOG: TableDescriptor[] = [
       "Epochs are 30-second slots, not unix seconds. Convert via epoch * 30 + GENESIS_TIMESTAMP.",
       "GENESIS_TIMESTAMP is 1598306400 (2020-08-24 22:00:00 UTC).",
     ],
+    lineage: [
+      {
+        source: "Filecoin storage deal records pulled from the Filfox and Spacescan public APIs.",
+        transform: "Merged + deduplicated by deal_id in the dbt-duckdb spellbook.",
+        dbtModel: "models/filecoin/filecoin_deals.sql",
+      },
+    ],
+    sampleQueries: [
+      {
+        title: "Top providers by total bytes stored",
+        sql: "SELECT provider, SUM(piece_size_bytes) AS bytes_stored FROM filecoin_deals GROUP BY 1 ORDER BY 2 DESC LIMIT 20",
+      },
+      {
+        title: "Verified-deal share of total deals",
+        sql: "SELECT verified_deal, COUNT(*) AS deals FROM filecoin_deals GROUP BY 1",
+      },
+    ],
+    partitions: ["start_epoch"],
   },
 ];
 

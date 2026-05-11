@@ -4,7 +4,7 @@
  *
  * Subcommands:
  *   help                                    Show usage.
- *   init                                    Stub — initialize a workspace.
+ *   init [path] [--force]                   Initialise a chainq workspace.
  *   pull   --chain <id> --from N --to N     Pull a Parquet snapshot from a
  *                                           public archive (no RPC required).
  *   mcp serve [--stdio]                     Spawn the MCP server.
@@ -14,6 +14,7 @@
 import { resolve, dirname, join } from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { runInit } from "./init.js";
 
 const args = process.argv.slice(2);
 
@@ -24,7 +25,7 @@ function usage(): void {
       "",
       "Usage:",
       "  chainq help",
-      "  chainq init                            (stub)",
+      "  chainq init [path] [--force]    Initialise a chainq workspace.",
       "  chainq pull --chain <id> --from N --to N [--topic0 0x...]",
       "  chainq mcp serve [--stdio]             Start the MCP server.",
       "  chainq seed                            Write sample parquet files to ./data.",
@@ -47,7 +48,7 @@ async function main() {
       return;
 
     case "init":
-      console.log("init: not yet implemented (v0.1.0).");
+      await runInitCmd(rest);
       return;
 
     case "mcp": {
@@ -95,6 +96,41 @@ async function runMcpServe(): Promise<void> {
   );
   const transport = new StdioServerTransport();
   await startServer(transport, { dataDir, metricsDir });
+}
+
+async function runInitCmd(restArgs: string[]): Promise<void> {
+  let force = false;
+  const positional: string[] = [];
+  for (const a of restArgs) {
+    if (a === "--force") {
+      force = true;
+    } else if (a.startsWith("--")) {
+      console.error(`Unknown flag for init: ${a}`);
+      process.exit(1);
+    } else {
+      positional.push(a);
+    }
+  }
+  if (positional.length > 1) {
+    console.error("usage: chainq init [path] [--force]");
+    process.exit(1);
+  }
+  const targetDir = positional[0] ?? process.cwd();
+  const result = await runInit({ targetDir, force });
+  console.log(
+    `\nInitialised chainq workspace at ${result.targetDir}. ` +
+      `Created: ${result.created.length} files. ` +
+      `Skipped: ${result.skipped.length} files` +
+      (result.skipped.length > 0 ? " (use --force to overwrite)." : "."),
+  );
+  if (result.created.length > 0) {
+    console.log("\nCreated:");
+    for (const p of result.created) console.log(`  ${p}`);
+  }
+  if (result.skipped.length > 0) {
+    console.log("\nSkipped:");
+    for (const p of result.skipped) console.log(`  ${p}`);
+  }
 }
 
 async function runSeed(): Promise<void> {

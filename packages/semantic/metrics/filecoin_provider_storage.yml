@@ -1,0 +1,28 @@
+metric: filecoin_provider_storage
+description: |
+  Total bytes committed to each Filecoin storage provider over the requested
+  epoch range, from `filecoin.deals.piece_size_bytes`. Optionally restrict
+  to verified Filecoin Plus deals via the `verified_deal` filter.
+dimensions:
+  - provider
+filters:
+  - provider
+  - verified_deal
+sql_template: |
+  SELECT
+    {{select_dimensions}},
+    SUM(piece_size_bytes) AS bytes_stored,
+    SUM(piece_size_bytes) / 1099511627776.0 AS tib_stored,
+    COUNT(*) AS deal_count
+  FROM "filecoin.deals"
+  WHERE start_epoch BETWEEN {{start_epoch}} AND {{end_epoch}}
+    {{provider_clause}}
+    {{verified_deal_clause}}
+  GROUP BY {{group_dimensions}}
+  ORDER BY bytes_stored DESC NULLS LAST
+dimension_expressions:
+  provider: provider
+guardrails:
+  max_range_days: 365
+  max_rows: 10000
+  timeout_seconds: 20

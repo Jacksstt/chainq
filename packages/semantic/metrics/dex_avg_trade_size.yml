@@ -1,0 +1,32 @@
+metric: dex_avg_trade_size
+description: |
+  Average and median USD trade size per chain / DEX / day on `dex.trades`.
+  NULL `amount_usd` rows are excluded from the average.
+dimensions:
+  - chain
+  - dex_name
+  - day
+filters:
+  - chain
+  - dex_name
+sql_template: |
+  SELECT
+    {{select_dimensions}},
+    AVG(amount_usd) AS avg_trade_usd,
+    MEDIAN(amount_usd) AS median_trade_usd,
+    COUNT(*) FILTER (WHERE amount_usd IS NOT NULL) AS priced_trades
+  FROM "dex.trades"
+  WHERE block_time BETWEEN {{start}} AND {{end}}
+    AND amount_usd IS NOT NULL
+    {{chain_clause}}
+    {{dex_name_clause}}
+  GROUP BY {{group_dimensions}}
+  ORDER BY {{group_dimensions}}
+dimension_expressions:
+  chain: chain
+  dex_name: dex_name
+  day: "date_trunc('day', block_time)"
+guardrails:
+  max_range_days: 90
+  max_rows: 50000
+  timeout_seconds: 20

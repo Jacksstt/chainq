@@ -7,7 +7,29 @@ Pre-`v0.1.0` is breaking by default; we only call out highlights.
 
 ## [Unreleased]
 
-### Added (this push — public-endpoint billing + Pages live)
+### Added (this push — cost governor, init, describe enrichment, 10 metrics)
+
+- **Cost governor**: per-session budget caps on credits / rows / bytes /
+  seconds. New MCP tools: `chainq_budget_set`, `chainq_budget_status`,
+  `chainq_budget_clear`. `chainq_query` and `chainq_metric` now pre-check
+  the budget via `estimate` and reject calls that would breach a cap with
+  a structured `wouldExceed` payload. `chainq_estimate_cost` returns the
+  budget state advisorily so agents can plan ahead. Implementation in
+  `packages/mcp-server/src/budget.ts` (pure logic, no DuckDB coupling).
+- **`chainq init`**: real implementation replacing the stub. Creates a
+  workspace skeleton (`data/`, `metrics/`, `out/`, `chainq.config.json`,
+  starter metric YAML, README). Skip-if-exists by default; `--force` to
+  overwrite. `chainq init [path] [--force]`.
+- **Describe enrichment**: `TableDescriptor` gained optional `lineage`,
+  `sampleQueries`, `partitions` fields. All three curated tables
+  (`dex.trades`, `erc20.transfers`, `filecoin.deals`) now expose dbt-model
+  lineage, 2 copy-paste-ready sample queries, and partition hints.
+- **Semantic metrics**: 4 → 10. New metrics: `dex_trader_count`,
+  `dex_protocol_share`, `dex_avg_trade_size`, `erc20_transfer_count`,
+  `erc20_active_addresses`, `filecoin_provider_storage`.
+- MCP tool count: 11 → **14**.
+
+### Added (previous push — public-endpoint billing + Pages live)
 
 - **`@chainq/x402`** — pay-per-call gating for chainq tools. `Gate` class
   exposes `quote()` / `settle()` with replay-prevention nonces. Default

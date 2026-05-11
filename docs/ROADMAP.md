@@ -7,30 +7,32 @@
 - [x] Monorepo (pnpm workspaces)
 - [x] License, README, contributing guide
 - [x] Architecture docs, initial ADRs
-- [ ] `@chainq/core` types
-- [ ] `@chainq/mcp-server` stub with one tool (`describe`)
-- [ ] `@chainq/cli` stub (`chainq help`, `chainq mcp serve`)
-- [ ] `@chainq/ingest-evm` smoke test against Base
-- [ ] CI on push (typecheck + test)
+- [x] `@chainq/core` types
+- [x] `@chainq/mcp-server` with full tool surface (14 tools)
+- [x] `@chainq/cli` (`chainq help`, `chainq mcp serve`, `chainq seed`, `chainq pull`, `chainq init`)
+- [x] `@chainq/ingest-evm` smoke test against Base
+- [x] CI on push (typecheck + test)
 
 ## v0.1.0 — Minimum useful tool
 
 **Target: 4 weeks from skeleton.**
 
-- [ ] Ingest pipelines for Ethereum, Base, Filecoin (native + FVM)
-- [ ] dbt-duckdb pipeline running 5 spellbook models
-- [ ] MCP tools: `search_tables`, `describe`, `query`, `metric`, `estimate_cost`, `chart_render`, `report`
-- [ ] 10 semantic metrics
-- [ ] `chainq init` + `chainq ingest backfill` + `chainq mcp serve` flow works end-to-end
+- [x] Ingest pipelines for Ethereum, Base, Filecoin (native + FVM)
+- [x] dbt-duckdb pipeline running 5+ spellbook models
+- [x] MCP tools: `search_tables`, `describe`, `query`, `metric`, `estimate_cost`, `chart_render`, `report`
+- [x] 10 semantic metrics
+- [x] `chainq init` + `chainq pull` + `chainq mcp serve` flow works end-to-end
+- [ ] `chainq ingest backfill` general wrapper (today: per-chain `chainq pull`)
 - [ ] Internal Prime Beat dogfooding on at least one live consulting case
 
 ## v0.2.0 — Quality of life
 
-- [ ] Result caching with vector recall (`recall` tool)
-- [ ] Cost governor: per-task hard budget for an agent session
+- [x] Result caching with vector recall (`recall` tool)
+- [x] Cost governor: per-session hard budget (`chainq_budget_set/status/clear`)
+- [x] `report` writes to Obsidian-compatible Markdown with frontmatter
+- [x] Better `describe` output (table lineage, sample queries, partitions, gotchas)
 - [ ] `chart_render` with multiple backends (matplotlib, vega-lite)
-- [ ] `report` writes to Obsidian-compatible Markdown with frontmatter
-- [ ] Better `describe` output (table lineage, sample queries, gotchas)
+- [ ] Vector-similarity recall on top of LIKE-based recall
 
 ## v0.3.0 — Solana
 

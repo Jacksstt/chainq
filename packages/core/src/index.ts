@@ -26,6 +26,28 @@ export interface TableDescriptor {
   sample?: Record<string, unknown>[];
   /** Common pitfalls or gotchas an agent should know. */
   gotchas?: string[];
+  /** Where the data comes from and how it was assembled. */
+  lineage?: LineageEntry[];
+  /** Ready-to-run example queries an agent can copy-paste. */
+  sampleQueries?: SampleQuery[];
+  /** Column names the table is partitioned by, when known. */
+  partitions?: string[];
+}
+
+export interface LineageEntry {
+  /** Where this column / table comes from, in plain English. */
+  source: string;
+  /** Optional transformation summary. */
+  transform?: string;
+  /** dbt model id this maps to (e.g. `dex.trades` → `models/dex/trades.sql`). */
+  dbtModel?: string;
+}
+
+export interface SampleQuery {
+  title: string;
+  sql: string;
+  /** Optional hint about typical result size, in rows. */
+  expectedRows?: number;
 }
 
 export interface ColumnDescriptor {

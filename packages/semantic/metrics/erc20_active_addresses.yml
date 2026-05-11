@@ -1,0 +1,40 @@
+metric: erc20_active_addresses
+description: |
+  Distinct active addresses (union of `from_addr` and `to_addr`) per chain /
+  token / day from `erc20.transfers`. Approximates daily active users at the
+  token level.
+dimensions:
+  - chain
+  - token
+  - day
+filters:
+  - chain
+  - token
+sql_template: |
+  WITH addrs AS (
+    SELECT chain, token, date_trunc('day', block_time) AS day, from_addr AS addr
+    FROM "erc20.transfers"
+    WHERE block_time BETWEEN {{start}} AND {{end}}
+      {{chain_clause}}
+      {{token_clause}}
+    UNION ALL
+    SELECT chain, token, date_trunc('day', block_time) AS day, to_addr AS addr
+    FROM "erc20.transfers"
+    WHERE block_time BETWEEN {{start}} AND {{end}}
+      {{chain_clause}}
+      {{token_clause}}
+  )
+  SELECT
+    {{select_dimensions}},
+    COUNT(DISTINCT addr) AS active_addresses
+  FROM addrs
+  GROUP BY {{group_dimensions}}
+  ORDER BY {{group_dimensions}}
+dimension_expressions:
+  chain: chain
+  token: token
+  day: day
+guardrails:
+  max_range_days: 30
+  max_rows: 50000
+  timeout_seconds: 30
