@@ -17,11 +17,13 @@ Use them as:
 | 3 | [Whuffie score distribution](./03-whuffie-distribution.md) | MD only | basic | `list_metrics`, `metric`, `chart_render`, `report` |
 | 4 | [Base DEX taker concentration](./04-dex-taker-concentration.html) (bilingual) | HTML | minimal (~100 LOC source) | `query`, `concentration`, `chart_render`, `report` |
 | 5 | [**Base mainnet live snapshot**](./05-base-live.html) (bilingual) | HTML | **real Base data** | `pull`, `query`, `concentration`, `chart_render`, `report` |
+| 6 | [**Filecoin live concentration**](./06-filecoin-live.html) (bilingual) | HTML | **real Filecoin data** | `@chainq/ingest-filecoin fetchRecentDeals`, `concentration`, `bucketize`, `chart_render`, `report` |
 
-Report 5 is the live-data exemplar — pulled at build time from the
-public Subsquid archive (no API key, no RPC), 50 blocks of real Base
-mainnet activity. See [docs/LIVE-INGEST-PROOF.md](../LIVE-INGEST-PROOF.md)
-for the protocol-level evidence run.
+Reports 5 and 6 are the live-data exemplars — pulled at build time from
+public archives (Subsquid for Base logs, Filfox for Filecoin deals), no
+API keys, no operated RPC. See
+[docs/LIVE-INGEST-PROOF.md](../LIVE-INGEST-PROOF.md) for the
+protocol-level evidence runs.
 
 The default `chainq_report` output is now **HTML** (single-file, inline
 CSS, dark/light auto, print-friendly). Pass `format: "markdown"` or use a

@@ -1,0 +1,383 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Filecoin メインネット — live 集中度スナップショット</title>
+<style>
+:root {
+  --bg: #ffffff;
+  --bg-soft: #f6f7f9;
+  --bg-card: #ffffff;
+  --border: #e2e6ee;
+  --border-soft: #eef0f4;
+  --fg: #0f172a;
+  --fg-dim: #475569;
+  --fg-mute: #6b7280;
+  --accent: #2563eb;
+  --accent-soft: #dbeafe;
+  --code-bg: #f3f4f6;
+  --callout-caveat: #f59e0b;
+  --callout-caveat-bg: #fffbeb;
+  --callout-warning: #ef4444;
+  --callout-warning-bg: #fef2f2;
+  --callout-tip: #10b981;
+  --callout-tip-bg: #ecfdf5;
+  --shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b0c10;
+    --bg-soft: #111319;
+    --bg-card: #14161d;
+    --border: #232631;
+    --border-soft: #1a1d25;
+    --fg: #e8eaed;
+    --fg-dim: #a8adb8;
+    --fg-mute: #7d8392;
+    --accent: #60a5fa;
+    --accent-soft: #1e3a8a;
+    --code-bg: #0f1116;
+    --callout-caveat: #fbbf24;
+    --callout-caveat-bg: #1f1a0a;
+    --callout-warning: #f87171;
+    --callout-warning-bg: #1f0f0f;
+    --callout-tip: #34d399;
+    --callout-tip-bg: #0a1f17;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.4);
+  }
+}
+@media print {
+  :root {
+    --bg: #ffffff; --bg-soft: #ffffff; --bg-card: #ffffff;
+    --border: #cccccc; --border-soft: #e5e5e5;
+    --fg: #000000; --fg-dim: #333333; --fg-mute: #555555;
+    --shadow: none;
+  }
+  .report-foot, .frontmatter summary { color: #555; }
+  .report { max-width: none; padding: 0; }
+  .locale-switch { display: none; }
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); }
+body {
+  color: var(--fg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans CJK JP", sans-serif;
+  font-size: 16px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code, pre, kbd, samp {
+  font-family: "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 0.92em;
+}
+code {
+  background: var(--code-bg);
+  padding: 0.1em 0.4em;
+  border-radius: 4px;
+  border: 1px solid var(--border-soft);
+}
+
+.report { max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; }
+
+.report-head { border-bottom: 1px solid var(--border-soft); padding-bottom: 24px; margin-bottom: 32px; }
+.eyebrow { color: var(--fg-mute); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; margin: 0 0 8px; font-weight: 600; }
+.report-head h1 { font-size: 32px; line-height: 1.25; margin: 0 0 8px; letter-spacing: -0.01em; }
+.report-head h1 + h1 { margin-top: 4px; font-size: 24px; color: var(--fg-dim); font-weight: 500; }
+.meta { color: var(--fg-mute); font-size: 13px; font-family: "SF Mono", Menlo, Consolas, monospace; margin: 0 0 4px; }
+.meta + .meta { margin-bottom: 16px; }
+.summary { font-size: 18px; line-height: 1.55; color: var(--fg-dim); margin: 16px 0 0; }
+.summary + .summary { margin-top: 8px; font-size: 16px; }
+
+.frontmatter { margin: 12px 0 0; font-size: 13px; }
+.frontmatter summary { cursor: pointer; color: var(--fg-mute); padding: 4px 0; user-select: none; list-style: none; }
+.frontmatter summary::-webkit-details-marker { display: none; }
+.frontmatter summary::before { content: "▸ "; display: inline-block; transition: transform 120ms ease; }
+.frontmatter[open] summary::before { transform: rotate(90deg); }
+.frontmatter[open] summary { color: var(--fg-dim); margin-bottom: 8px; }
+.frontmatter table { width: 100%; border-collapse: collapse; font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12.5px; }
+.frontmatter th, .frontmatter td { padding: 4px 12px 4px 0; text-align: left; vertical-align: top; }
+.frontmatter th { color: var(--fg-mute); font-weight: 500; width: 1%; white-space: nowrap; }
+.frontmatter td { color: var(--fg); }
+
+article { margin: 0; }
+.section { margin: 0 0 40px; }
+.section h2 {
+  font-size: 22px;
+  line-height: 1.3;
+  margin: 0 0 12px;
+  letter-spacing: -0.005em;
+}
+.section h2 + h2 { margin-top: -4px; font-size: 17px; color: var(--fg-dim); font-weight: 500; }
+.section p { margin: 0 0 12px; }
+.section p:last-child { margin-bottom: 0; }
+
+.callout {
+  background: var(--callout-caveat-bg);
+  border-left: 3px solid var(--callout-caveat);
+  padding: 16px 20px;
+  border-radius: 0 6px 6px 0;
+}
+.callout-caveat { background: var(--callout-caveat-bg); border-left-color: var(--callout-caveat); }
+.callout-warning { background: var(--callout-warning-bg); border-left-color: var(--callout-warning); }
+.callout-tip { background: var(--callout-tip-bg); border-left-color: var(--callout-tip); }
+.callout h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--callout-caveat); margin: 0 0 8px; }
+.callout-warning h2 { color: var(--callout-warning); }
+.callout-tip h2 { color: var(--callout-tip); }
+.callout p { font-size: 15px; }
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  box-shadow: var(--shadow);
+  margin: 8px 0 16px;
+}
+.table-wrap table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px;
+}
+.table-wrap thead th {
+  text-align: left;
+  background: var(--bg-soft);
+  color: var(--fg-dim);
+  font-weight: 600;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  white-space: nowrap;
+}
+.table-wrap tbody td {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border-soft);
+  white-space: nowrap;
+}
+.table-wrap tbody tr:last-child td { border-bottom: 0; }
+.table-wrap tbody tr:nth-child(even) td { background: var(--bg-soft); }
+.table-wrap td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+figure { margin: 16px 0; padding: 0; }
+figure img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  box-shadow: var(--shadow);
+}
+figcaption {
+  color: var(--fg-mute);
+  font-size: 13px;
+  margin-top: 8px;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+}
+figcaption + figcaption { margin-top: 2px; }
+.chart-link {
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  background: var(--bg-soft);
+}
+.chart-link a { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 14px; }
+.chart-interactive { margin: 16px 0; }
+
+.report-logo {
+  display: block;
+  max-height: 36px;
+  margin: 0 0 12px;
+}
+
+.downloads {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0 0;
+}
+.dl-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+  background: var(--bg-soft);
+  color: var(--fg-dim);
+  text-decoration: none;
+  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+}
+.dl-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  text-decoration: none;
+  background: var(--bg-card);
+}
+.dl-fmt {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.dl-csv .dl-fmt    { background: #16a34a22; color: #16a34a; }
+.dl-json .dl-fmt   { background: #eab30822; color: #c08303; }
+.dl-parquet .dl-fmt{ background: #6366f122; color: #6366f1; }
+.dl-html .dl-fmt   { background: #ef444422; color: #ef4444; }
+
+.report-foot {
+  margin-top: 64px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border-soft);
+  color: var(--fg-mute);
+  font-size: 13px;
+}
+.report-foot a { color: var(--fg-mute); text-decoration: underline; text-decoration-color: var(--border); }
+.report-foot a:hover { color: var(--accent); text-decoration-color: var(--accent); }
+.report-foot p + p { margin-top: 2px; }
+
+@media (max-width: 640px) {
+  .report { padding: 32px 18px 64px; }
+  .report-head h1 { font-size: 26px; }
+  .report-head h1 + h1 { font-size: 19px; }
+  .section h2 { font-size: 20px; }
+  .section h2 + h2 { font-size: 15px; }
+  .summary { font-size: 16px; }
+}
+
+/* Bilingual: CSS-only locale toggle. Default = Japanese visible. */
+input[type="radio"][name="locale"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+}
+.locale-switch {
+  display: inline-flex;
+  gap: 4px;
+  margin: 0 0 24px;
+  padding: 4px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+.locale-switch label {
+  cursor: pointer;
+  padding: 4px 14px;
+  border-radius: 999px;
+  color: var(--fg-mute);
+  user-select: none;
+  transition: color 120ms ease, background 120ms ease;
+}
+.locale-switch label:hover { color: var(--fg); }
+#loc-ja:checked ~ .report .locale-switch label[for="loc-ja"],
+#loc-en:checked ~ .report .locale-switch label[for="loc-en"] {
+  background: var(--accent);
+  color: white;
+}
+#loc-ja:checked ~ .report [lang="en"] { display: none; }
+#loc-en:checked ~ .report [lang="ja"] { display: none; }
+</style><style>:root, .report { --accent: #10b981; }</style>
+</head>
+<body>
+<input id="loc-ja" type="radio" name="locale" checked aria-hidden="true">
+<input id="loc-en" type="radio" name="locale" aria-hidden="true">
+<main class="report" data-bilingual>
+  <nav class="locale-switch" aria-label="言語 / Language">
+    <label for="loc-ja">日本語</label>
+    <label for="loc-en">English</label>
+  </nav>
+  <header class="report-head">
+    
+    <p class="eyebrow">CHAINQ · LIVE DATA</p>
+    <h1 lang="ja">Filecoin メインネット — live 集中度スナップショット</h1>
+    <h1 lang="en">Filecoin mainnet — live concentration snapshot</h1>
+    <p class="meta" lang="ja">生成: 2026-05-11T16:24:39.467Z</p>
+    <p class="meta" lang="en">Generated 2026-05-11T16:24:39.467Z</p>
+    <details class="frontmatter"><summary><span lang="ja">メタデータ · 9 項目</span><span lang="en">Metadata · 9 fields</span></summary><table><tr><th scope="row">chain</th><td>filecoin</td></tr><tr><th scope="row">source</th><td>https://filfox.info/api/v1/deal/list</td></tr><tr><th scope="row">deals_total</th><td>50</td></tr><tr><th scope="row">providers_total</th><td>3</td></tr><tr><th scope="row">total_tib</th><td>1.56</td></tr><tr><th scope="row">verified_share</th><td>1.0000</td></tr><tr><th scope="row">hhi</th><td>0.4432</td></tr><tr><th scope="row">gini</th><td>0.2933</td></tr><tr><th scope="row">pulled_at</th><td>2026-05-11T16:24:39.467Z</td></tr></table></details>
+    <p class="summary" lang="ja">Filfox からの live プルで生成。直近 50 ディール、プロバイダ 3 社、計 1.6 TiB。Filecoin Plus 検証済み比率: 100.0%。</p><p class="summary" lang="en">End-to-end report from a live Filfox pull. 50 most-recent deals across 3 providers (1.6 TiB total). Filecoin Plus verified share: 100.0%.</p>
+  </header>
+  <article>
+    <section class="section">
+      <h2 lang="ja">エグゼクティブサマリー</h2>
+      <h2 lang="en">Executive summary</h2>
+      <div lang="ja"><p>- Filfox から取得した直近 <strong>50 件の Filecoin ディール</strong>、ストレージプロバイダ 3 社、計 <strong>1.6 TiB</strong> のコミット。<br>- トップ1プロバイダが当該ウィンドウのコミット容量の <strong>60.0%</strong> を保持。<br>- 上位10のシェア: <strong>100.0%</strong>。HHI=<code>0.4432</code>、Gini=<code>0.293</code>。<br>- Filecoin Plus 検証済みディール: <strong>100.0%</strong>（50 / 50 件）。<br>- 観測した epoch 範囲: 6015588 – 6090254。データは全て <code>filfox.info/api/v1/deal/list</code> から live で取得、合成データなし。</p></div>
+      <div lang="en"><p>- <strong>50 most-recent Filecoin deals</strong> from Filfox, 3 distinct storage providers, <strong>1.6 TiB</strong> total commitment.<br>- Top 1 provider holds <strong>60.0%</strong> of committed bytes in this window.<br>- Top 10 share: <strong>100.0%</strong>. HHI=<code>0.4432</code>, Gini=<code>0.293</code>.<br>- Filecoin Plus verified deals: <strong>100.0%</strong> of the batch (50 / 50).<br>- Epoch range observed: 6015588 – 6090254. All data is live from <code>filfox.info/api/v1/deal/list</code>; no synthetic seed.</p></div>
+    </section>
+    <section class="section">
+      <h2 lang="ja">1. トップ15プロバイダ（live データ）</h2>
+      <h2 lang="en">1. Top 15 providers (live)</h2>
+      <figure><img src="./06-filecoin-live-top-providers.svg" alt="TiB committed per provider in this batch." loading="lazy"><figcaption lang="ja">本バッチで観測されたプロバイダ別 TiB コミット量。</figcaption><figcaption lang="en">TiB committed per provider in this batch.</figcaption></figure>
+      <div class="downloads"><a class="dl-chip dl-csv" href="./06-filecoin-live-providers.csv" download><span class="dl-fmt">CSV</span> <span lang="ja">全プロバイダ CSV</span><span lang="en">All providers CSV</span></a></div>
+    </section>
+    <section class="section">
+      <h2 lang="ja">1a. 上位10 生の数値</h2>
+      <h2 lang="en">1a. Top 10 raw</h2>
+      <div class="table-wrap"><table><thead><tr><th>rank</th><th>provider</th><th>tib</th><th>deals</th><th>verified_deals</th><th>share</th></tr></thead><tbody>
+        <tr><td class="num">1</td><td>f01082688</td><td class="num">0.94</td><td class="num">30</td><td class="num">30</td><td>60.00%</td></tr>
+        <tr><td class="num">2</td><td>f01081439</td><td class="num">0.38</td><td class="num">12</td><td class="num">12</td><td>24.00%</td></tr>
+        <tr><td class="num">3</td><td>f03046733</td><td class="num">0.25</td><td class="num">8</td><td class="num">8</td><td>16.00%</td></tr>
+      </tbody></table></div>
+    </section>
+    <section class="section">
+      <h2 lang="ja">2. 集中度指標</h2>
+      <h2 lang="en">2. Concentration suite</h2>
+      <div class="table-wrap"><table><thead><tr><th>metric</th><th>value</th></tr></thead><tbody>
+        <tr><td>top-1 share</td><td>60.00%</td></tr>
+        <tr><td>top-5 share</td><td>100.00%</td></tr>
+        <tr><td>top-10 share</td><td>100.00%</td></tr>
+        <tr><td>HHI</td><td>0.4432</td></tr>
+        <tr><td>Gini</td><td>0.293</td></tr>
+      </tbody></table></div>
+      <figure><img src="./06-filecoin-live-lorenz.svg" alt="HHI = 0.4432, Gini = 0.293. Computed over all 3 live providers." loading="lazy"><figcaption lang="ja">HHI = 0.4432, Gini = 0.293。live で観測された全 3 プロバイダで計算。</figcaption><figcaption lang="en">HHI = 0.4432, Gini = 0.293. Computed over all 3 live providers.</figcaption></figure>
+    </section>
+    <section class="section">
+      <h2 lang="ja">3. 容量帯別プロバイダ数</h2>
+      <h2 lang="en">3. Provider tier distribution</h2>
+      <div class="table-wrap"><table><thead><tr><th>tier</th><th>providers</th><th>total_tib</th><th>share</th></tr></thead><tbody>
+        <tr><td>&lt;1 TiB</td><td class="num">3</td><td class="num">0.00</td><td>100.00%</td></tr>
+        <tr><td>1-10 TiB</td><td class="num">0</td><td class="num">0.00</td><td>0.00%</td></tr>
+        <tr><td>10-50 TiB</td><td class="num">0</td><td class="num">0.00</td><td>0.00%</td></tr>
+        <tr><td>&gt;50 TiB</td><td class="num">0</td><td class="num">0.00</td><td>0.00%</td></tr>
+      </tbody></table></div>
+      <figure><img src="./06-filecoin-live-tiers.svg" alt="Provider count bucketed by live TiB commitment within this batch." loading="lazy"><figcaption lang="ja">本バッチ内で観測された TiB コミット量によるプロバイダ階層分布。</figcaption><figcaption lang="en">Provider count bucketed by live TiB commitment within this batch.</figcaption></figure>
+    </section>
+    <section class="section callout callout-caveat">
+      <h2 lang="ja">注意</h2>
+      <h2 lang="en">Caveats</h2>
+      <div lang="ja"><p>Filfox <code>/deal/list</code> は API 呼び出し時点での直近 50 件を返します。ここで観測しているのは<strong>特定時点のスナップショット</strong>であり、特定の epoch 範囲を網羅したものではありません。本格的な評価にはより広いプルが必要です。</p>
+      <p>この小さいバッチでの集中度はコール間で振れます。ここで報告した HHI / Gini は観測ウィンドウに対してのみ意味があり、外挿には不適切です。</p></div>
+      <div lang="en"><p>Filfox <code>/deal/list</code> returns the most recent 50 deals as of the API call moment — this is a <strong>point-in-time live sample</strong>, not a comprehensive epoch range. For canonical mainnet concentration use a wider pull.</p>
+      <p>Concentration in this small batch can swing significantly between calls. The HHI / Gini reported here is meaningful for the specific window observed and should not be extrapolated.</p></div>
+    </section>
+    <section class="section">
+      <h2 lang="ja">再現手順</h2>
+      <h2 lang="en">Reproducing this report</h2>
+      <div lang="ja"><p>``<code>bash<br>pnpm exec tsx scripts/live-filecoin-demo.ts<br>open docs/reports/06-filecoin-live.html<br></code>``</p>
+      <p>Filfox に HTTP コール 1 回、API キー不要。数字はコミット版とは異なります。Filfox がコール時点の直近 50 件を返すからです — 再実行で現在のネットワーク状態が見えます。</p></div>
+      <div lang="en"><p>``<code>bash<br>pnpm exec tsx scripts/live-filecoin-demo.ts<br>open docs/reports/06-filecoin-live.html<br></code>``</p>
+      <p>One Filfox HTTP call, no API key. The numbers will differ from this committed version because Filfox returns the most recent 50 deals at the moment of the call — re-run to see the network&#39;s current shape.</p></div>
+    </section>
+  </article>
+  <footer class="report-foot">
+    <p lang="ja"><strong>chainq</strong> が Filfox 公開 API から取得して作成。ベンダー API キー不要 — [LIVE-INGEST-PROOF.md](<a href="https://github.com/Jacksstt/chainq/blob/main/docs/LIVE-INGEST-PROOF.md)" target="_blank" rel="noopener">https://github.com/Jacksstt/chainq/blob/main/docs/LIVE-INGEST-PROOF.md)</a> を参照。MIT。</p>
+    <p lang="en">Authored by <strong>chainq</strong> against Filfox public API. No vendor API key — see [LIVE-INGEST-PROOF.md](<a href="https://github.com/Jacksstt/chainq/blob/main/docs/LIVE-INGEST-PROOF.md)." target="_blank" rel="noopener">https://github.com/Jacksstt/chainq/blob/main/docs/LIVE-INGEST-PROOF.md).</a> MIT.</p>
+  </footer>
+</main>
+</body>
+</html>
