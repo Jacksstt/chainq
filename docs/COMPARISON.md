@@ -5,6 +5,11 @@ chainq over Dune's free or Analyst tier?**
 
 > Dune is a great product. We respect it. This document is not anti-Dune — it's a clear-eyed
 > statement of when chainq is the right tool and when it isn't.
+>
+> For the **architecture / engineering** angle (where the data lives, what runs
+> where, query engine internals, latency profile), see
+> [COMPARISON-ARCHITECTURE.md](./COMPARISON-ARCHITECTURE.md). This file is the
+> feature / pricing / target-buyer cut.
 
 ## TL;DR
 
