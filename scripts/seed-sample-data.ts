@@ -99,7 +99,9 @@ async function main() {
       10000000 + i AS deal_id,
       'f1client' || (i % 100)::VARCHAR AS client,
       'f0' || (1000 + (i % 200))::VARCHAR AS provider,
-      (1 << (24 + (i % 6)))::BIGINT AS piece_size_bytes,
+      -- Synthetic piece sizes around real Filecoin sector sizes
+      -- (mainnet uses 32 / 64 GiB sectors). Range: 32 GiB to 256 GiB.
+      (1::HUGEINT << (35 + (i % 4)))::BIGINT AS piece_size_bytes,
       3500000 + i * 30 AS start_epoch,
       3500000 + i * 30 + 1051200 AS end_epoch,
       (i % 3 = 0) AS verified_deal
