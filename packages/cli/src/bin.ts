@@ -3,14 +3,16 @@
  * `chainq` CLI entry point.
  *
  * Subcommands:
- *   help                       Show usage.
- *   init                       Stub — initialize a workspace (not yet implemented).
- *   mcp serve [--stdio]        Spawn the MCP server over stdio.
- *   seed                       Generate small sample Parquet files into ./data.
+ *   help                                    Show usage.
+ *   init                                    Stub — initialize a workspace.
+ *   pull   --chain <id> --from N --to N     Pull a Parquet snapshot from a
+ *                                           public archive (no RPC required).
+ *   mcp serve [--stdio]                     Spawn the MCP server.
+ *   seed                                    Write sample parquet files to ./data.
  */
 
-import { spawn } from "node:child_process";
 import { resolve, dirname } from "node:path";
+import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const args = process.argv.slice(2);
@@ -22,12 +24,13 @@ function usage(): void {
       "",
       "Usage:",
       "  chainq help",
-      "  chainq init                 (stub)",
-      "  chainq mcp serve [--stdio]  Start the MCP server.",
-      "  chainq seed                 Write sample parquet files to ./data.",
+      "  chainq init                            (stub)",
+      "  chainq pull --chain <id> --from N --to N [--topic0 0x...]",
+      "  chainq mcp serve [--stdio]             Start the MCP server.",
+      "  chainq seed                            Write sample parquet files to ./data.",
       "",
       "Env:",
-      "  CHAINQ_DATA_DIR             Directory with parquet (default ./data).",
+      "  CHAINQ_DATA_DIR    Directory with parquet (default ./data).",
     ].join("\n"),
   );
 }
@@ -60,6 +63,10 @@ async function main() {
       await runSeed();
       return;
 
+    case "pull":
+      await runPull(rest);
+      return;
+
     default:
       console.error(`Unknown command: ${cmd}`);
       usage();
@@ -69,12 +76,10 @@ async function main() {
 
 function packageRoot(): string {
   const here = dirname(fileURLToPath(import.meta.url));
-  // packages/cli/src → repo root
   return resolve(here, "..", "..", "..", "..");
 }
 
 async function runMcpServe(): Promise<void> {
-  // We import the server module directly — keeps everything in one process.
   const { StdioServerTransport } = await import(
     "@modelcontextprotocol/sdk/server/stdio.js"
   );
@@ -85,7 +90,6 @@ async function runMcpServe(): Promise<void> {
 }
 
 async function runSeed(): Promise<void> {
-  // Spawn tsx on the seed script so we don't bundle it.
   const script = resolve(packageRoot(), "scripts", "seed-sample-data.ts");
   const child = spawn(
     process.execPath,
@@ -95,6 +99,52 @@ async function runSeed(): Promise<void> {
   await new Promise<void>((res, rej) => {
     child.on("exit", (code) => (code === 0 ? res() : rej(new Error(`seed exited ${code}`))));
   });
+}
+
+async function runPull(restArgs: string[]): Promise<void> {
+  const opts = parseFlags(restArgs);
+  const chain = opts["chain"];
+  const from = Number(opts["from"]);
+  const to = Number(opts["to"]);
+  if (!chain || !Number.isFinite(from) || !Number.isFinite(to)) {
+    console.error("usage: chainq pull --chain <id> --from N --to N [--topic0 0x...]");
+    process.exit(1);
+  }
+  const { pull, PUBLIC_ARCHIVES } = await import("@chainq/snapshot");
+  const archiveUrl = opts["archive"] ?? PUBLIC_ARCHIVES[chain];
+  if (!archiveUrl) {
+    console.error(`No public archive known for chain '${chain}'. Pass --archive <url>.`);
+    process.exit(1);
+  }
+  const outDir = resolve(process.env.CHAINQ_DATA_DIR ?? "./data");
+  console.error(`[pull] chain=${chain} from=${from} to=${to} archive=${archiveUrl}`);
+  const result = await pull({
+    chain,
+    archiveUrl,
+    fromBlock: from,
+    toBlock: to,
+    outDir,
+    ...(opts["topic0"] ? { logFilter: { topic0: [opts["topic0"]] } } : {}),
+  });
+  console.error(`[pull] wrote ${result.rows} rows to ${result.outputPath}`);
+}
+
+function parseFlags(args: string[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (a && a.startsWith("--")) {
+      const key = a.slice(2);
+      const next = args[i + 1];
+      if (!next || next.startsWith("--")) {
+        out[key] = "true";
+      } else {
+        out[key] = next;
+        i++;
+      }
+    }
+  }
+  return out;
 }
 
 main().catch((err) => {

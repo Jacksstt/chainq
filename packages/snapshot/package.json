@@ -1,0 +1,19 @@
+{
+  "name": "@chainq/snapshot",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Pull and publish chainq Parquet snapshots. RPC-free path to a working chainq stack.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "test": "echo 'no tests yet'"
+  },
+  "dependencies": {
+    "@chainq/core": "workspace:*",
+    "@chainq/ingest-evm": "workspace:*",
+    "@duckdb/node-api": "1.5.2-r.1"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,17 @@
+{
+  "name": "@chainq/storage",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Pinning and retrieval of chainq snapshots via Filecoin / IPFS gateways (lighthouse.storage, web3.storage).",
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "test": "echo 'no tests yet'"
+  },
+  "dependencies": {
+    "@chainq/core": "workspace:*"
+  },
+  "license": "MIT"
+}

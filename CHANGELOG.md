@@ -7,7 +7,26 @@ Pre-`v0.1.0` is breaking by default; we only call out highlights.
 
 ## [Unreleased]
 
-### Added (this push)
+### Added (this push — RPC-free / node-free stack)
+
+- **`@chainq/snapshot`** — `pull()` streams from a public Subsquid archive
+  into compressed Parquet. CLI: `chainq pull --chain <id> --from N --to N`.
+  No RPC key required. `PUBLIC_ARCHIVES` covers Ethereum, Base, Polygon,
+  Arbitrum, Optimism.
+- **`@chainq/storage`** — Filecoin / IPFS pinning. `push()` to
+  lighthouse.storage, `pull()` by CID. Community-shared snapshots become a
+  first-class artifact.
+- **`@chainq/light-client`** — trust-minimised verification skeleton.
+  `verifyRows()` API + `RESEARCH.md` covering the Helios / Lodestar
+  integration plan for v0.2.0.
+- **`docker/`** — one-command self-hosted stack. `Dockerfile.chainq`,
+  `Dockerfile.cron`, `docker-compose.yml`, optional `--profile ui` for
+  Metabase. Pulls from public archives by default; no RPC needed.
+- **`docs/RUNNING_A_NODE.md`** — optional path for users who really want
+  to run reth / Lotus locally.
+- README updated with the RPC-free path; new packages listed.
+
+### Added (previous push)
 
 - **`@chainq/whuffie`** — new package. Sybil-resistant reputation data product.
   TypeScript types, reference `compositeScore()` implementation, and

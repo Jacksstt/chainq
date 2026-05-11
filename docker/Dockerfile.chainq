@@ -1,0 +1,31 @@
+# Image that runs the chainq MCP server.
+#
+# Building:
+#   docker build -t chainq -f docker/Dockerfile.chainq .
+# Running (stdio mode, mostly useful as a base for tests):
+#   docker run --rm -v $(pwd)/data:/data -e CHAINQ_DATA_DIR=/data chainq
+
+FROM node:22-bookworm-slim AS base
+RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
+WORKDIR /app
+
+# ------- deps stage -------------------------------------------------------
+FROM base AS deps
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/core/package.json           packages/core/package.json
+COPY packages/mcp-server/package.json     packages/mcp-server/package.json
+COPY packages/cli/package.json            packages/cli/package.json
+COPY packages/ingest-evm/package.json     packages/ingest-evm/package.json
+COPY packages/ingest-filecoin/package.json packages/ingest-filecoin/package.json
+COPY packages/ingest-solana/package.json  packages/ingest-solana/package.json
+COPY packages/whuffie/package.json        packages/whuffie/package.json
+COPY packages/snapshot/package.json       packages/snapshot/package.json
+RUN pnpm install --frozen-lockfile --prod=false
+
+# ------- runtime stage ----------------------------------------------------
+FROM base AS runtime
+COPY --from=deps /app/node_modules /app/node_modules
+COPY . .
+ENV CHAINQ_DATA_DIR=/data
+EXPOSE 7900
+ENTRYPOINT ["pnpm", "mcp:serve"]

@@ -87,6 +87,20 @@ Then in Claude Code:
 The agent will call `chainq_list_tables`, `chainq_describe`, `chainq_estimate_cost`,
 and `chainq_query` in sequence and stream results back.
 
+### The RPC-free path
+
+If you don't want to pay for an Alchemy / Infura subscription, pull a Parquet
+snapshot from a public Subsquid archive instead:
+
+```bash
+chainq pull --chain base --from 18000000 --to 18001000
+# → writes data/base.logs.parquet
+```
+
+No node, no RPC key, no monthly bill. See
+[`packages/snapshot`](packages/snapshot) and
+[`docker/`](docker) for the full self-hosted stack.
+
 ### What's working today (v0.0.x)
 
 | Category | Tool | Notes |
@@ -157,11 +171,15 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for rationale and tradeoffs.
 | [`@chainq/core`](packages/core) | Shared types, schemas, semantic-layer model |
 | [`@chainq/mcp-server`](packages/mcp-server) | MCP server exposing the agent tools |
 | [`@chainq/cli`](packages/cli) | Standalone CLI (wraps the MCP server) |
+| [`@chainq/snapshot`](packages/snapshot) | Pull Parquet snapshots from public archives — **the RPC-free path** |
+| [`@chainq/storage`](packages/storage) | Filecoin / IPFS pinning for community snapshot sharing |
+| [`@chainq/light-client`](packages/light-client) | Trust-minimised verification (Helios / Lodestar plan) |
 | [`@chainq/ingest-evm`](packages/ingest-evm) | EVM ingestion: cryo backfill + Subsquid realtime stream |
 | [`@chainq/ingest-filecoin`](packages/ingest-filecoin) | Filecoin-native (Filfox + Spacescan) |
 | [`@chainq/ingest-solana`](packages/ingest-solana) | Solana via Helius RPC |
 | [`@chainq/whuffie`](packages/whuffie) | Sybil-resistant reputation data product (research line) |
 | [`spellbook/`](spellbook) | dbt-duckdb project (Spellbook fork + chainq additions; runs in CI) |
+| [`docker/`](docker) | One-command stack (chainq + cron + optional Metabase) |
 
 ## Roadmap
 

@@ -1,0 +1,17 @@
+{
+  "name": "@chainq/light-client",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Trust-minimised verification for chainq query results via Helios light client.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "test": "echo 'no tests yet'"
+  },
+  "dependencies": {
+    "@chainq/core": "workspace:*"
+  },
+  "license": "MIT"
+}

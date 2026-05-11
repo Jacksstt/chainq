@@ -1,0 +1,55 @@
+# A minimal, RPC-free chainq stack.
+#
+# Defaults pull snapshots from public Subsquid archives and serve them via the
+# chainq MCP server. Optional Metabase profile exposes a familiar web UI on
+# top of the same DuckDB / Parquet artifacts.
+#
+# Usage:
+#   docker compose -f docker/docker-compose.yml up           # core stack
+#   docker compose -f docker/docker-compose.yml --profile ui up   # + Metabase
+#
+# Hardware target: any laptop, no RPC keys required.
+
+name: chainq
+
+services:
+  chainq:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.chainq
+    container_name: chainq
+    environment:
+      CHAINQ_DATA_DIR: /data
+    volumes:
+      - chainq_data:/data
+    stdin_open: true
+    tty: true
+
+  cron:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.cron
+    container_name: chainq-cron
+    environment:
+      CHAINQ_DATA_DIR: /data
+      CHAINS: "${CHAINQ_CHAINS:-base}"
+      INTERVAL_SEC: "${CHAINQ_INTERVAL_SEC:-3600}"
+      BLOCKS_PER_RUN: "${CHAINQ_BLOCKS_PER_RUN:-2000}"
+    volumes:
+      - chainq_data:/data
+    restart: unless-stopped
+
+  metabase:
+    profiles: ["ui"]
+    image: metabase/metabase:latest
+    container_name: chainq-metabase
+    ports:
+      - "3000:3000"
+    environment:
+      MB_DB_TYPE: h2
+    depends_on:
+      - chainq
+    restart: unless-stopped
+
+volumes:
+  chainq_data:
