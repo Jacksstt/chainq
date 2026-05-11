@@ -18,12 +18,14 @@ import { mkdirSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 
 const OUT_DIR = resolve(process.argv[2] ?? "./data");
+// CHAINQ_SEED_SCALE=large bumps every table ~100x to enable real benchmarks.
+const SCALE = process.env.CHAINQ_SEED_SCALE === "large" ? 100 : 1;
 
-const ROWS_DEX = 10_000;
-const ROWS_ERC20 = 20_000;
-const ROWS_FILECOIN = 2_000;
-const ROWS_SOLANA_TRANSFERS = 5_000;
-const ROWS_SOLANA_DEX = 3_000;
+const ROWS_DEX = 10_000 * SCALE;
+const ROWS_ERC20 = 20_000 * SCALE;
+const ROWS_FILECOIN = 2_000 * SCALE;
+const ROWS_SOLANA_TRANSFERS = 5_000 * SCALE;
+const ROWS_SOLANA_DEX = 3_000 * SCALE;
 
 const DEX_NAMES = ["uniswap_v3", "uniswap_v2", "curve", "balancer", "sushiswap"];
 const TOKENS = ["WETH", "USDC", "USDT", "DAI", "WBTC", "ARB", "OP", "PEPE"];
