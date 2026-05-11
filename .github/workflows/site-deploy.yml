@@ -67,7 +67,7 @@ jobs:
           mkdir -p _site/playground _site/reports
           cp docs/site/index.html _site/index.html
           cp -r packages/playground/dist/* _site/playground/
-          cp docs/reports/*.html docs/reports/*.svg docs/reports/*.csv _site/reports/ 2>/dev/null || true
+          cp docs/reports/*.html docs/reports/*.svg docs/reports/*.csv docs/reports/*.png _site/reports/ 2>/dev/null || true
           cp docs/reports/README.md _site/reports/index.html.md 2>/dev/null || true
           # Tiny redirect index for /reports/
           cat > _site/reports/index.html <<'HTML'
