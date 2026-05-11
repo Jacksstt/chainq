@@ -2,9 +2,9 @@
 
 <img src="assets/logo.svg" alt="chainq" width="320">
 
-**Self-hosted onchain analytics, redesigned for AI agents.**
+**The open-source Dune + MCP.**
 
-The open-source MCP stage for what an AI-first Dune alternative could look like. Pre-alpha; replacement claims withheld until live-mainnet ingest is reproducibly verified — see [Status](#status).
+chainq is what Dune Analytics would look like if you self-hosted it and let AI agents drive it. Same architecture (Parquet on disk · dbt curated tables · SQL engine), same Spellbook lineage (MIT-licensed cross-compatible models), plus a first-class MCP server with 20 tools so agents — not just humans clicking buttons — can do the analysis. Pre-alpha; see [Status](#status) for what's proven working today and what's still pending.
 
 [![CI](https://github.com/Jacksstt/chainq/actions/workflows/ci.yml/badge.svg)](https://github.com/Jacksstt/chainq/actions/workflows/ci.yml)
 [![status](https://img.shields.io/badge/status-pre--alpha-orange.svg)](#status)
@@ -26,18 +26,31 @@ The open-source MCP stage for what an AI-first Dune alternative could look like.
 
 ## What
 
-`chainq` is a self-hosted onchain analytics stack designed from the ground up for AI agents — Claude Code, Codex, OpenClaw, and any custom LLM application that speaks the [Model Context Protocol](https://modelcontextprotocol.io/).
+**chainq = Dune's architecture, open-sourced, with MCP bolted on.**
 
-Where Dune is a web SQL editor optimized for human analysts, `chainq` is an MCP server (and CLI) that lets AI agents:
+Dune uses Parquet + dbt + a SQL engine + curated tables called Spellbook
+to serve onchain analytics to humans through a web UI. chainq uses the
+**same shape**:
 
-- **Discover** what tables and metrics exist (`search_tables`, `describe`, `list_metrics`)
-- **Estimate** a query's cost before running it (`estimate_cost`)
-- **Execute** SQL or pre-defined metrics with hard budgets (`query`, `metric`)
-- **Visualize** results as charts (`chart_render`)
-- **Recall** past analyses so the same work isn't redone (`recall`)
-- **Report** findings into Markdown / HTML automatically (`report`)
+- **Storage**: Apache Parquet on local disk or S3 (Dune: Iceberg-on-Parquet on their S3)
+- **Transformation**: dbt-duckdb + chainq Spellbook fork (Dune: dbt-trino + their Spellbook, both MIT — models cross-portable)
+- **Engine**: DuckDB single-process (Dune: distributed Trino — same SQL family, ~95% dialect overlap)
+- **Curated table names**: `dex.trades`, `erc20.transfers`, `nft.trades`, `prices.usd`, `labels.addresses`, `filecoin.deals`, `solana.dex.trades`, etc. — schema-compatible with Dune
 
-Under the hood: Apache Parquet on local disk or S3, DuckDB as the default query engine (Trino / ClickHouse pluggable), dbt for the transformation layer (Dune's Spellbook is MIT-licensed — we leverage it), and a thin TypeScript MCP surface.
+What chainq adds:
+
+1. **Self-host**: clone, install, run. No credits, no per-query billing, no data leaving your VPC.
+2. **MCP server**: 20 tools so AI agents — Claude Code, Codex, OpenClaw, Cursor, Cline — drive the analysis. Cost estimation before execution, per-session budget caps that *refuse* to run breaching queries, BM25 recall of past work, structured `ChainqError { code, details }` so agents branch programmatically.
+3. **Writing rubric**: an 8-criterion scorer + structured writing primitives (`executiveBullet`, `anomalyCallout`, `comparison`, `actionItem`) so AI-generated reports can't ship with mechanical filler.
+4. **Bilingual JA/EN reports with brand customisation** — single-file HTML, dark/light auto, embedded charts (SVG / interactive HTML / PNG / vega-lite JSON), CSV downloads, sparkline-in-table cells.
+
+A team that's hitting Dune's quota wall, can't move data into Dune for
+compliance reasons, or wants to drive analysis from AI agents instead of
+a web UI — that team can move to chainq and **keep most of their dbt
+models intact** (just swap the adapter).
+
+For the full feature-by-feature cut: [docs/COMPARISON.md](docs/COMPARISON.md).
+For the engineering layer-by-layer cut: [docs/COMPARISON-ARCHITECTURE.md](docs/COMPARISON-ARCHITECTURE.md).
 
 ## Why
 

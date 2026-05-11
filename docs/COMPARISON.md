@@ -1,23 +1,68 @@
-# Dune Free vs Dune Analyst vs chainq
+# Dune vs chainq
 
-A blunt comparison written to answer one question: **why would a builder or researcher pick
-chainq over Dune's free or Analyst tier?**
+**chainq is the open-source Dune + MCP.**
 
-> Dune is a great product. We respect it. This document is not anti-Dune — it's a clear-eyed
-> statement of when chainq is the right tool and when it isn't.
->
-> For the **architecture / engineering** angle (where the data lives, what runs
-> where, query engine internals, latency profile), see
-> [COMPARISON-ARCHITECTURE.md](./COMPARISON-ARCHITECTURE.md). This file is the
-> feature / pricing / target-buyer cut.
+Same Parquet-on-disk + dbt-curated-tables + SQL-engine architecture
+that Dune uses internally. Same Spellbook lineage (MIT-licensed,
+cross-compatible models). Add a self-hosted deployment story
+("clone, install, run on your laptop") and a first-class MCP server
+so AI agents — not just humans clicking buttons — can do the
+investigation.
 
-## TL;DR
+> Dune is a great product. This document is not anti-Dune — it answers
+> *when to use which*. For the **architecture / engineering** angle
+> (engines, storage, ingest pipeline, latency profile), see
+> [COMPARISON-ARCHITECTURE.md](./COMPARISON-ARCHITECTURE.md).
 
-| If you are… | Use |
+## Architectural parity (what chainq actually copies)
+
+| Layer | Dune | chainq | Compatible? |
+|---|---|---|---|
+| Storage format | Apache Iceberg over Parquet | Apache Parquet on local disk / S3 | ✓ Same column format |
+| Transformation | dbt + Spellbook (MIT) | dbt-duckdb + chainq Spellbook fork | ✓ Models cross-portable |
+| Curated tables | `dex.trades`, `erc20.transfers`, `nft.trades`, `prices.usd`, `labels.addresses`, … | Same table names + 11 curated tables today | ✓ Schema-compatible |
+| Query engine | Trino (DuneSQL) | DuckDB (single-process) | Same SQL family, ~95% dialect overlap |
+| Semantic layer | (Dune dashboards) | 21 metric YAMLs with guardrails | ≈ |
+| Chart rendering | In-app | Vega-lite → SVG / HTML / PNG / JSON | ≈ |
+
+**You can migrate a working dbt model in either direction in an
+afternoon** — change the adapter (`dbt-trino` ↔ `dbt-duckdb`), fix the
+~5% dialect drift, done.
+
+## What chainq adds on top of "Dune, but yours"
+
+| Capability | Dune | chainq |
+|---|---|---|
+| **MCP server** for AI agents | ✗ (must wrap the API yourself) | ✓ **20 tools, first-class** |
+| **Cost estimate before execution** | ✗ Burn credits to find out | ✓ `chainq_estimate_cost` |
+| **Per-session hard budget** | ✗ Account-wide credit cap only | ✓ `chainq_budget_set` rejects breaching queries before they run |
+| **Persistent recall per agent** | ✗ | ✓ BM25 over the query cache |
+| **Structured error codes** | ✗ HTTP statuses + free-form messages | ✓ `ChainqError { code, message, details }` — agents can branch programmatically |
+| **Schema with sample queries + gotchas + lineage** | Web UI only | ✓ Returned by `chainq_describe` |
+| **Self-host on a laptop, no cloud** | ✗ | ✓ 5-minute install, $0 marginal |
+| **Sensitive data inside your VPC** | ✗ Forbidden | ✓ Air-gappable Docker stack |
+| **Writing-quality rubric for AI-generated reports** | ✗ | ✓ 8-criterion scorer, 100-point scale |
+| **Bilingual JA/EN reports with brand customisation** | ✗ | ✓ `chainq_report({ locale: "both", brand: {...} })` |
+
+## What Dune still does better (be honest)
+
+| Capability | Dune wins because |
+|---|---|
+| **Data breadth at scale** | 50+ chains × years of history, all indexed and curated. chainq covers 45 chains via Subsquid archive but the historical curation depth is lighter. |
+| **Hosted SQL editor + dashboards** | chainq has no web UI by design — MCP + CLI only. |
+| **Public query / dashboard community** | Hundreds of thousands of forkable Dune queries. chainq has zero (it's pre-alpha). |
+| **Petabyte-scale query throughput** | Distributed Trino cluster vs single-process DuckDB. The crossover is somewhere around 100 GB - 1 TB; above that Dune's engine wins. |
+| **Operations** | 24/7 oncall + SLA + reorg-safe ingest pipeline. chainq is your laptop. |
+
+## TL;DR — pick which
+
+| You are… | Use |
 |---|---|
 | A solo human writing five queries a week, sharing public dashboards | **Dune Free** |
-| A solo human running daily medium-complexity workloads, needs API | **Dune Analyst ($75/mo)** |
-| **An AI agent doing automated investigations, or a team that needs self-hosting / SQL freedom / no vendor lock-in** | **chainq** |
+| A solo human running daily medium-complexity workloads with API access | **Dune Analyst ($75/mo)** |
+| A team that wants Dune's pipeline shape but **self-hosted** (data sovereignty, compliance, on-prem) | **chainq** |
+| A team plugging Claude Code / Cursor / Cline into onchain investigation work | **chainq** (the MCP server is the product) |
+| A team that wants Dune **and** chainq side-by-side — broad SaaS exploration with sensitive workloads kept on-prem | **Both**, models are cross-portable |
 
 ## Side-by-side
 
