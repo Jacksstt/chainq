@@ -279,13 +279,29 @@ Pre-alpha — please open an issue before sending a PR so we can align. See [CON
 
 ## Acknowledgements
 
-- [`duneanalytics/spellbook`](https://github.com/duneanalytics/spellbook) — the curated table definitions we build on (MIT)
-- [`paradigmxyz/cryo`](https://github.com/paradigmxyz/cryo) — EVM data extraction
-- [`subsquid/squid-sdk`](https://github.com/subsquid/squid-sdk) — realtime indexing
-- [DuckDB](https://duckdb.org/) — the engine that makes single-node analytics feasible
+chainq stands on the shoulders of several open-source projects. Where we
+reuse code (Spellbook), we preserve the upstream copyright and ship the
+license alongside our own.
+
+- [`duneanalytics/spellbook`](https://github.com/duneanalytics/spellbook) — © Dune Analytics, MIT. The curated table definitions we adapt. Upstream LICENSE preserved in `spellbook/UPSTREAM-LICENSE`.
+- [`paradigmxyz/cryo`](https://github.com/paradigmxyz/cryo) — © Paradigm, MIT/Apache-2.0. EVM data extraction.
+- [`subsquid/squid-sdk`](https://github.com/subsquid/squid-sdk) — © Subsquid, GPL-3.0 / commercial. Realtime indexing protocol (we consume the public archives, no SDK linkage).
+- [DuckDB](https://duckdb.org/) — © DuckDB Foundation, MIT. The engine that makes single-node analytics feasible.
+- [dbt-duckdb](https://github.com/duckdb/dbt-duckdb) — © Josh Wills / contributors, Apache-2.0.
+- [Vega-Lite](https://vega.github.io/vega-lite/) — © UW Interactive Data Lab, BSD-3-Clause.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+chainq itself is MIT — see [LICENSE](LICENSE). For third-party licenses
+and trademark policy, see [docs/LEGAL.md](docs/LEGAL.md).
+
+### Trademarks
+
+"Dune" and "Dune Analytics" are trademarks of Dune Analytics, Inc.
+chainq is **not affiliated with, endorsed by, or sponsored by Dune
+Analytics, Inc.** References to "Dune" in this README are made under
+*nominative fair use* to describe the architectural pattern chainq
+implements. "Spellbook" is used to refer to the MIT-licensed dbt model
+repository published by Dune Analytics on GitHub.
 
 Built by [Prime Beat](https://primebeat.jp).

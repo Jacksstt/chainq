@@ -3,9 +3,16 @@
 A dbt-duckdb project that turns raw chain Parquet into curated, queryable views.
 
 This is a chainq-flavored fork conceptually rooted in the
-[Dune Spellbook](https://github.com/duneanalytics/spellbook) (MIT). v0.0.x
-only ships a few starter models so the end-to-end pipeline can be tested.
-v0.1+ will port the upstream `dex/`, `tokens/`, and `nft/` subprojects.
+[Dune Spellbook](https://github.com/duneanalytics/spellbook) (MIT,
+© Dune Analytics — upstream license preserved at
+[`UPSTREAM-LICENSE`](./UPSTREAM-LICENSE)). v0.0.x only ships a few
+starter models so the end-to-end pipeline can be tested. v0.1+ will
+port the upstream `dex/`, `tokens/`, and `nft/` subprojects.
+
+Where individual model files are adapted from upstream Spellbook, the
+original copyright is preserved in the model header. See
+[`docs/LEGAL.md`](../docs/LEGAL.md) at the repo root for the full
+trademark / licensing notice.
 
 ## Quickstart
 
