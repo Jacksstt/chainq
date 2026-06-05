@@ -135,3 +135,94 @@ The site-deploy GitHub Action re-runs this demo on every Pages build,
 so the live report at
 `https://jacksstt.github.io/chainq/reports/05-base-live.html`
 reflects a fresh pull on each deploy.
+
+---
+
+## Update (2026-06-05): Subsquid went key-gated; keyless RPC path + dbt-on-real-data
+
+Re-running the original proof command now fails:
+
+```
+$ chainq pull --chain base --from 24000000 --to 24000020
+[pull] ... archive=https://v2.archive.subsquid.io/network/base-mainnet
+Error: subsquid worker lookup failed at block 24000000: 403
+  {"error":"CREDENTIALS_INVALID","message":"API key required or invalid.
+   Get one at https://portal.sqd.dev"}
+```
+
+Subsquid's v2 archive moved behind an API key sometime after the May run
+above. The "no API key required" claim in the original section is no
+longer true for the Subsquid path. Two fixes landed:
+
+1. **Subsquid key support** — `SQD_API_KEY` is now sent as
+   `Authorization: Bearer …` by `streamSubsquid`, so archive users with a
+   key keep the fast path (and all 45 chains).
+2. **Keyless public-RPC fallback** — `chainq pull` now resolves a source
+   automatically (`--source auto`, the default): try Subsquid, and on a
+   credentials/403 error fall back to a keyless public RPC. Force it with
+   `--source rpc`. New code: `packages/ingest-evm/src/rpc-logs.ts`
+   (`fetchLogsViaRpc`) + `pullViaRpc` / `PUBLIC_RPCS` in `@chainq/snapshot`.
+   It pulls via `eth_getLogs`, adaptively halving the block window when an
+   endpoint rejects a wide range (e.g. publicnode's `-32701`), resolves
+   block timestamps with `eth_getBlockByNumber`, and fails over across a
+   list of endpoints.
+
+### Keyless RPC pull — evidence
+
+```bash
+chainq pull --chain base --from 24000000 --to 24000020 --source rpc
+# endpoints: base-rpc.publicnode.com, mainnet.base.org, base.drpc.org
+# → data/base.logs.parquet  (12,559 rows, 11 columns, zstd)
+```
+
+- **12,559 logs across 21 blocks** (24000000–24000020), 1,053 distinct
+  contracts, **472 distinct topic0 signatures**, 2,145 distinct txs.
+- Window `2024-12-21 13:55:47 → 13:56:27 UTC` — identical block times to
+  the Subsquid run (same chain history, different transport).
+- Top emitters: `0x4200…0006` WETH (2,586), `0x833589fc…02913` USDC (662),
+  `0x82792268…` (608), `0xb84099…06f4` (601 logs in **1 tx**),
+  `0x5ff137d4…2789` ERC-4337 EntryPoint v0.6 (251).
+
+The schema is byte-identical to the Subsquid path (both go through the
+shared `writeLogsParquet`), so every downstream model is transport-agnostic.
+
+### dbt against real data — evidence
+
+```bash
+pnpm dbt:run --select live       # PASS=5  WARN=0 ERROR=0
+# dbt test --select live         # PASS=17 WARN=0 ERROR=0
+```
+
+The five `live` spellbook models built over the **real** `base.logs.parquet`:
+
+| model | result |
+|---|---|
+| `base_raw_logs` | 12,559 rows |
+| `base_logs_decoded` | 12,559 rows · **64.1%** matched the topic0 dictionary |
+| `base_erc20_transfers_derived` | 5,079 transfers · 337 tokens · 1,040 senders |
+| `base_log_activity_hourly` | 12,559 logs / 1,053 contracts / 2,145 txs (one hour) |
+| `base_top_emitters` | WETH top at 2,586 logs |
+
+**Bug caught by dogfooding**: `base_logs_decoded` listed ERC-721 `Approval`
+separately from ERC-20 `Approval`, but the two share an identical keccak
+`topic0` — so every Approval log LEFT JOINed twice and fanned out to two
+rows (decoded count 13,346 > raw 12,559). Removed the duplicate dictionary
+entry; the model is now strictly one-row-per-log (12,559 = 12,559). This is
+exactly the kind of defect synthetic seed data (3 topic0s) could never
+surface.
+
+### End-to-end dbt report
+
+`scripts/live-base-dbt-demo.ts` queries those views (not the raw Parquet)
+and renders a bilingual report scored **100/100** by chainq's own writing
+rubric — using the `anomalyCallout` / `comparison` / `actionItem`
+primitives over real anomalies (peak block 1,102 vs median 556 logs; the
+601-logs-in-1-tx emitter; Gini 0.795 over all 1,053 contracts). Output:
+[`docs/reports/08-base-dbt-real.html`](reports/08-base-dbt-real.html) +
+`.md`. Reproduce:
+
+```bash
+chainq pull --chain base --from 24000000 --to 24000020 --source rpc
+pnpm dbt:run --select live
+pnpm exec tsx scripts/live-base-dbt-demo.ts
+```

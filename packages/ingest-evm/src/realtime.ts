@@ -23,6 +23,12 @@ export interface SubsquidStreamOptions {
   fetch?: typeof globalThis.fetch;
   /** Max payload bytes per page (server-side hint). */
   maxBytes?: number;
+  /**
+   * Subsquid portal API key. Since 2026 the v2 archive requires one
+   * (https://portal.sqd.dev); without it the worker lookup returns 403
+   * `CREDENTIALS_INVALID`. Sent as `Authorization: Bearer <key>`.
+   */
+  apiKey?: string;
 }
 
 export interface SubsquidRequest {
@@ -54,12 +60,15 @@ export interface SubsquidBatch {
  */
 export async function* streamSubsquid(opts: SubsquidStreamOptions): AsyncGenerator<SubsquidBatch> {
   const fetchImpl = opts.fetch ?? globalThis.fetch;
+  const authHeaders: Record<string, string> = opts.apiKey
+    ? { authorization: `Bearer ${opts.apiKey}` }
+    : {};
   let from = opts.fromBlock;
   while (true) {
     if (opts.toBlock != null && from > opts.toBlock) return;
 
     // 1. discover the worker that serves this block.
-    const workerResp = await fetchImpl(`${opts.archiveUrl}/${from}/worker`);
+    const workerResp = await fetchImpl(`${opts.archiveUrl}/${from}/worker`, { headers: authHeaders });
     if (!workerResp.ok) {
       const text = await workerResp.text();
       throw new Error(`subsquid worker lookup failed at block ${from}: ${workerResp.status} ${text.slice(0, 200)}`);
@@ -77,7 +86,7 @@ export async function* streamSubsquid(opts: SubsquidStreamOptions): AsyncGenerat
     };
     const resp = await fetchImpl(workerUrl, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders },
       body: JSON.stringify(body),
     });
     if (!resp.ok) {

@@ -23,7 +23,9 @@
 - [x] 10 semantic metrics
 - [x] `chainq init` + `chainq pull` + `chainq mcp serve` flow works end-to-end
 - [x] `chainq ingest backfill` multi-chain orchestrator
-- [ ] Internal Prime Beat dogfooding on at least one live consulting case
+- [x] Keyless ingest survives Subsquid's 2026 API-key change — `pull` auto-falls-back to public RPC (`eth_getLogs`, adaptive window, endpoint failover); `SQD_API_KEY` re-enables the archive path
+- [x] dbt `live` models build on **real** Base data (run PASS=5 / test PASS=17), not just synthetic seed
+- [x] Internal dogfooding: due-diligence-style snapshot generated end-to-end off the dbt views — [docs/reports/08-base-dbt-real.html](reports/08-base-dbt-real.html) (rubric 100/100). Tying it to a specific named client engagement remains a business step.
 
 ## v0.2.0 — Quality of life
 

@@ -1,0 +1,428 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Base メインネット — dbt実データスナップショット</title>
+<style>
+:root {
+  --bg: #ffffff;
+  --bg-soft: #f6f7f9;
+  --bg-card: #ffffff;
+  --border: #e2e6ee;
+  --border-soft: #eef0f4;
+  --fg: #0f172a;
+  --fg-dim: #475569;
+  --fg-mute: #6b7280;
+  --accent: #2563eb;
+  --accent-soft: #dbeafe;
+  --code-bg: #f3f4f6;
+  --callout-caveat: #f59e0b;
+  --callout-caveat-bg: #fffbeb;
+  --callout-warning: #ef4444;
+  --callout-warning-bg: #fef2f2;
+  --callout-tip: #10b981;
+  --callout-tip-bg: #ecfdf5;
+  --shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b0c10;
+    --bg-soft: #111319;
+    --bg-card: #14161d;
+    --border: #232631;
+    --border-soft: #1a1d25;
+    --fg: #e8eaed;
+    --fg-dim: #a8adb8;
+    --fg-mute: #7d8392;
+    --accent: #60a5fa;
+    --accent-soft: #1e3a8a;
+    --code-bg: #0f1116;
+    --callout-caveat: #fbbf24;
+    --callout-caveat-bg: #1f1a0a;
+    --callout-warning: #f87171;
+    --callout-warning-bg: #1f0f0f;
+    --callout-tip: #34d399;
+    --callout-tip-bg: #0a1f17;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.4);
+  }
+}
+@media print {
+  :root {
+    --bg: #ffffff; --bg-soft: #ffffff; --bg-card: #ffffff;
+    --border: #cccccc; --border-soft: #e5e5e5;
+    --fg: #000000; --fg-dim: #333333; --fg-mute: #555555;
+    --shadow: none;
+  }
+  .report-foot, .frontmatter summary { color: #555; }
+  .report { max-width: none; padding: 0; }
+  .locale-switch { display: none; }
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); }
+body {
+  color: var(--fg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans CJK JP", sans-serif;
+  font-size: 16px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code, pre, kbd, samp {
+  font-family: "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 0.92em;
+}
+code {
+  background: var(--code-bg);
+  padding: 0.1em 0.4em;
+  border-radius: 4px;
+  border: 1px solid var(--border-soft);
+}
+
+.report { max-width: 820px; margin: 0 auto; padding: 48px 28px 96px; }
+
+.report-head { border-bottom: 1px solid var(--border-soft); padding-bottom: 24px; margin-bottom: 32px; }
+.eyebrow { color: var(--fg-mute); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; margin: 0 0 8px; font-weight: 600; }
+.report-head h1 { font-size: 32px; line-height: 1.25; margin: 0 0 8px; letter-spacing: -0.01em; }
+.report-head h1 + h1 { margin-top: 4px; font-size: 24px; color: var(--fg-dim); font-weight: 500; }
+.meta { color: var(--fg-mute); font-size: 13px; font-family: "SF Mono", Menlo, Consolas, monospace; margin: 0 0 4px; }
+.meta + .meta { margin-bottom: 16px; }
+.summary { font-size: 18px; line-height: 1.55; color: var(--fg-dim); margin: 16px 0 0; }
+.summary + .summary { margin-top: 8px; font-size: 16px; }
+
+.frontmatter { margin: 12px 0 0; font-size: 13px; }
+.frontmatter summary { cursor: pointer; color: var(--fg-mute); padding: 4px 0; user-select: none; list-style: none; }
+.frontmatter summary::-webkit-details-marker { display: none; }
+.frontmatter summary::before { content: "▸ "; display: inline-block; transition: transform 120ms ease; }
+.frontmatter[open] summary::before { transform: rotate(90deg); }
+.frontmatter[open] summary { color: var(--fg-dim); margin-bottom: 8px; }
+.frontmatter table { width: 100%; border-collapse: collapse; font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12.5px; }
+.frontmatter th, .frontmatter td { padding: 4px 12px 4px 0; text-align: left; vertical-align: top; }
+.frontmatter th { color: var(--fg-mute); font-weight: 500; width: 1%; white-space: nowrap; }
+.frontmatter td { color: var(--fg); }
+
+article { margin: 0; }
+.section { margin: 0 0 40px; }
+.section h2 {
+  font-size: 22px;
+  line-height: 1.3;
+  margin: 0 0 12px;
+  letter-spacing: -0.005em;
+}
+.section h2 + h2 { margin-top: -4px; font-size: 17px; color: var(--fg-dim); font-weight: 500; }
+.section p { margin: 0 0 12px; }
+.section p:last-child { margin-bottom: 0; }
+
+.callout {
+  background: var(--callout-caveat-bg);
+  border-left: 3px solid var(--callout-caveat);
+  padding: 16px 20px;
+  border-radius: 0 6px 6px 0;
+}
+.callout-caveat { background: var(--callout-caveat-bg); border-left-color: var(--callout-caveat); }
+.callout-warning { background: var(--callout-warning-bg); border-left-color: var(--callout-warning); }
+.callout-tip { background: var(--callout-tip-bg); border-left-color: var(--callout-tip); }
+.callout h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--callout-caveat); margin: 0 0 8px; }
+.callout-warning h2 { color: var(--callout-warning); }
+.callout-tip h2 { color: var(--callout-tip); }
+.callout p { font-size: 15px; }
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  box-shadow: var(--shadow);
+  margin: 8px 0 16px;
+}
+.table-wrap table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px;
+}
+.table-wrap thead th {
+  text-align: left;
+  background: var(--bg-soft);
+  color: var(--fg-dim);
+  font-weight: 600;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  white-space: nowrap;
+}
+.table-wrap tbody td {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border-soft);
+  white-space: nowrap;
+}
+.table-wrap tbody tr:last-child td { border-bottom: 0; }
+.table-wrap tbody tr:nth-child(even) td { background: var(--bg-soft); }
+.table-wrap td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.table-wrap td.raw { padding: 4px 14px; line-height: 0; }
+.table-wrap td.raw svg { vertical-align: middle; max-width: 140px; height: 28px; }
+
+figure { margin: 16px 0; padding: 0; }
+figure img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  box-shadow: var(--shadow);
+}
+figcaption {
+  color: var(--fg-mute);
+  font-size: 13px;
+  margin-top: 8px;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+}
+figcaption + figcaption { margin-top: 2px; }
+.chart-link {
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  background: var(--bg-soft);
+}
+.chart-link a { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 14px; }
+.chart-interactive { margin: 16px 0; }
+
+.report-logo {
+  display: block;
+  max-height: 36px;
+  margin: 0 0 12px;
+}
+
+.downloads {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0 0;
+}
+.dl-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+  background: var(--bg-soft);
+  color: var(--fg-dim);
+  text-decoration: none;
+  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+}
+.dl-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  text-decoration: none;
+  background: var(--bg-card);
+}
+.dl-fmt {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.dl-csv .dl-fmt    { background: #16a34a22; color: #16a34a; }
+.dl-json .dl-fmt   { background: #eab30822; color: #c08303; }
+.dl-parquet .dl-fmt{ background: #6366f122; color: #6366f1; }
+.dl-html .dl-fmt   { background: #ef444422; color: #ef4444; }
+
+.report-foot {
+  margin-top: 64px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border-soft);
+  color: var(--fg-mute);
+  font-size: 13px;
+}
+.report-foot a { color: var(--fg-mute); text-decoration: underline; text-decoration-color: var(--border); }
+.report-foot a:hover { color: var(--accent); text-decoration-color: var(--accent); }
+.report-foot p + p { margin-top: 2px; }
+
+@media (max-width: 640px) {
+  .report { padding: 32px 18px 64px; }
+  .report-head h1 { font-size: 26px; }
+  .report-head h1 + h1 { font-size: 19px; }
+  .section h2 { font-size: 20px; }
+  .section h2 + h2 { font-size: 15px; }
+  .summary { font-size: 16px; }
+}
+
+/* Bilingual: CSS-only locale toggle. Default = Japanese visible. */
+input[type="radio"][name="locale"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+}
+.locale-switch {
+  display: inline-flex;
+  gap: 4px;
+  margin: 0 0 24px;
+  padding: 4px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+.locale-switch label {
+  cursor: pointer;
+  padding: 4px 14px;
+  border-radius: 999px;
+  color: var(--fg-mute);
+  user-select: none;
+  transition: color 120ms ease, background 120ms ease;
+}
+.locale-switch label:hover { color: var(--fg); }
+#loc-ja:checked ~ .report .locale-switch label[for="loc-ja"],
+#loc-en:checked ~ .report .locale-switch label[for="loc-en"] {
+  background: var(--accent);
+  color: white;
+}
+#loc-ja:checked ~ .report [lang="en"] { display: none; }
+#loc-en:checked ~ .report [lang="ja"] { display: none; }
+</style><style>:root, .report { --accent: #2563eb; }</style>
+</head>
+<body>
+<input id="loc-ja" type="radio" name="locale" checked aria-hidden="true">
+<input id="loc-en" type="radio" name="locale" aria-hidden="true">
+<main class="report" data-bilingual>
+  <nav class="locale-switch" aria-label="言語 / Language">
+    <label for="loc-ja">日本語</label>
+    <label for="loc-en">English</label>
+  </nav>
+  <header class="report-head">
+    
+    <p class="eyebrow">CHAINQ · DBT × LIVE</p>
+    <h1 lang="ja">Base メインネット — dbt実データスナップショット</h1>
+    <h1 lang="en">Base mainnet — dbt-on-real-data snapshot</h1>
+    <p class="meta" lang="ja">生成: 2026-06-05T07:43:10.515Z</p>
+    <p class="meta" lang="en">Generated 2026-06-05T07:43:10.515Z</p>
+    <details class="frontmatter"><summary><span lang="ja">メタデータ · 13 項目</span><span lang="en">Metadata · 13 fields</span></summary><table><tr><th scope="row">chain</th><td>base</td></tr><tr><th scope="row">from_block</th><td>24000000</td></tr><tr><th scope="row">to_block</th><td>24000020</td></tr><tr><th scope="row">logs_total</th><td>12559</td></tr><tr><th scope="row">distinct_contracts</th><td>1053</td></tr><tr><th scope="row">distinct_topic0</th><td>472</td></tr><tr><th scope="row">decoded_pct</th><td>64.1%</td></tr><tr><th scope="row">erc20_transfers</th><td>5079</td></tr><tr><th scope="row">gini</th><td>0.795</td></tr><tr><th scope="row">hhi</th><td>0.0527</td></tr><tr><th scope="row">source</th><td>public-rpc (keyless)</td></tr><tr><th scope="row">pipeline</th><td>rpc-pull → parquet → dbt-spellbook → views → report</td></tr><tr><th scope="row">rubric_score</th><td>100/100</td></tr></table></details>
+    <p class="summary" lang="ja">v0.1.0「dbt を実データに向ける」マイルストーンの end-to-end 証明: キー不要取得した Base 実ログ 12,559 件（24000000–24000020）を5つの dbt spellbook ビューで変換し、そのビューから直接レポート化。</p><p class="summary" lang="en">End-to-end proof of the v0.1.0 &quot;dbt against real data&quot; milestone: 12,559 real Base logs (24000000–24000020) pulled keyless, transformed by five dbt spellbook views, and reported here straight off those views.</p>
+  </header>
+  <article>
+    <section class="section">
+      <h2 lang="ja">エグゼクティブサマリー</h2>
+      <h2 lang="en">Executive summary</h2>
+      <div lang="ja"><p>- Base の実ログ <strong>12,559 件</strong>を <strong>21 ブロック</strong>（24000000–24000020）で取得。<strong>1,053 コントラクト</strong>・<strong>472 シグネチャ</strong>。<br>- 本レポートの全数値は raw Parquet ではなく <strong>dbt spellbook ビュー</strong>から読み出し。キュレーション→クエリの全パイプラインが実データで稼働。<br>- ログの <strong>64.1%</strong> が topic0 デコード辞書に一致。生ログのみから <strong>ERC-20 transfer 5,079 件</strong>（<strong>337 トークン</strong>）を導出。<br>- 発行集中度は高い: top-1（WETH (L2 predeploy)）= ログの <strong>20.6%</strong>。全 1053 コントラクトで Gini <strong>0.795</strong>、HHI <strong>0.0527</strong>。<br>- 期間: 2024-12-21 13:55:47 ～ 2024-12-21 13:56:27（Base、約2秒ブロック）。公開RPCからキー不要で取得。</p></div>
+      <div lang="en"><p>- <strong>12,559 real Base logs</strong> across <strong>21 blocks</strong> (24000000–24000020), from <strong>1,053 distinct contracts</strong> and <strong>472 event signatures</strong>.<br>- Every figure here is read from a <strong>dbt spellbook view</strong>, not from raw Parquet — the full curate-then-query pipeline ran against live data.<br>- <strong>64.1%</strong> of logs matched the topic0 decode dictionary; <strong>5,079 ERC-20 transfers</strong> across <strong>337 tokens</strong> were derived from raw logs alone.<br>- Emitter concentration is high: top-1 (WETH (L2 predeploy)) = <strong>20.6%</strong> of logs; Gini <strong>0.795</strong>, HHI <strong>0.0527</strong> over all 1053 contracts.<br>- Window: 2024-12-21 13:55:47 → 2024-12-21 13:56:27 (Base, ~2-second blocks). Pulled keyless over public RPC.</p></div>
+    </section>
+    <section class="section">
+      <h2 lang="ja">1. データ来歴 &amp; メソドロジー</h2>
+      <h2 lang="en">1. Provenance &amp; methodology</h2>
+      <div lang="ja"><p><strong>pull（キー不要）</strong>: <code>chainq pull --chain base --from 24000000 --to 24000020 --source rpc</code>。Subsquid v2 アーカイブが API キー必須になったため、公開 RPC からブロック単位で取得（<code>eth_getLogs</code> + <code>eth_getBlockByNumber</code>）し、正規の11カラムスキーマで <code>data/base.logs.parquet</code> を書き出し。</p>
+      <p><strong>変換</strong>: <code>pnpm dbt:run --select live</code> が Parquet 上に5つの spellbook ビューを構築（<code>base_raw_logs</code> / <code>base_logs_decoded</code> / <code>base_erc20_transfers_derived</code> / <code>base_log_activity_hourly</code> / <code>base_top_emitters</code>）。dbt スキーマテストは全 PASS。</p>
+      <p><strong>レポート</strong>: 本ファイルは raw ではなくこれらの<strong>ビュー</strong>をクエリして描画。集中度（HHI / Gini / ローレンツ）は<strong>全 1053 コントラクト</strong>で算出。</p></div>
+      <div lang="en"><p><strong>Pull (keyless)</strong>: <code>chainq pull --chain base --from 24000000 --to 24000020 --source rpc</code>. Subsquid&#39;s v2 archive now requires an API key, so the snapshot pulled logs block-by-block over a public RPC (<code>eth_getLogs</code> + <code>eth_getBlockByNumber</code>), writing <code>data/base.logs.parquet</code> with the canonical 11-column schema.</p>
+      <p><strong>Transform</strong>: <code>pnpm dbt:run --select live</code> built five spellbook views over that Parquet — <code>base_raw_logs</code>, <code>base_logs_decoded</code>, <code>base_erc20_transfers_derived</code>, <code>base_log_activity_hourly</code>, <code>base_top_emitters</code> — all PASS with their dbt schema tests.</p>
+      <p><strong>Report</strong>: this file queries those views (not the raw file) and renders. Concentration (HHI / Gini / Lorenz) is computed over <strong>all 1053 emitters</strong>.</p></div>
+    </section>
+    <section class="section">
+      <h2 lang="ja">2. 上位25発行コントラクト</h2>
+      <h2 lang="en">2. Top 25 emitting contracts</h2>
+      <figure><img src="./08-base-dbt-real-top-emitters.svg" alt="From dbt view base_top_emitters." loading="lazy"><figcaption lang="ja">dbt ビュー base_top_emitters より。</figcaption><figcaption lang="en">From dbt view base_top_emitters.</figcaption></figure>
+      <div class="downloads"><a class="dl-chip dl-csv" href="./08-base-dbt-real-top-emitters.csv" download><span class="dl-fmt">CSV</span> <span lang="ja">上位発行 CSV</span><span lang="en">Top emitters CSV</span></a></div>
+    </section>
+    <section class="section">
+      <h2 lang="ja">2a. ラベル付き上位15</h2>
+      <h2 lang="en">2a. Top 15 (labelled)</h2>
+      <div class="table-wrap"><table><thead><tr><th>rank</th><th>contract</th><th>logs</th><th>txs</th><th>sigs</th><th>share</th></tr></thead><tbody>
+        <tr><td class="num">1</td><td>WETH (L2 predeploy)</td><td class="num">2586</td><td class="num">1287</td><td class="num">4</td><td>20.59%</td></tr>
+        <tr><td class="num">2</td><td>USDC (Circle native)</td><td class="num">662</td><td class="num">364</td><td class="num">3</td><td>5.27%</td></tr>
+        <tr><td class="num">3</td><td>0x827922686190790b37229fd06084350e74485b72</td><td class="num">608</td><td class="num">77</td><td class="num">6</td><td>4.84%</td></tr>
+        <tr><td class="num">4</td><td>0xb84099396f8de44d2c996ed708126a2f059406f4</td><td class="num">601</td><td class="num">1</td><td class="num">1</td><td>4.79%</td></tr>
+        <tr><td class="num">5</td><td>ERC-4337 EntryPoint v0.6</td><td class="num">251</td><td class="num">30</td><td class="num">4</td><td>2.00%</td></tr>
+        <tr><td class="num">6</td><td>0xca73ed1815e5915489570014e024b7ebe65de679</td><td class="num">213</td><td class="num">149</td><td class="num">2</td><td>1.70%</td></tr>
+        <tr><td class="num">7</td><td>0x2faeb0760d4230ef2ac21496bb4f0b47d634fd4c</td><td class="num">193</td><td class="num">15</td><td class="num">2</td><td>1.54%</td></tr>
+        <tr><td class="num">8</td><td>0x974474c8bcb36302be93858466728271fb36544e</td><td class="num">187</td><td class="num">10</td><td class="num">1</td><td>1.49%</td></tr>
+        <tr><td class="num">9</td><td>0xcbb7c0000ab88b473b1f5afd9ef808440eed33bf</td><td class="num">155</td><td class="num">85</td><td class="num">2</td><td>1.23%</td></tr>
+        <tr><td class="num">10</td><td>0xc1a6d4ccb0e913c7f785fcc60811b34bc8cc801c</td><td class="num">142</td><td class="num">71</td><td class="num">2</td><td>1.13%</td></tr>
+        <tr><td class="num">11</td><td>0xdc88389898a30f67a2165791f1bdcf2d2ae94dcf</td><td class="num">130</td><td class="num">65</td><td class="num">2</td><td>1.04%</td></tr>
+        <tr><td class="num">12</td><td>0x940181a94a35a4569e4529a3cdfb74e38fd98631</td><td class="num">119</td><td class="num">58</td><td class="num">2</td><td>0.95%</td></tr>
+        <tr><td class="num">13</td><td>0x6b2c0c7be2048daa9b5527982c29f48062b34d58</td><td class="num">118</td><td class="num">45</td><td class="num">3</td><td>0.94%</td></tr>
+        <tr><td class="num">14</td><td>0x25646338f3d92d9c28a7ab9eb543efccfd67621b</td><td class="num">110</td><td class="num">54</td><td class="num">2</td><td>0.88%</td></tr>
+        <tr><td class="num">15</td><td>0xf312735acd921abbfac2e8b84c5d329c766d0c97</td><td class="num">104</td><td class="num">52</td><td class="num">2</td><td>0.83%</td></tr>
+      </tbody></table></div>
+    </section>
+    <section class="section">
+      <h2 lang="ja">3. デコード済イベント</h2>
+      <h2 lang="en">3. Decoded events</h2>
+      <figure><img src="./08-base-dbt-real-event-domains.svg" alt="64.1% of logs matched a known topic0. Each log maps to exactly one row (the dictionary keeps topic0 unique)." loading="lazy"><figcaption lang="ja">ログの 64.1% が既知 topic0 に一致。各ログは厳密に1行に対応（辞書は topic0 を一意に保持）。</figcaption><figcaption lang="en">64.1% of logs matched a known topic0. Each log maps to exactly one row (the dictionary keeps topic0 unique).</figcaption></figure>
+      <div class="downloads"><a class="dl-chip dl-csv" href="./08-base-dbt-real-event-domains.csv" download><span class="dl-fmt">CSV</span> <span lang="ja">イベント CSV</span><span lang="en">Events CSV</span></a></div>
+    </section>
+    <section class="section">
+      <h2 lang="ja">4. ブロック単位の活動</h2>
+      <h2 lang="en">4. Per-block activity</h2>
+      <figure><img src="./08-base-dbt-real-logs-per-block.svg" alt="Log counts per block. Hourly roll-up: 12,559 logs / 1,053 contracts / 2,145 txs." loading="lazy"><figcaption lang="ja">ブロック別ログ件数。時間集計: 12,559 logs / 1,053 contracts / 2,145 txs。</figcaption><figcaption lang="en">Log counts per block. Hourly roll-up: 12,559 logs / 1,053 contracts / 2,145 txs.</figcaption></figure>
+      <div class="downloads"><a class="dl-chip dl-csv" href="./08-base-dbt-real-logs-per-block.csv" download><span class="dl-fmt">CSV</span> <span lang="ja">ブロック別 CSV</span><span lang="en">Per-block CSV</span></a></div>
+    </section>
+    <section class="section">
+      <h2 lang="ja">5. 発行集中度（全コントラクト）</h2>
+      <h2 lang="en">5. Emitter concentration (all contracts)</h2>
+      <div class="table-wrap"><table><thead><tr><th>metric</th><th>value</th></tr></thead><tbody>
+        <tr><td>top-1 share</td><td>20.59%</td></tr>
+        <tr><td>top-5 share</td><td>37.49%</td></tr>
+        <tr><td>top-10 share</td><td>44.57%</td></tr>
+        <tr><td>HHI</td><td>0.0527</td></tr>
+        <tr><td>Gini</td><td>0.795</td></tr>
+      </tbody></table></div>
+      <figure><img src="./08-base-dbt-real-lorenz.svg" alt="HHI = 0.0527, Gini = 0.795 over all 1053 emitters." loading="lazy"><figcaption lang="ja">全 1053 コントラクトで HHI = 0.0527, Gini = 0.795。</figcaption><figcaption lang="en">HHI = 0.0527, Gini = 0.795 over all 1053 emitters.</figcaption></figure>
+    </section>
+    <section class="section">
+      <h2 lang="ja">6. 異常値</h2>
+      <h2 lang="en">6. Anomalies</h2>
+      <div lang="ja"><p><strong>ピークブロック 24000005 は ウィンドウ中央値ブロック（556 logs）に対し 1,102 logs — 2.0倍高い。</strong> DEX・決済活動が単一ブロックに集中。</p>
+      <p><strong>単一tx発行者 0xb84099396f… は ウィンドウ全体の logs/tx（6 logs/tx）に対し 601 logs/tx — 100.2倍高い。</strong> 1 件の tx で 601 ログを発行 — バッチ配布で、デコードするまで発行ランキングを歪めます。</p></div>
+      <div lang="en"><p><strong>Peak block 24000005 stands out at 1,102 logs against the median block in window (556 logs) — 2.0× higher.</strong> Concentrated DEX / settlement activity landed in one block.</p>
+      <p><strong>Single-tx emitter 0xb84099396f… stands out at 601 logs/tx against the window-wide logs/tx (6 logs/tx) — 100.2× higher.</strong> It emitted 601 logs in 1 transaction(s) — a batch distribution that reshapes the emitter ranking until it is decoded.</p></div>
+    </section>
+    <section class="section">
+      <h2 lang="ja">7. 比較</h2>
+      <h2 lang="en">7. Comparisons</h2>
+      <div lang="ja"><p>- WETH（2,586 logs）は USDC（662 logs）の 3.9倍。</p>
+      <p>- ピークブロック（1,102 logs）は 中央値ブロック（556 logs）の 2.0倍。</p>
+      <p>- デコード済ログ（8,052 logs）は 未デコードログ（4,507 logs）の 1.8倍。</p></div>
+      <div lang="en"><p>- WETH (2,586 logs) is 3.9× higher than USDC (662 logs).</p>
+      <p>- peak block (1,102 logs) is 2.0× higher than median block (556 logs).</p>
+      <p>- decoded logs (8,052 logs) is 1.8× higher than undecoded logs (4,507 logs).</p></div>
+    </section>
+    <section class="section">
+      <h2 lang="ja">8. アクションアイテム</h2>
+      <h2 lang="en">8. Action items</h2>
+      <div lang="ja"><p>- <strong>オンチェーン・デューデリ分析者 へ:</strong> 0xb84099396f… の 601 ログ tx をデコードしてから出来高集計を信用する。1 tx が発行ランキングを歪めている（今すぐ）</p>
+      <p>- <strong>トークノミクス・コンサルタント へ:</strong> Gini 0.795 を本ウィンドウの発行集中度ベースラインとし、top-1 シェアが 20.6% を超えるクライアントダッシュボードを警告する（今四半期）</p>
+      <p>- <strong>ウォレット / アカウント抽象化インテグレーター へ:</strong> ERC-4337 EntryPoint がここで 251 ログ — アクティブユーザー算定では UserOperation を EOA tx と分けて数える（注視）</p></div>
+      <div lang="en"><p>- <strong>If you are a onchain due-diligence analyst:</strong> decode 0xb84099396f…&#39;s 601-log transaction before trusting any volume rollup — one tx is reshaping the emitter ranking (now)</p>
+      <p>- <strong>If you are a tokenomics consultant:</strong> treat Gini 0.795 as this window&#39;s baseline emitter concentration; flag client dashboards whose top-1 share exceeds 20.6% (this quarter)</p>
+      <p>- <strong>If you are a wallet / account-abstraction integrator:</strong> ERC-4337 EntryPoint shows 251 logs here — count UserOperations separately from EOA transactions when sizing active users (watch)</p></div>
+    </section>
+    <section class="section callout callout-caveat">
+      <h2 lang="ja">注意</h2>
+      <h2 lang="en">Caveats</h2>
+      <div lang="ja"><p>ウィンドウは小さい（21 ブロック ≈ 42秒）。パイプライン実証が目的で、相場解釈ではありません。<code>--from/--to</code> で拡張可能。</p>
+      <p>topic0 デコードは約14シグネチャの手製辞書を使用。未デコードの <strong>35.9%</strong> は 4byte 系の完全レジストリで縮小します。トークンの <code>value</code> は生hex（decimals 未適用）のため、本レポートは transfer の*件数*であって USD 出来高ではありません。</p></div>
+      <div lang="en"><p>Window is small (21 blocks ≈ 42s) — a deliberate proof-of-pipeline, not a substantive market read. Widen by changing <code>--from/--to</code>.</p>
+      <p>topic0 decoding uses a ~14-signature hand-curated dictionary; the <strong>35.9%</strong> undecoded share would shrink against a full 4byte-style registry. Token <code>value</code> is carried as raw hex (no decimals applied), so this report counts transfer *events*, not USD volume.</p></div>
+    </section>
+  </article>
+  <footer class="report-foot">
+    <p lang="ja"><strong>chainq</strong> が、公開RPCでキー不要取得した Base 実ログ上の dbt spellbook ビューから生成。[LIVE-INGEST-PROOF.md](<a href="https://github.com/Jacksstt/chainq/blob/main/docs/LIVE-INGEST-PROOF.md)" target="_blank" rel="noopener">https://github.com/Jacksstt/chainq/blob/main/docs/LIVE-INGEST-PROOF.md)</a> 参照。MIT。</p>
+    <p lang="en">Generated by <strong>chainq</strong> from dbt spellbook views over real Base logs pulled keyless via public RPC. See [LIVE-INGEST-PROOF.md](<a href="https://github.com/Jacksstt/chainq/blob/main/docs/LIVE-INGEST-PROOF.md)." target="_blank" rel="noopener">https://github.com/Jacksstt/chainq/blob/main/docs/LIVE-INGEST-PROOF.md).</a> MIT.</p>
+  </footer>
+</main>
+</body>
+</html>

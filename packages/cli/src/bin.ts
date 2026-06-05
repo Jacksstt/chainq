@@ -9,7 +9,7 @@
  *   doctor                                  Health-check the local install.
  *   tools                                   List MCP tools the server exposes.
  *   metrics                                 List semantic-layer metrics.
- *   pull --chain <id> --from N --to N       Pull a Parquet snapshot.
+ *   pull --chain <id> --from N --to N       Pull a Parquet snapshot (archive or keyless RPC).
  *   ingest backfill                         Multi-range / multi-chain pull.
  *   seed                                    Write sample parquet files.
  *   mcp serve [--stdio]                     Start the MCP server.
@@ -34,7 +34,7 @@ const COMMANDS = [
   ["tools", "List the MCP tools the server exposes."],
   ["metrics", "List semantic-layer metrics from the metrics directory."],
   ["seed", "Write sample parquet files to ./data."],
-  ["pull --chain <id> --from N --to N [--topic0 0x...]", "Pull a Parquet snapshot from a public archive."],
+  ["pull --chain <id> --from N --to N [--source auto|rpc|subsquid] [--rpc <url>]", "Pull a Parquet snapshot (Subsquid archive, keyless public RPC fallback)."],
   ["ingest backfill --plan <plan.json>", "Run multi-range backfill from a JSON plan."],
   ["ingest backfill --chains <list> --from N --to M [--concurrency K]", "Backfill a uniform range across multiple chains."],
   ["watch --chain <id> --from N [--to M] [--max-batches K]", "Stream new blocks from a public Subsquid archive into local Parquet shards."],
@@ -485,26 +485,83 @@ async function runPull(restArgs: string[]): Promise<void> {
   const from = Number(opts["from"]);
   const to = Number(opts["to"]);
   if (!chain || !Number.isFinite(from) || !Number.isFinite(to)) {
-    console.error("usage: chainq pull --chain <id> --from N --to N [--topic0 0x...]");
+    console.error(
+      "usage: chainq pull --chain <id> --from N --to N [--source auto|rpc|subsquid] [--rpc <url>] [--archive <url>] [--address 0x...] [--topic0 0x...]",
+    );
     process.exit(1);
   }
-  const { pull, PUBLIC_ARCHIVES } = await import("@chainq/snapshot");
+  const { pull, pullViaRpc, PUBLIC_ARCHIVES, PUBLIC_RPCS } = await import("@chainq/snapshot");
+  const source = (opts["source"] ?? "auto") as "auto" | "rpc" | "subsquid";
   const archiveUrl = opts["archive"] ?? PUBLIC_ARCHIVES[chain];
-  if (!archiveUrl) {
-    console.error(`No public archive known for chain '${chain}'. Pass --archive <url>.`);
-    process.exit(1);
-  }
+  const rpcUrls = opts["rpc"] ? [opts["rpc"]] : (PUBLIC_RPCS[chain] ?? []);
+  const apiKey = process.env["SQD_API_KEY"];
   const outDir = resolve(process.env.CHAINQ_DATA_DIR ?? "./data");
-  console.error(`[pull] chain=${chain} from=${from} to=${to} archive=${archiveUrl}`);
-  const result = await pull({
-    chain,
-    archiveUrl,
-    fromBlock: from,
-    toBlock: to,
-    outDir,
-    ...(opts["topic0"] ? { logFilter: { topic0: [opts["topic0"]] } } : {}),
-  });
-  console.error(`[pull] wrote ${result.rows} rows to ${result.outputPath}`);
+
+  const logFilter: { address?: string[]; topic0?: string[] } = {
+    ...(opts["address"] ? { address: [opts["address"].toLowerCase()] } : {}),
+    ...(opts["topic0"] ? { topic0: [opts["topic0"]] } : {}),
+  };
+  const hasFilter = logFilter.address != null || logFilter.topic0 != null;
+
+  const viaRpc = async (): Promise<void> => {
+    if (rpcUrls.length === 0) {
+      console.error(`No public RPC known for chain '${chain}'. Pass --rpc <url>.`);
+      process.exit(1);
+    }
+    console.error(`[pull] chain=${chain} from=${from} to=${to} source=rpc endpoints=${rpcUrls.length}`);
+    const result = await pullViaRpc({
+      chain,
+      rpcUrls,
+      fromBlock: from,
+      toBlock: to,
+      outDir,
+      ...(hasFilter ? { logFilter } : {}),
+      onProgress: ({ fromBlock, toBlock, logs }) =>
+        console.error(`[pull]   blocks ${fromBlock}..${toBlock}: ${logs} logs`),
+    });
+    console.error(`[pull] wrote ${result.rows} rows to ${result.outputPath}`);
+  };
+
+  const viaSubsquid = async (): Promise<void> => {
+    if (!archiveUrl) {
+      console.error(`No public archive known for chain '${chain}'. Pass --archive <url> or use --source rpc.`);
+      process.exit(1);
+    }
+    console.error(
+      `[pull] chain=${chain} from=${from} to=${to} source=subsquid archive=${archiveUrl}${apiKey ? " (keyed)" : ""}`,
+    );
+    const result = await pull({
+      chain,
+      archiveUrl,
+      fromBlock: from,
+      toBlock: to,
+      outDir,
+      ...(apiKey ? { apiKey } : {}),
+      ...(hasFilter ? { logFilter } : {}),
+    });
+    console.error(`[pull] wrote ${result.rows} rows to ${result.outputPath}`);
+  };
+
+  if (source === "rpc") return void (await viaRpc());
+  if (source === "subsquid") return void (await viaSubsquid());
+
+  // auto: try Subsquid first (covers every archive chain and uses SQD_API_KEY
+  // if set); if it rejects us for credentials, fall back to a keyless RPC.
+  if (!archiveUrl) return void (await viaRpc());
+  try {
+    await viaSubsquid();
+  } catch (e) {
+    const msg = String(e instanceof Error ? e.message : e);
+    const authFailed = /CREDENTIALS|API key|unauthor|\b401\b|\b403\b/i.test(msg);
+    if (authFailed && rpcUrls.length > 0) {
+      console.error(
+        "[pull] Subsquid archive requires an API key (set SQD_API_KEY to use it). Falling back to keyless public RPC.",
+      );
+      await viaRpc();
+      return;
+    }
+    throw e;
+  }
 }
 
 async function runIngestBackfill(restArgs: string[]): Promise<void> {

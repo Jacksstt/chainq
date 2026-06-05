@@ -29,9 +29,13 @@ WITH known_signatures AS (
     -- Bridge (Across canonical)
     ('0xa123dc29aebf7d0c3322c8eeb5b999e859f39937950ed31056532713d0de396f', 'Across_FundsDeposited', 'FundsDeposited(uint256,uint256,uint256,uint64,uint32,uint32,address,address,address,bytes)', 'bridge'),
     -- L2 system events (Base / OP)
-    ('0x71beda60bbc5bd2af728a82ef676d57e6e2f0d68c5b08bc1bd64ed4f5f1f7a3e', 'L2StandardBridge_DepositFinalized', 'DepositFinalized(...)', 'l2system'),
-    -- ERC-721
-    ('0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925', 'ERC721_Approval', 'Approval(address,address,uint256)',           'erc721')
+    ('0x71beda60bbc5bd2af728a82ef676d57e6e2f0d68c5b08bc1bd64ed4f5f1f7a3e', 'L2StandardBridge_DepositFinalized', 'DepositFinalized(...)', 'l2system')
+    -- NOTE: ERC-721 `Approval(address,address,uint256)` has the *same* keccak
+    -- topic0 as ERC-20 Approval (identical signature string), so the two are
+    -- indistinguishable by topic0 alone. A separate `ERC721_Approval` row was
+    -- removed because each dictionary entry sharing a topic0 LEFT JOINs every
+    -- matching log a second time, fanning one log out to two rows and breaking
+    -- the one-row-per-log invariant of this model. Keep topic0 unique here.
   ) AS sigs(topic0, event_name, signature, domain)
 )
 SELECT
