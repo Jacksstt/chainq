@@ -138,3 +138,62 @@ models:
         tests: [not_null]
       - name: to_addr
         tests: [not_null]
+
+  - name: evm_raw_logs
+    description: Chain-agnostic union of every <chain>.logs.parquet in the data dir.
+    columns:
+      - name: block_number
+        tests: [not_null]
+      - name: chain
+        tests: [not_null]
+      - name: tx_hash
+        tests: [not_null]
+      - name: address
+        tests: [not_null]
+
+  - name: evm_erc20_transfers
+    description: ERC-20 Transfer events decoded from real logs across all chains (topic3 NULL discriminator).
+    columns:
+      - name: token
+        tests: [not_null]
+      - name: from_addr
+        tests: [not_null]
+      - name: to_addr
+        tests: [not_null]
+      - name: chain
+        tests: [not_null]
+
+  - name: evm_erc721_transfers
+    description: ERC-721 Transfer events decoded from real logs (topic3 = tokenId discriminator).
+    columns:
+      - name: collection
+        tests: [not_null]
+      - name: token_id_hex
+        tests: [not_null]
+      - name: chain
+        tests: [not_null]
+
+  - name: evm_dex_trades
+    description: DEX swap events decoded from real logs, labelled via the event_signatures registry.
+    columns:
+      - name: pool
+        tests: [not_null]
+      - name: event_name
+        tests: [not_null]
+      - name: chain
+        tests: [not_null]
+
+seeds:
+  - name: event_signatures
+    description: topic0 → event_name decode registry (single source of truth for all decoders).
+    config:
+      column_types:
+        topic0: VARCHAR
+        event_name: VARCHAR
+        signature: VARCHAR
+        domain: VARCHAR
+    columns:
+      - name: topic0
+        tests: [not_null, unique]
+      - name: event_name
+        tests: [not_null]

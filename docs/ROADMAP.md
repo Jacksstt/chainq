@@ -43,6 +43,14 @@
 - [x] First non-EVM metric set (`solana_transfer_count`, `solana_dex_volume_usd`)
 - [x] Yellowstone gRPC realtime stream — `streamYellowstone` (injectable transport) + `chainq watch --chain solana` writing Parquet shards with slot checkpointing; offline smoke test (`pnpm test:solana`). Real run needs a Triton/Helius gRPC endpoint + the optional `@triton-one/yellowstone-grpc` peer dep.
 
+## v0.4.0 — Curated tables from real logs + decode registry
+
+- [x] `event_signatures` decode registry as a dbt seed (single source of truth; `base_logs_decoded` refactored to JOIN it, topic0 unique)
+- [x] Chain-agnostic `evm_raw_logs` (globs every `*.logs.parquet`, multi-chain by construction)
+- [x] Live-derived curated models over real logs: `evm_erc20_transfers`, `evm_erc721_transfers` (split by the topic3 discriminator — exhaustive: erc20+erc721 == all Transfer logs), `evm_dex_trades` (UniV2/V3 swaps via the registry)
+- [x] dbt seed wired into `pnpm dbt:run`; 27 models / 59 tests PASS; verified on real Base data (UniV2_Swap 526 / UniV3_Swap 434 / 277 ERC-20 tokens / 24 NFT collections)
+- [ ] Full per-DEX uint256 amount decoding (needs a UDF — uint256 > DuckDB HUGEINT) — follow-up
+
 ## v0.5.0 — Scale
 
 - [ ] Iceberg storage format option
