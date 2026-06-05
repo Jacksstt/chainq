@@ -41,7 +41,7 @@
 - [x] Solana ingest skeleton (`@chainq/ingest-solana` — Helius RPC client)
 - [x] Spellbook-style curated Solana tables: `solana.transfers`, `solana.dex.trades`
 - [x] First non-EVM metric set (`solana_transfer_count`, `solana_dex_volume_usd`)
-- [ ] Yellowstone gRPC realtime stream
+- [x] Yellowstone gRPC realtime stream — `streamYellowstone` (injectable transport) + `chainq watch --chain solana` writing Parquet shards with slot checkpointing; offline smoke test (`pnpm test:solana`). Real run needs a Triton/Helius gRPC endpoint + the optional `@triton-one/yellowstone-grpc` peer dep.
 
 ## v0.5.0 — Scale
 

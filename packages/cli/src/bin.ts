@@ -705,6 +705,41 @@ async function runWatchCmd(restArgs: string[]): Promise<void> {
     console.error("usage: chainq watch --chain <id> --from N [--to M] [--max-batches K] [--max-rows N]");
     process.exit(1);
   }
+
+  // Solana goes through the Yellowstone gRPC firehose (slot-based), not the
+  // Subsquid archive. `--from` is a slot here.
+  if (chain === "solana") {
+    const endpoint = process.env["YELLOWSTONE_ENDPOINT"];
+    if (!endpoint) {
+      console.error(
+        "Solana watch needs a Yellowstone gRPC endpoint. Set YELLOWSTONE_ENDPOINT (+ YELLOWSTONE_TOKEN) and install the peer dep:\n" +
+          "  pnpm add @triton-one/yellowstone-grpc",
+      );
+      process.exit(1);
+    }
+    const { createYellowstoneSource } = await import("@chainq/ingest-solana");
+    const { runSolanaWatch } = await import("./watch-solana.js");
+    const source = await createYellowstoneSource({
+      endpoint,
+      ...(process.env["YELLOWSTONE_TOKEN"] ? { token: process.env["YELLOWSTONE_TOKEN"] } : {}),
+    });
+    const slOut = resolve(process.env.CHAINQ_DATA_DIR ?? "./data");
+    const toSlot = opts["to"] ? Number(opts["to"]) : undefined;
+    const slMaxRows = opts["max-rows"] ? Number(opts["max-rows"]) : undefined;
+    const r = await runSolanaWatch({
+      source,
+      outDir: slOut,
+      fromSlot: from,
+      ...(toSlot != null ? { toSlot } : {}),
+      ...(slMaxRows != null ? { maxRowsPerShard: slMaxRows } : {}),
+    });
+    console.error("");
+    console.error(`done. chain=solana slots=${r.slotFrom}..${r.slotTo} batches=${r.batches} rows=${r.rows} elapsed=${r.elapsedSeconds.toFixed(2)}s`);
+    console.error(`checkpoint: ${r.checkpointPath}`);
+    for (const s of r.shardsWritten) console.error(`  shard: ${s}`);
+    return;
+  }
+
   const { PUBLIC_ARCHIVES } = await import("@chainq/snapshot");
   const archiveUrl = opts["archive"] ?? PUBLIC_ARCHIVES[chain];
   if (!archiveUrl) {
