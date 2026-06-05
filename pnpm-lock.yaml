@@ -91,6 +91,12 @@ importers:
       '@chainq/core':
         specifier: workspace:*
         version: link:../core
+      '@chainq/light-client':
+        specifier: workspace:*
+        version: link:../light-client
+      '@chainq/snapshot':
+        specifier: workspace:*
+        version: link:../snapshot
       '@duckdb/node-api':
         specifier: 1.5.2-r.1
         version: 1.5.2-r.1

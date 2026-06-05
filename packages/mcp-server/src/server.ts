@@ -29,6 +29,8 @@ import { findZScoreAnomalies, findIqrAnomalies, describeDistribution } from "./a
 import { scoreReport } from "./report-rubric.js";
 import { BudgetTracker } from "./budget.js";
 import { describe as toolDesc } from "./tool-catalog.js";
+import { createQuorumLightClient, verifyRows } from "@chainq/light-client";
+import { PUBLIC_RPCS } from "@chainq/snapshot";
 
 export interface ServerOptions {
   dataDir: string;
@@ -596,6 +598,51 @@ export async function startServer(transport: Transport, opts: ServerOptions): Pr
       budget.setLimits({});
       budget.clearConsumption();
       return json(budget.status());
+    },
+  );
+
+  // -------- verify -------------------------------------------------------
+  server.tool(
+    "chainq_verify",
+    toolDesc("chainq_verify"),
+    {
+      rows: z
+        .array(z.record(z.string(), z.unknown()))
+        .describe("Result rows to verify. Each must carry a `block_number`."),
+      chain: z.string().optional().describe("Chain key (default 'ethereum'). Picks the default RPC set."),
+      rpcUrls: z
+        .array(z.string())
+        .optional()
+        .describe("Override the public RPC endpoints used for the quorum. Defaults to PUBLIC_RPCS[chain]."),
+      quorum: z
+        .number()
+        .int()
+        .positive()
+        .optional()
+        .describe("Minimum agreeing endpoints. Default: simple majority floor(total/2)+1."),
+    },
+    async ({ rows, chain, rpcUrls, quorum }) => {
+      const chainKey = chain ?? "ethereum";
+      const urls = rpcUrls ?? PUBLIC_RPCS[chainKey];
+      if (!urls || urls.length === 0) {
+        return error(
+          `no RPC endpoints for chain '${chainKey}' — pass rpcUrls explicitly`,
+          "INVALID_INPUT",
+          { chain: chainKey },
+        );
+      }
+      try {
+        const client = createQuorumLightClient({
+          chain: chainKey,
+          rpcUrls: urls,
+          ...(quorum != null ? { quorum } : {}),
+        });
+        const typedRows = rows as Array<{ block_number: number | string }>;
+        const receipt = await verifyRows(typedRows, client);
+        return json(receipt);
+      } catch (err) {
+        return error(`verify failed: ${(err as Error).message}`, "QUERY_FAILED");
+      }
     },
   );
 

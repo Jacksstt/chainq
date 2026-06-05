@@ -43,6 +43,7 @@ async function main() {
     "chainq_recall_by_id",
     "chainq_report",
     "chainq_search_tables",
+    "chainq_verify",
   ];
   for (const name of expected) {
     assert.ok(toolNames.includes(name), `tool ${name} missing`);

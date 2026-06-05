@@ -73,6 +73,15 @@
 - [x] Offline mock-RPC test (`pnpm test:x402`): free/paid/underpayment/failed-tx/replay/persistence
 - [ ] In-server MCP auto-gating + Solana verification — follow-up (mcp-server registers tools individually, no single choke point)
 
+## v0.8.0 — Light client (trust-minimised verification)
+
+- [x] Multi-RPC **quorum** light client — `createQuorumLightClient` fetches each block hash from N independent endpoints and accepts it only on quorum; surfaces disagreements instead of trusting one archive
+- [x] Real content hashing — `canonicalRowsHash` (SHA-256 over canonical, key-sorted JSON)
+- [x] `verifyRows` upgraded — `verified` / `unverifiedBlocks` / `agreements` (e.g. "3/3") on the `VerificationReceipt`
+- [x] `chainq_verify` MCP tool (21 tools total)
+- [x] Offline mock-provider test (`pnpm test:lightclient`): agreement / disagreement / clear-majority / hash determinism
+- [ ] Helios sync-committee consensus proof + per-block (not just boundary) receipt proofs — deeper future level
+
 ## v1.0.0 — Public OSS launch
 
 - [ ] Production-ready stability
