@@ -17,6 +17,9 @@ import { resolve, join } from "node:path";
 // Apache Iceberg READ path: `iceberg_scan(...)` SQL + extension loader.
 export * from "./iceberg.js";
 
+// Pluggable OSS address-label providers + `syncLabels` parquet writer.
+export * from "./labels.js";
+
 import { streamSubsquid, fetchLogsViaRpc } from "@chainq/ingest-evm";
 import type { FetchLogsViaRpcOptions } from "@chainq/ingest-evm";
 

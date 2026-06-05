@@ -11,6 +11,7 @@
  *   metrics                                 List semantic-layer metrics.
  *   pull --chain <id> --from N --to N       Pull a Parquet snapshot (archive or keyless RPC).
  *   ingest backfill                         Multi-range / multi-chain pull.
+ *   labels sync [--out <dir>] [--offline]   Sync OSS address labels to parquet.
  *   seed                                    Write sample parquet files.
  *   mcp serve [--stdio]                     Start the MCP server.
  */
@@ -40,6 +41,7 @@ const COMMANDS = [
   ["ingest backfill --chains <list> --from N --to M [--concurrency K]", "Backfill a uniform range across multiple chains."],
   ["ingest plan --chain <id> --from N --to M --workers K [--out <dir>]", "Split a block range across K workers into plan-<n>.json files."],
   ["ingest merge --shards <a,b,c> --out <file>", "Merge worker Parquet shards into one Parquet file."],
+  ["labels sync [--out <dir>] [--offline]", "Sync OSS address labels (predeploys, tokens, ERC-4337, OFAC SDN) to labels.addresses.parquet."],
   ["watch --chain <id> --from N [--to M] [--max-batches K]", "Stream new blocks from a public Subsquid archive into local Parquet shards."],
   ["install-mcp --client <claude-code|cursor|cline|generic> [--config <path>] [--dry-run]", "Wire chainq's MCP server into a host config (Claude Code etc.)."],
   ["mcp serve [--stdio]", "Start the MCP server (stdio transport)."],
@@ -55,6 +57,7 @@ const KNOWN_TOP_LEVEL = new Set([
   "seed",
   "pull",
   "ingest",
+  "labels",
   "watch",
   "install-mcp",
   "mcp",
@@ -152,6 +155,18 @@ async function main() {
       }
       console.error(`Unknown subcommand: chainq ingest ${sub ?? ""}`);
       console.error("Did you mean:  chainq ingest backfill | plan | merge ...");
+      process.exit(1);
+      return;
+    }
+
+    case "labels": {
+      const sub = rest[0];
+      if (sub === "sync") {
+        await runLabelsSync(rest.slice(1));
+        return;
+      }
+      console.error(`Unknown subcommand: chainq labels ${sub ?? ""}`);
+      console.error("Did you mean:  chainq labels sync [--out <dir>] [--offline]");
       process.exit(1);
       return;
     }
@@ -785,6 +800,26 @@ async function runIngestMerge(restArgs: string[]): Promise<void> {
     return;
   }
   console.error(`done. merged ${result.rows} rows into ${result.outPath}`);
+}
+
+async function runLabelsSync(restArgs: string[]): Promise<void> {
+  const opts = parseFlags(restArgs);
+  const outDir = resolve(opts["out"] ?? process.env.CHAINQ_DATA_DIR ?? "./data");
+  const offline = opts["offline"] === "true";
+
+  // `--offline` is informational: the OFAC provider already falls back to its
+  // bundled fixture on any fetch failure. We surface the flag so the run log
+  // explains why a network source may have been skipped.
+  console.error(`[labels] sync outDir=${outDir}${offline ? " (offline: OFAC fixture fallback if fetch fails)" : ""}`);
+
+  const { syncLabels } = await import("@chainq/snapshot");
+  const result = await syncLabels({ outDir });
+
+  console.error(`[labels] wrote ${result.count} labels to ${result.outputPath}`);
+  console.error("by source:");
+  for (const [source, count] of Object.entries(result.bySource)) {
+    console.error(`  ${source}: ${count}`);
+  }
 }
 
 async function runWatchCmd(restArgs: string[]): Promise<void> {

@@ -58,6 +58,13 @@
 - [x] ClickHouse backend driver — `ClickHouseEngine` implements the HTTP `FORMAT JSON` interface (auth headers, row cap, stats); mock-tested
 - [x] Multi-machine ingest — `chainq ingest plan` (split a range across K workers into plan files) + `chainq ingest merge` (merge worker Parquet shards); `splitRangePlan`/`mergeShards` with offline tests
 
+## v0.6.0 — Pluggable OSS label providers
+
+- [x] `LabelProvider` interface + registry in `@chainq/snapshot`
+- [x] Built-in providers: OP-Stack predeploys, curated major tokens, ERC-4337 EntryPoint, and **OFAC SDN** sanctioned addresses (live community list + offline fixture fallback)
+- [x] `chainq labels sync` → `labels.addresses.parquet`; the `labels_addresses` dbt model + `sanctioned_transfer_exposure` metric now run on real labels (live sync: 93 unique OFAC addresses)
+- [x] Offline fixture test (`pnpm test:labels`)
+
 ## v1.0.0 — Public OSS launch
 
 - [ ] Production-ready stability
