@@ -53,10 +53,10 @@
 
 ## v0.5.0 — Scale
 
-- [ ] Iceberg storage format option
-- [ ] Trino / Starburst backend driver
-- [x] ClickHouse backend driver scaffold (`@chainq/engine-clickhouse`, impl pending)
-- [ ] Multi-machine ingest
+- [x] Iceberg storage format option — DuckDB `iceberg` extension read path: `iceberg_source()` dbt macro + `icebergScanSql()` / `loadIcebergExtension()` in `@chainq/snapshot` (read-only; write/maintenance out of scope)
+- [x] Trino / Starburst backend driver — `TrinoEngine` implements the REST statement/nextUri protocol (mock-tested across pages; gated on a live coordinator for integration)
+- [x] ClickHouse backend driver — `ClickHouseEngine` implements the HTTP `FORMAT JSON` interface (auth headers, row cap, stats); mock-tested
+- [x] Multi-machine ingest — `chainq ingest plan` (split a range across K workers into plan files) + `chainq ingest merge` (merge worker Parquet shards); `splitRangePlan`/`mergeShards` with offline tests
 
 ## v1.0.0 — Public OSS launch
 

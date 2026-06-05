@@ -17,10 +17,11 @@
 
 import { resolve, dirname, join } from "node:path";
 import { spawn } from "node:child_process";
-import { readFileSync, existsSync, readdirSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync, writeFileSync, mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { runInit } from "./init.js";
 import { runBackfill, type BackfillRange } from "./backfill.js";
+import { splitRangePlan, mergeShards } from "./ingest-plan.js";
 import { runWatch } from "./watch.js";
 import { runInstallMcp, defaultConfigPath, type McpClient } from "./install-mcp.js";
 
@@ -37,6 +38,8 @@ const COMMANDS = [
   ["pull --chain <id> --from N --to N [--source auto|rpc|subsquid] [--rpc <url>]", "Pull a Parquet snapshot (Subsquid archive, keyless public RPC fallback)."],
   ["ingest backfill --plan <plan.json>", "Run multi-range backfill from a JSON plan."],
   ["ingest backfill --chains <list> --from N --to M [--concurrency K]", "Backfill a uniform range across multiple chains."],
+  ["ingest plan --chain <id> --from N --to M --workers K [--out <dir>]", "Split a block range across K workers into plan-<n>.json files."],
+  ["ingest merge --shards <a,b,c> --out <file>", "Merge worker Parquet shards into one Parquet file."],
   ["watch --chain <id> --from N [--to M] [--max-batches K]", "Stream new blocks from a public Subsquid archive into local Parquet shards."],
   ["install-mcp --client <claude-code|cursor|cline|generic> [--config <path>] [--dry-run]", "Wire chainq's MCP server into a host config (Claude Code etc.)."],
   ["mcp serve [--stdio]", "Start the MCP server (stdio transport)."],
@@ -134,12 +137,22 @@ async function main() {
       return;
 
     case "ingest": {
-      if (rest[0] !== "backfill") {
-        console.error(`Unknown subcommand: chainq ingest ${rest[0] ?? ""}`);
-        console.error("Did you mean:  chainq ingest backfill ...");
-        process.exit(1);
+      const sub = rest[0];
+      if (sub === "backfill") {
+        await runIngestBackfill(rest.slice(1));
+        return;
       }
-      await runIngestBackfill(rest.slice(1));
+      if (sub === "plan") {
+        await runIngestPlan(rest.slice(1));
+        return;
+      }
+      if (sub === "merge") {
+        await runIngestMerge(rest.slice(1));
+        return;
+      }
+      console.error(`Unknown subcommand: chainq ingest ${sub ?? ""}`);
+      console.error("Did you mean:  chainq ingest backfill | plan | merge ...");
+      process.exit(1);
       return;
     }
 
@@ -695,6 +708,83 @@ async function runIngestBackfill(restArgs: string[]): Promise<void> {
   console.error(`elapsed: ${result.elapsedSeconds.toFixed(2)}s`);
 
   if (result.failed.length > 0) process.exit(1);
+}
+
+async function runIngestPlan(restArgs: string[]): Promise<void> {
+  const opts = parseFlags(restArgs);
+  const chain = opts["chain"];
+  const from = Number(opts["from"]);
+  const to = Number(opts["to"]);
+  const workers = Number(opts["workers"]);
+  if (
+    !chain ||
+    !Number.isFinite(from) ||
+    !Number.isFinite(to) ||
+    !Number.isFinite(workers)
+  ) {
+    console.error(
+      "usage: chainq ingest plan --chain <id> --from N --to M --workers K [--out <dir>]",
+    );
+    process.exit(1);
+  }
+
+  let plans;
+  try {
+    plans = splitRangePlan({ chain: chain!, fromBlock: from, toBlock: to, workers });
+  } catch (err) {
+    console.error(`error: ${err instanceof Error ? err.message : String(err)}`);
+    process.exit(1);
+    return;
+  }
+
+  const outDir = resolve(opts["out"] ?? process.cwd());
+  mkdirSync(outDir, { recursive: true });
+
+  console.error(
+    `[ingest plan] chain=${chain} range=${from}..${to} workers=${plans.length} outDir=${outDir}`,
+  );
+  for (const plan of plans) {
+    const file = join(outDir, `plan-${plan.worker}.json`);
+    writeFileSync(file, JSON.stringify(plan, null, 2) + "\n", "utf8");
+    const span = plan.toBlock - plan.fromBlock + 1;
+    console.error(
+      `  worker ${plan.worker}: blocks ${plan.fromBlock}..${plan.toBlock} (${span}) → ${file}`,
+    );
+  }
+  // Machine-readable view of the full plan on stdout.
+  console.log(JSON.stringify(plans, null, 2));
+}
+
+async function runIngestMerge(restArgs: string[]): Promise<void> {
+  const opts = parseFlags(restArgs);
+  const shardsArg = opts["shards"];
+  const outFile = opts["out"];
+  if (!shardsArg || !outFile) {
+    console.error("usage: chainq ingest merge --shards <a,b,c> --out <file>");
+    process.exit(1);
+  }
+  const shardPaths = shardsArg!
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0)
+    .map((s) => resolve(s));
+  if (shardPaths.length === 0) {
+    console.error("error: --shards is empty");
+    process.exit(1);
+  }
+  const out = resolve(outFile!);
+  mkdirSync(dirname(out), { recursive: true });
+
+  console.error(`[ingest merge] shards=${shardPaths.length} out=${out}`);
+  let result;
+  try {
+    result = await mergeShards(shardPaths, out);
+  } catch (err) {
+    console.error(`error: ${err instanceof Error ? err.message : String(err)}`);
+    process.exit(1);
+    return;
+  }
+  console.error(`done. merged ${result.rows} rows into ${result.outPath}`);
 }
 
 async function runWatchCmd(restArgs: string[]): Promise<void> {

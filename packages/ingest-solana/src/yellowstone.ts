@@ -155,7 +155,11 @@ export interface CreateYellowstoneSourceOptions {
 export async function createYellowstoneSource(opts: CreateYellowstoneSourceOptions): Promise<YellowstoneSource> {
   let mod: unknown;
   try {
-    mod = await import(/* @vite-ignore */ "@triton-one/yellowstone-grpc");
+    // Indirect the specifier through a variable so the type-checker does not
+    // try to resolve this OPTIONAL peer dep at build time (it is intentionally
+    // not installed). Resolution happens at runtime only.
+    const pkg = "@triton-one/yellowstone-grpc";
+    mod = await import(/* @vite-ignore */ pkg);
   } catch {
     throw new Error(
       "Yellowstone gRPC requires the optional peer dependency. Install it:\n" +

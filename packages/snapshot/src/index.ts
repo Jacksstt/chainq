@@ -14,6 +14,9 @@ import { DuckDBInstance } from "@duckdb/node-api";
 import { mkdirSync } from "node:fs";
 import { resolve, join } from "node:path";
 
+// Apache Iceberg READ path: `iceberg_scan(...)` SQL + extension loader.
+export * from "./iceberg.js";
+
 import { streamSubsquid, fetchLogsViaRpc } from "@chainq/ingest-evm";
 import type { FetchLogsViaRpcOptions } from "@chainq/ingest-evm";
 
