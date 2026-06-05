@@ -65,6 +65,14 @@
 - [x] `chainq labels sync` → `labels.addresses.parquet`; the `labels_addresses` dbt model + `sanctioned_transfer_exposure` metric now run on real labels (live sync: 93 unique OFAC addresses)
 - [x] Offline fixture test (`pnpm test:labels`)
 
+## v0.7.0 — x402 real payment verification + hosted gating
+
+- [x] Real on-chain USDC verification on Base — `createBaseUsdcVerifier` reads the tx receipt over keyless RPC, checks status + a USDC `Transfer` to `payTo` ≥ amount (+ optional confirmations), fails closed
+- [x] Persistent replay-proof store — `FileNonceStore` (atomic JSON, prunes expiry) with `consumeTx` for one-tx-one-settlement
+- [x] Reusable `createX402Gate` middleware (the 402 quote → verify → unlock flow); env-gated hosted-mode wiring documented in `packages/x402/README.md` (self-hosted stays free)
+- [x] Offline mock-RPC test (`pnpm test:x402`): free/paid/underpayment/failed-tx/replay/persistence
+- [ ] In-server MCP auto-gating + Solana verification — follow-up (mcp-server registers tools individually, no single choke point)
+
 ## v1.0.0 — Public OSS launch
 
 - [ ] Production-ready stability
