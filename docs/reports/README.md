@@ -19,11 +19,15 @@ Use them as:
 | 5 | [**Base mainnet live snapshot**](./05-base-live.html) (bilingual) | HTML | **real Base data** | `pull`, `query`, `concentration`, `chart_render`, `report` |
 | 6 | [**Filecoin live concentration**](./06-filecoin-live.html) (bilingual) | HTML | **real Filecoin data** | `@chainq/ingest-filecoin fetchRecentDeals`, `concentration`, `bucketize`, `chart_render`, `report` |
 | 7 | [**Multi-chain live snapshot**](./07-multichain-live.html) (bilingual) | HTML | **real data across 8 EVM chains** | 8× parallel `pull`, multi-chain DuckDB analytics, `chart_render`, `report` |
+| 8 | [**Base — dbt-on-real-data snapshot**](./08-base-dbt-real.html) (bilingual) · [MD](./08-base-dbt-real.md) | HTML + MD | **real Base data, via dbt views** (rubric 100/100) | keyless RPC `pull`, `dbt run --select live`, `concentration`, `anomalyCallout`/`comparison`/`actionItem`, `chart_render`, `report`, `score_report` |
 
-Reports 5, 6, and 7 are the live-data exemplars — pulled at build time
-from public archives (Subsquid for EVM chains, Filfox for Filecoin), no
-API keys, no operated RPC. Report 7 specifically demonstrates the
-45-chain breadth: 8 EVM chains hit in parallel from a single script. See
+Reports 5, 6, 7, and 8 are the live-data exemplars — pulled from public
+sources with no API keys (Subsquid for EVM where a key exists, otherwise a
+keyless public RPC; Filfox for Filecoin). Report 7 demonstrates the
+45-chain breadth (8 EVM chains in parallel); **report 8 is the
+dbt-backed exemplar** — every figure is read from a `dbt` spellbook view
+built over real logs, not from the raw Parquet, and it is scored by
+chainq's own writing rubric. See
 [docs/LIVE-INGEST-PROOF.md](../LIVE-INGEST-PROOF.md) for the
 protocol-level evidence runs.
 

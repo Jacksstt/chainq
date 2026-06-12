@@ -18,7 +18,7 @@ export interface ToolDoc {
   /** Description shown to MCP clients and registered on the server. */
   description: string;
   /** Logical grouping for documentation rendering. */
-  group: "discovery" | "execution" | "semantic" | "analytics" | "recall" | "render" | "report" | "budget";
+  group: "discovery" | "execution" | "semantic" | "analytics" | "recall" | "render" | "report" | "budget" | "verify";
 }
 
 export const TOOL_CATALOG: readonly ToolDoc[] = [
@@ -184,6 +184,22 @@ export const TOOL_CATALOG: readonly ToolDoc[] = [
       "`{ en, ja }`. Set `locale: \"en\"` / `\"ja\"` / `\"both\"` — `\"both\"` emits " +
       "a CSS-only language toggle (no JS). Pass `format: \"markdown\"` (or use a " +
       "`.md` filename) for Obsidian-compatible Markdown.",
+  },
+  {
+    name: "chainq_verify",
+    title: "Verify rows",
+    group: "verify",
+    description:
+      "Trust-minimised verification of a result set against the canonical chain. " +
+      "Pass an array of `rows` (each with a `block_number`) and an optional `chain` / `rpcUrls`. " +
+      "Fetches the authoritative block hash for the boundary blocks from MULTIPLE independent " +
+      "public RPC endpoints and accepts each only when a quorum agrees — reducing trust from " +
+      "a single archive/RPC to a majority of providers. Returns a `VerificationReceipt` with " +
+      "`verified`, per-block `agreements` (e.g. \"3/3\"), `unverifiedBlocks`, `blockHashes`, " +
+      "and a deterministic SHA-256 `rowsHash`. NOTE: quorum is not a consensus proof — colluding " +
+      "or shared-upstream providers can still fool it; a Helios-style consensus light client is the " +
+      "deeper future level. Defaults to the keyless `PUBLIC_RPCS` list for the chain when `rpcUrls` " +
+      "is omitted.",
   },
   {
     name: "chainq_budget_set",

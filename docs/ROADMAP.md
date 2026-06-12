@@ -23,7 +23,9 @@
 - [x] 10 semantic metrics
 - [x] `chainq init` + `chainq pull` + `chainq mcp serve` flow works end-to-end
 - [x] `chainq ingest backfill` multi-chain orchestrator
-- [ ] Internal Prime Beat dogfooding on at least one live consulting case
+- [x] Keyless ingest survives Subsquid's 2026 API-key change — `pull` auto-falls-back to public RPC (`eth_getLogs`, adaptive window, endpoint failover); `SQD_API_KEY` re-enables the archive path
+- [x] dbt `live` models build on **real** Base data (run PASS=5 / test PASS=17), not just synthetic seed
+- [x] Internal dogfooding: due-diligence-style snapshot generated end-to-end off the dbt views — [docs/reports/08-base-dbt-real.html](reports/08-base-dbt-real.html) (rubric 100/100). Tying it to a specific named client engagement remains a business step.
 
 ## v0.2.0 — Quality of life
 
@@ -39,14 +41,46 @@
 - [x] Solana ingest skeleton (`@chainq/ingest-solana` — Helius RPC client)
 - [x] Spellbook-style curated Solana tables: `solana.transfers`, `solana.dex.trades`
 - [x] First non-EVM metric set (`solana_transfer_count`, `solana_dex_volume_usd`)
-- [ ] Yellowstone gRPC realtime stream
+- [x] Yellowstone gRPC realtime stream — `streamYellowstone` (injectable transport) + `chainq watch --chain solana` writing Parquet shards with slot checkpointing; offline smoke test (`pnpm test:solana`). Real run needs a Triton/Helius gRPC endpoint + the optional `@triton-one/yellowstone-grpc` peer dep.
+
+## v0.4.0 — Curated tables from real logs + decode registry
+
+- [x] `event_signatures` decode registry as a dbt seed (single source of truth; `base_logs_decoded` refactored to JOIN it, topic0 unique)
+- [x] Chain-agnostic `evm_raw_logs` (globs every `*.logs.parquet`, multi-chain by construction)
+- [x] Live-derived curated models over real logs: `evm_erc20_transfers`, `evm_erc721_transfers` (split by the topic3 discriminator — exhaustive: erc20+erc721 == all Transfer logs), `evm_dex_trades` (UniV2/V3 swaps via the registry)
+- [x] dbt seed wired into `pnpm dbt:run`; 27 models / 59 tests PASS; verified on real Base data (UniV2_Swap 526 / UniV3_Swap 434 / 277 ERC-20 tokens / 24 NFT collections)
+- [ ] Full per-DEX uint256 amount decoding (needs a UDF — uint256 > DuckDB HUGEINT) — follow-up
 
 ## v0.5.0 — Scale
 
-- [ ] Iceberg storage format option
-- [ ] Trino / Starburst backend driver
-- [x] ClickHouse backend driver scaffold (`@chainq/engine-clickhouse`, impl pending)
-- [ ] Multi-machine ingest
+- [x] Iceberg storage format option — DuckDB `iceberg` extension read path: `iceberg_source()` dbt macro + `icebergScanSql()` / `loadIcebergExtension()` in `@chainq/snapshot` (read-only; write/maintenance out of scope)
+- [x] Trino / Starburst backend driver — `TrinoEngine` implements the REST statement/nextUri protocol (mock-tested across pages; gated on a live coordinator for integration)
+- [x] ClickHouse backend driver — `ClickHouseEngine` implements the HTTP `FORMAT JSON` interface (auth headers, row cap, stats); mock-tested
+- [x] Multi-machine ingest — `chainq ingest plan` (split a range across K workers into plan files) + `chainq ingest merge` (merge worker Parquet shards); `splitRangePlan`/`mergeShards` with offline tests
+
+## v0.6.0 — Pluggable OSS label providers
+
+- [x] `LabelProvider` interface + registry in `@chainq/snapshot`
+- [x] Built-in providers: OP-Stack predeploys, curated major tokens, ERC-4337 EntryPoint, and **OFAC SDN** sanctioned addresses (live community list + offline fixture fallback)
+- [x] `chainq labels sync` → `labels.addresses.parquet`; the `labels_addresses` dbt model + `sanctioned_transfer_exposure` metric now run on real labels (live sync: 93 unique OFAC addresses)
+- [x] Offline fixture test (`pnpm test:labels`)
+
+## v0.7.0 — x402 real payment verification + hosted gating
+
+- [x] Real on-chain USDC verification on Base — `createBaseUsdcVerifier` reads the tx receipt over keyless RPC, checks status + a USDC `Transfer` to `payTo` ≥ amount (+ optional confirmations), fails closed
+- [x] Persistent replay-proof store — `FileNonceStore` (atomic JSON, prunes expiry) with `consumeTx` for one-tx-one-settlement
+- [x] Reusable `createX402Gate` middleware (the 402 quote → verify → unlock flow); env-gated hosted-mode wiring documented in `packages/x402/README.md` (self-hosted stays free)
+- [x] Offline mock-RPC test (`pnpm test:x402`): free/paid/underpayment/failed-tx/replay/persistence
+- [ ] In-server MCP auto-gating + Solana verification — follow-up (mcp-server registers tools individually, no single choke point)
+
+## v0.8.0 — Light client (trust-minimised verification)
+
+- [x] Multi-RPC **quorum** light client — `createQuorumLightClient` fetches each block hash from N independent endpoints and accepts it only on quorum; surfaces disagreements instead of trusting one archive
+- [x] Real content hashing — `canonicalRowsHash` (SHA-256 over canonical, key-sorted JSON)
+- [x] `verifyRows` upgraded — `verified` / `unverifiedBlocks` / `agreements` (e.g. "3/3") on the `VerificationReceipt`
+- [x] `chainq_verify` MCP tool (21 tools total)
+- [x] Offline mock-provider test (`pnpm test:lightclient`): agreement / disagreement / clear-majority / hash determinism
+- [ ] Helios sync-committee consensus proof + per-block (not just boundary) receipt proofs — deeper future level
 
 ## v1.0.0 — Public OSS launch
 

@@ -1,0 +1,11 @@
+dom,ev,c
+erc20,Transfer,5079
+(undecoded),(unknown topic0),4507
+erc20,Approval,789
+dex,UniV2_Swap,706
+weth,WethDeposit,687
+dex,UniV3_Swap,580
+weth,WethWithdrawal,190
+dex,UniV2_Mint,14
+bridge,Across_FundsDeposited,5
+dex,UniV2_Burn,2

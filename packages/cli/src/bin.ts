@@ -9,18 +9,20 @@
  *   doctor                                  Health-check the local install.
  *   tools                                   List MCP tools the server exposes.
  *   metrics                                 List semantic-layer metrics.
- *   pull --chain <id> --from N --to N       Pull a Parquet snapshot.
+ *   pull --chain <id> --from N --to N       Pull a Parquet snapshot (archive or keyless RPC).
  *   ingest backfill                         Multi-range / multi-chain pull.
+ *   labels sync [--out <dir>] [--offline]   Sync OSS address labels to parquet.
  *   seed                                    Write sample parquet files.
  *   mcp serve [--stdio]                     Start the MCP server.
  */
 
 import { resolve, dirname, join } from "node:path";
 import { spawn } from "node:child_process";
-import { readFileSync, existsSync, readdirSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync, writeFileSync, mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { runInit } from "./init.js";
 import { runBackfill, type BackfillRange } from "./backfill.js";
+import { splitRangePlan, mergeShards } from "./ingest-plan.js";
 import { runWatch } from "./watch.js";
 import { runInstallMcp, defaultConfigPath, type McpClient } from "./install-mcp.js";
 
@@ -34,9 +36,12 @@ const COMMANDS = [
   ["tools", "List the MCP tools the server exposes."],
   ["metrics", "List semantic-layer metrics from the metrics directory."],
   ["seed", "Write sample parquet files to ./data."],
-  ["pull --chain <id> --from N --to N [--topic0 0x...]", "Pull a Parquet snapshot from a public archive."],
+  ["pull --chain <id> --from N --to N [--source auto|rpc|subsquid] [--rpc <url>]", "Pull a Parquet snapshot (Subsquid archive, keyless public RPC fallback)."],
   ["ingest backfill --plan <plan.json>", "Run multi-range backfill from a JSON plan."],
   ["ingest backfill --chains <list> --from N --to M [--concurrency K]", "Backfill a uniform range across multiple chains."],
+  ["ingest plan --chain <id> --from N --to M --workers K [--out <dir>]", "Split a block range across K workers into plan-<n>.json files."],
+  ["ingest merge --shards <a,b,c> --out <file>", "Merge worker Parquet shards into one Parquet file."],
+  ["labels sync [--out <dir>] [--offline]", "Sync OSS address labels (predeploys, tokens, ERC-4337, OFAC SDN) to labels.addresses.parquet."],
   ["watch --chain <id> --from N [--to M] [--max-batches K]", "Stream new blocks from a public Subsquid archive into local Parquet shards."],
   ["install-mcp --client <claude-code|cursor|cline|generic> [--config <path>] [--dry-run]", "Wire chainq's MCP server into a host config (Claude Code etc.)."],
   ["mcp serve [--stdio]", "Start the MCP server (stdio transport)."],
@@ -52,6 +57,7 @@ const KNOWN_TOP_LEVEL = new Set([
   "seed",
   "pull",
   "ingest",
+  "labels",
   "watch",
   "install-mcp",
   "mcp",
@@ -134,12 +140,34 @@ async function main() {
       return;
 
     case "ingest": {
-      if (rest[0] !== "backfill") {
-        console.error(`Unknown subcommand: chainq ingest ${rest[0] ?? ""}`);
-        console.error("Did you mean:  chainq ingest backfill ...");
-        process.exit(1);
+      const sub = rest[0];
+      if (sub === "backfill") {
+        await runIngestBackfill(rest.slice(1));
+        return;
       }
-      await runIngestBackfill(rest.slice(1));
+      if (sub === "plan") {
+        await runIngestPlan(rest.slice(1));
+        return;
+      }
+      if (sub === "merge") {
+        await runIngestMerge(rest.slice(1));
+        return;
+      }
+      console.error(`Unknown subcommand: chainq ingest ${sub ?? ""}`);
+      console.error("Did you mean:  chainq ingest backfill | plan | merge ...");
+      process.exit(1);
+      return;
+    }
+
+    case "labels": {
+      const sub = rest[0];
+      if (sub === "sync") {
+        await runLabelsSync(rest.slice(1));
+        return;
+      }
+      console.error(`Unknown subcommand: chainq labels ${sub ?? ""}`);
+      console.error("Did you mean:  chainq labels sync [--out <dir>] [--offline]");
+      process.exit(1);
       return;
     }
 
@@ -485,26 +513,83 @@ async function runPull(restArgs: string[]): Promise<void> {
   const from = Number(opts["from"]);
   const to = Number(opts["to"]);
   if (!chain || !Number.isFinite(from) || !Number.isFinite(to)) {
-    console.error("usage: chainq pull --chain <id> --from N --to N [--topic0 0x...]");
+    console.error(
+      "usage: chainq pull --chain <id> --from N --to N [--source auto|rpc|subsquid] [--rpc <url>] [--archive <url>] [--address 0x...] [--topic0 0x...]",
+    );
     process.exit(1);
   }
-  const { pull, PUBLIC_ARCHIVES } = await import("@chainq/snapshot");
+  const { pull, pullViaRpc, PUBLIC_ARCHIVES, PUBLIC_RPCS } = await import("@chainq/snapshot");
+  const source = (opts["source"] ?? "auto") as "auto" | "rpc" | "subsquid";
   const archiveUrl = opts["archive"] ?? PUBLIC_ARCHIVES[chain];
-  if (!archiveUrl) {
-    console.error(`No public archive known for chain '${chain}'. Pass --archive <url>.`);
-    process.exit(1);
-  }
+  const rpcUrls = opts["rpc"] ? [opts["rpc"]] : (PUBLIC_RPCS[chain] ?? []);
+  const apiKey = process.env["SQD_API_KEY"];
   const outDir = resolve(process.env.CHAINQ_DATA_DIR ?? "./data");
-  console.error(`[pull] chain=${chain} from=${from} to=${to} archive=${archiveUrl}`);
-  const result = await pull({
-    chain,
-    archiveUrl,
-    fromBlock: from,
-    toBlock: to,
-    outDir,
-    ...(opts["topic0"] ? { logFilter: { topic0: [opts["topic0"]] } } : {}),
-  });
-  console.error(`[pull] wrote ${result.rows} rows to ${result.outputPath}`);
+
+  const logFilter: { address?: string[]; topic0?: string[] } = {
+    ...(opts["address"] ? { address: [opts["address"].toLowerCase()] } : {}),
+    ...(opts["topic0"] ? { topic0: [opts["topic0"]] } : {}),
+  };
+  const hasFilter = logFilter.address != null || logFilter.topic0 != null;
+
+  const viaRpc = async (): Promise<void> => {
+    if (rpcUrls.length === 0) {
+      console.error(`No public RPC known for chain '${chain}'. Pass --rpc <url>.`);
+      process.exit(1);
+    }
+    console.error(`[pull] chain=${chain} from=${from} to=${to} source=rpc endpoints=${rpcUrls.length}`);
+    const result = await pullViaRpc({
+      chain,
+      rpcUrls,
+      fromBlock: from,
+      toBlock: to,
+      outDir,
+      ...(hasFilter ? { logFilter } : {}),
+      onProgress: ({ fromBlock, toBlock, logs }) =>
+        console.error(`[pull]   blocks ${fromBlock}..${toBlock}: ${logs} logs`),
+    });
+    console.error(`[pull] wrote ${result.rows} rows to ${result.outputPath}`);
+  };
+
+  const viaSubsquid = async (): Promise<void> => {
+    if (!archiveUrl) {
+      console.error(`No public archive known for chain '${chain}'. Pass --archive <url> or use --source rpc.`);
+      process.exit(1);
+    }
+    console.error(
+      `[pull] chain=${chain} from=${from} to=${to} source=subsquid archive=${archiveUrl}${apiKey ? " (keyed)" : ""}`,
+    );
+    const result = await pull({
+      chain,
+      archiveUrl,
+      fromBlock: from,
+      toBlock: to,
+      outDir,
+      ...(apiKey ? { apiKey } : {}),
+      ...(hasFilter ? { logFilter } : {}),
+    });
+    console.error(`[pull] wrote ${result.rows} rows to ${result.outputPath}`);
+  };
+
+  if (source === "rpc") return void (await viaRpc());
+  if (source === "subsquid") return void (await viaSubsquid());
+
+  // auto: try Subsquid first (covers every archive chain and uses SQD_API_KEY
+  // if set); if it rejects us for credentials, fall back to a keyless RPC.
+  if (!archiveUrl) return void (await viaRpc());
+  try {
+    await viaSubsquid();
+  } catch (e) {
+    const msg = String(e instanceof Error ? e.message : e);
+    const authFailed = /CREDENTIALS|API key|unauthor|\b401\b|\b403\b/i.test(msg);
+    if (authFailed && rpcUrls.length > 0) {
+      console.error(
+        "[pull] Subsquid archive requires an API key (set SQD_API_KEY to use it). Falling back to keyless public RPC.",
+      );
+      await viaRpc();
+      return;
+    }
+    throw e;
+  }
 }
 
 async function runIngestBackfill(restArgs: string[]): Promise<void> {
@@ -640,6 +725,103 @@ async function runIngestBackfill(restArgs: string[]): Promise<void> {
   if (result.failed.length > 0) process.exit(1);
 }
 
+async function runIngestPlan(restArgs: string[]): Promise<void> {
+  const opts = parseFlags(restArgs);
+  const chain = opts["chain"];
+  const from = Number(opts["from"]);
+  const to = Number(opts["to"]);
+  const workers = Number(opts["workers"]);
+  if (
+    !chain ||
+    !Number.isFinite(from) ||
+    !Number.isFinite(to) ||
+    !Number.isFinite(workers)
+  ) {
+    console.error(
+      "usage: chainq ingest plan --chain <id> --from N --to M --workers K [--out <dir>]",
+    );
+    process.exit(1);
+  }
+
+  let plans;
+  try {
+    plans = splitRangePlan({ chain: chain!, fromBlock: from, toBlock: to, workers });
+  } catch (err) {
+    console.error(`error: ${err instanceof Error ? err.message : String(err)}`);
+    process.exit(1);
+    return;
+  }
+
+  const outDir = resolve(opts["out"] ?? process.cwd());
+  mkdirSync(outDir, { recursive: true });
+
+  console.error(
+    `[ingest plan] chain=${chain} range=${from}..${to} workers=${plans.length} outDir=${outDir}`,
+  );
+  for (const plan of plans) {
+    const file = join(outDir, `plan-${plan.worker}.json`);
+    writeFileSync(file, JSON.stringify(plan, null, 2) + "\n", "utf8");
+    const span = plan.toBlock - plan.fromBlock + 1;
+    console.error(
+      `  worker ${plan.worker}: blocks ${plan.fromBlock}..${plan.toBlock} (${span}) → ${file}`,
+    );
+  }
+  // Machine-readable view of the full plan on stdout.
+  console.log(JSON.stringify(plans, null, 2));
+}
+
+async function runIngestMerge(restArgs: string[]): Promise<void> {
+  const opts = parseFlags(restArgs);
+  const shardsArg = opts["shards"];
+  const outFile = opts["out"];
+  if (!shardsArg || !outFile) {
+    console.error("usage: chainq ingest merge --shards <a,b,c> --out <file>");
+    process.exit(1);
+  }
+  const shardPaths = shardsArg!
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0)
+    .map((s) => resolve(s));
+  if (shardPaths.length === 0) {
+    console.error("error: --shards is empty");
+    process.exit(1);
+  }
+  const out = resolve(outFile!);
+  mkdirSync(dirname(out), { recursive: true });
+
+  console.error(`[ingest merge] shards=${shardPaths.length} out=${out}`);
+  let result;
+  try {
+    result = await mergeShards(shardPaths, out);
+  } catch (err) {
+    console.error(`error: ${err instanceof Error ? err.message : String(err)}`);
+    process.exit(1);
+    return;
+  }
+  console.error(`done. merged ${result.rows} rows into ${result.outPath}`);
+}
+
+async function runLabelsSync(restArgs: string[]): Promise<void> {
+  const opts = parseFlags(restArgs);
+  const outDir = resolve(opts["out"] ?? process.env.CHAINQ_DATA_DIR ?? "./data");
+  const offline = opts["offline"] === "true";
+
+  // `--offline` is informational: the OFAC provider already falls back to its
+  // bundled fixture on any fetch failure. We surface the flag so the run log
+  // explains why a network source may have been skipped.
+  console.error(`[labels] sync outDir=${outDir}${offline ? " (offline: OFAC fixture fallback if fetch fails)" : ""}`);
+
+  const { syncLabels } = await import("@chainq/snapshot");
+  const result = await syncLabels({ outDir });
+
+  console.error(`[labels] wrote ${result.count} labels to ${result.outputPath}`);
+  console.error("by source:");
+  for (const [source, count] of Object.entries(result.bySource)) {
+    console.error(`  ${source}: ${count}`);
+  }
+}
+
 async function runWatchCmd(restArgs: string[]): Promise<void> {
   const opts = parseFlags(restArgs);
   const chain = opts["chain"];
@@ -648,6 +830,41 @@ async function runWatchCmd(restArgs: string[]): Promise<void> {
     console.error("usage: chainq watch --chain <id> --from N [--to M] [--max-batches K] [--max-rows N]");
     process.exit(1);
   }
+
+  // Solana goes through the Yellowstone gRPC firehose (slot-based), not the
+  // Subsquid archive. `--from` is a slot here.
+  if (chain === "solana") {
+    const endpoint = process.env["YELLOWSTONE_ENDPOINT"];
+    if (!endpoint) {
+      console.error(
+        "Solana watch needs a Yellowstone gRPC endpoint. Set YELLOWSTONE_ENDPOINT (+ YELLOWSTONE_TOKEN) and install the peer dep:\n" +
+          "  pnpm add @triton-one/yellowstone-grpc",
+      );
+      process.exit(1);
+    }
+    const { createYellowstoneSource } = await import("@chainq/ingest-solana");
+    const { runSolanaWatch } = await import("./watch-solana.js");
+    const source = await createYellowstoneSource({
+      endpoint,
+      ...(process.env["YELLOWSTONE_TOKEN"] ? { token: process.env["YELLOWSTONE_TOKEN"] } : {}),
+    });
+    const slOut = resolve(process.env.CHAINQ_DATA_DIR ?? "./data");
+    const toSlot = opts["to"] ? Number(opts["to"]) : undefined;
+    const slMaxRows = opts["max-rows"] ? Number(opts["max-rows"]) : undefined;
+    const r = await runSolanaWatch({
+      source,
+      outDir: slOut,
+      fromSlot: from,
+      ...(toSlot != null ? { toSlot } : {}),
+      ...(slMaxRows != null ? { maxRowsPerShard: slMaxRows } : {}),
+    });
+    console.error("");
+    console.error(`done. chain=solana slots=${r.slotFrom}..${r.slotTo} batches=${r.batches} rows=${r.rows} elapsed=${r.elapsedSeconds.toFixed(2)}s`);
+    console.error(`checkpoint: ${r.checkpointPath}`);
+    for (const s of r.shardsWritten) console.error(`  shard: ${s}`);
+    return;
+  }
+
   const { PUBLIC_ARCHIVES } = await import("@chainq/snapshot");
   const archiveUrl = opts["archive"] ?? PUBLIC_ARCHIVES[chain];
   if (!archiveUrl) {

@@ -24,4 +24,5 @@ export CHAINQ_DATA_DIR="${REPO_ROOT}/data"
 export CHAINQ_CACHE_DB="${REPO_ROOT}/data/chainq-dbt.duckdb"
 
 dbt deps  >/dev/null 2>&1 || true
+dbt seed --quiet          # load the event_signatures decode registry
 dbt run "$@"

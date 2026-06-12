@@ -14,7 +14,14 @@ import { DuckDBInstance } from "@duckdb/node-api";
 import { mkdirSync } from "node:fs";
 import { resolve, join } from "node:path";
 
-import { streamSubsquid } from "@chainq/ingest-evm";
+// Apache Iceberg READ path: `iceberg_scan(...)` SQL + extension loader.
+export * from "./iceberg.js";
+
+// Pluggable OSS address-label providers + `syncLabels` parquet writer.
+export * from "./labels.js";
+
+import { streamSubsquid, fetchLogsViaRpc } from "@chainq/ingest-evm";
+import type { FetchLogsViaRpcOptions } from "@chainq/ingest-evm";
 
 export interface PullOptions {
   /** Which chain we are pulling for — used for the output filename. */
@@ -33,6 +40,8 @@ export interface PullOptions {
   maxBatches?: number;
   /** Filter for logs. */
   logFilter?: { address?: string[]; topic0?: string[] };
+  /** Subsquid portal API key (the v2 archive requires one since 2026). */
+  apiKey?: string;
 }
 
 export interface PullResult {
@@ -59,6 +68,7 @@ export async function pull(opts: PullOptions): Promise<PullResult> {
     fromBlock: opts.fromBlock,
     toBlock: opts.toBlock,
     request: { logs: [opts.logFilter ?? {}] },
+    ...(opts.apiKey ? { apiKey: opts.apiKey } : {}),
   })) {
     for (const log of batch.logs ?? []) {
       rows.push({
@@ -79,7 +89,23 @@ export async function pull(opts: PullOptions): Promise<PullResult> {
     if (opts.maxBatches && rows.length / 1000 >= opts.maxBatches) break;
   }
 
-  // Write via DuckDB COPY for compactness.
+  await writeLogsParquet(rows, outputPath);
+
+  return {
+    chain: opts.chain,
+    outputPath,
+    rows: rows.length,
+    fromBlock: opts.fromBlock,
+    toBlock: seenTo,
+  };
+}
+
+/**
+ * Write a batch of normalised log rows to a zstd Parquet file. Shared by the
+ * Subsquid (`pull`) and public-RPC (`pullViaRpc`) paths so both emit byte-for-
+ * byte the same schema — exactly what `spellbook/models/live/*` expects.
+ */
+async function writeLogsParquet(rows: LogRow[], outputPath: string): Promise<void> {
   const instance = await DuckDBInstance.create(":memory:");
   const conn = await instance.connect();
   await conn.run(`
@@ -97,6 +123,9 @@ export async function pull(opts: PullOptions): Promise<PullResult> {
       data         VARCHAR
     )
   `);
+  // One transaction around the inserts: thousands of single-row INSERTs are
+  // otherwise auto-committed individually and crawl.
+  await conn.run("BEGIN TRANSACTION");
   for (const r of rows) {
     await conn.run(
       `INSERT INTO logs VALUES (?, CAST(? AS TIMESTAMP), ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -115,16 +144,9 @@ export async function pull(opts: PullOptions): Promise<PullResult> {
       ],
     );
   }
+  await conn.run("COMMIT");
   await conn.run(`COPY logs TO '${outputPath}' (FORMAT 'parquet', COMPRESSION 'zstd')`);
   conn.disconnectSync();
-
-  return {
-    chain: opts.chain,
-    outputPath,
-    rows: rows.length,
-    fromBlock: opts.fromBlock,
-    toBlock: seenTo,
-  };
 }
 
 /**
@@ -192,6 +214,101 @@ export const PUBLIC_ARCHIVES: Record<string, string> = {
   okx:               "https://v2.archive.subsquid.io/network/xlayer-mainnet",
   hyperliquid:       "https://v2.archive.subsquid.io/network/hyperliquid-mainnet",
 };
+
+/**
+ * Keyless public JSON-RPC endpoints, the fallback for when the Subsquid
+ * archive demands an API key. Every endpoint here serves `eth_getLogs`
+ * without authentication; `pullViaRpc` sizes its block window to whatever
+ * each one tolerates. Multiple entries per chain provide failover. Only
+ * `base` is regression-tested; the rest follow the publicnode / drpc naming
+ * conventions and are overridable with `--rpc`.
+ */
+export const PUBLIC_RPCS: Record<string, string[]> = {
+  ethereum:  ["https://ethereum-rpc.publicnode.com", "https://eth.drpc.org"],
+  base:      ["https://base-rpc.publicnode.com", "https://mainnet.base.org", "https://base.drpc.org"],
+  arbitrum:  ["https://arbitrum-one-rpc.publicnode.com", "https://arbitrum.drpc.org"],
+  optimism:  ["https://optimism-rpc.publicnode.com", "https://optimism.drpc.org"],
+  polygon:   ["https://polygon-bor-rpc.publicnode.com", "https://polygon.drpc.org"],
+  bnb:       ["https://bsc-rpc.publicnode.com", "https://bsc.drpc.org"],
+  avalanche: ["https://avalanche-c-chain-rpc.publicnode.com", "https://avalanche.drpc.org"],
+  gnosis:    ["https://gnosis-rpc.publicnode.com", "https://gnosis.drpc.org"],
+  celo:      ["https://celo-rpc.publicnode.com", "https://celo.drpc.org"],
+  linea:     ["https://linea-rpc.publicnode.com", "https://linea.drpc.org"],
+  scroll:    ["https://scroll-rpc.publicnode.com", "https://scroll.drpc.org"],
+  blast:     ["https://blast-rpc.publicnode.com", "https://blast.drpc.org"],
+  mantle:    ["https://mantle-rpc.publicnode.com", "https://mantle.drpc.org"],
+  unichain:  ["https://unichain-rpc.publicnode.com", "https://unichain.drpc.org"],
+};
+
+export interface PullViaRpcOptions {
+  /** Which chain we are pulling for — used for the output filename. */
+  chain: string;
+  /** Failover list of keyless JSON-RPC endpoints. */
+  rpcUrls: string[];
+  /** Inclusive starting block. */
+  fromBlock: number;
+  /** Inclusive ending block. */
+  toBlock: number;
+  /** Directory to write Parquet to (default ./data). */
+  outDir?: string;
+  /** Filter for logs (an address lets endpoints serve wider block windows). */
+  logFilter?: { address?: string[]; topic0?: string[] };
+  /** Safety cap on total logs collected. */
+  maxLogs?: number;
+  /** Injectable fetch (testing). */
+  fetch?: typeof globalThis.fetch;
+  /** Per-window progress callback. */
+  onProgress?: FetchLogsViaRpcOptions["onProgress"];
+}
+
+/**
+ * Pull logs into a Parquet snapshot over keyless public JSON-RPC. Produces
+ * the identical schema to {@link pull} (the Subsquid path), so the spellbook
+ * live models build against either source unchanged.
+ */
+export async function pullViaRpc(opts: PullViaRpcOptions): Promise<PullResult> {
+  const outDir = resolve(opts.outDir ?? "./data");
+  mkdirSync(outDir, { recursive: true });
+  const outputPath = join(outDir, `${opts.chain}.logs.parquet`);
+
+  const logs = await fetchLogsViaRpc({
+    rpcUrls: opts.rpcUrls,
+    fromBlock: opts.fromBlock,
+    toBlock: opts.toBlock,
+    ...(opts.logFilter?.address ? { address: opts.logFilter.address } : {}),
+    ...(opts.logFilter?.topic0 ? { topic0: opts.logFilter.topic0 } : {}),
+    ...(opts.fetch ? { fetch: opts.fetch } : {}),
+    ...(opts.maxLogs ? { maxLogs: opts.maxLogs } : {}),
+    ...(opts.onProgress ? { onProgress: opts.onProgress } : {}),
+  });
+
+  const rows: LogRow[] = logs.map((l) => ({
+    block_number: l.blockNumber,
+    block_time: new Date(l.blockTime * 1000).toISOString(),
+    chain: opts.chain,
+    tx_hash: l.transactionHash,
+    log_index: l.logIndex,
+    address: l.address,
+    topic0: l.topics[0],
+    topic1: l.topics[1],
+    topic2: l.topics[2],
+    topic3: l.topics[3],
+    data: l.data,
+  }));
+
+  await writeLogsParquet(rows, outputPath);
+
+  let seenTo = opts.fromBlock;
+  for (const r of rows) seenTo = Math.max(seenTo, r.block_number);
+
+  return {
+    chain: opts.chain,
+    outputPath,
+    rows: rows.length,
+    fromBlock: opts.fromBlock,
+    toBlock: rows.length > 0 ? seenTo : opts.toBlock,
+  };
+}
 
 interface LogRow {
   block_number: number;

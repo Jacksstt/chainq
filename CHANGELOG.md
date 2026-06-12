@@ -7,7 +7,36 @@ Pre-`v0.1.0` is breaking by default; we only call out highlights.
 
 ## [Unreleased]
 
-### Changed (this push — UI/UX polish to v1-ready surface)
+### Added (this push — keyless ingest + dbt on real data, v0.1.0 closeout)
+
+- **Keyless public-RPC ingest** (`packages/ingest-evm/src/rpc-logs.ts` —
+  `fetchLogsViaRpc`). Subsquid's v2 archive now requires an API key
+  (`portal.sqd.dev`), which broke the keyless `chainq pull`. `pull` now
+  resolves a source automatically: Subsquid first (set `SQD_API_KEY` to use
+  it — sent as a Bearer token by `streamSubsquid`), falling back on a 403 to
+  a keyless public RPC via `eth_getLogs`. The RPC path adaptively halves the
+  block window when an endpoint rejects a wide range, resolves timestamps via
+  `eth_getBlockByNumber`, and fails over across endpoints. New CLI flags:
+  `--source auto|rpc|subsquid`, `--rpc <url>`, `--address <0x…>`. New exports
+  from `@chainq/snapshot`: `pullViaRpc`, `PUBLIC_RPCS`.
+- **dbt against real data**: the five `live` spellbook models build over a
+  real-pulled `base.logs.parquet` (`dbt run --select live` PASS=5,
+  `dbt test --select live` PASS=17). Evidence + reproduction in
+  [docs/LIVE-INGEST-PROOF.md](docs/LIVE-INGEST-PROOF.md).
+- **New gallery report** `docs/reports/08-base-dbt-real.{html,md}` +
+  `scripts/live-base-dbt-demo.ts` — generated entirely from the dbt views
+  over real Base data, scored 100/100 by the writing rubric.
+
+### Fixed
+
+- **`base_logs_decoded` fan-out**: ERC-721 `Approval` shares an identical
+  keccak `topic0` with ERC-20 `Approval`; both dictionary rows LEFT JOINed
+  each Approval log, doubling those rows. Removed the duplicate entry so the
+  model is strictly one-row-per-log. (Surfaced by real-data dogfooding.)
+- **Snapshot Parquet writes** are now wrapped in a single transaction
+  (`writeLogsParquet`), shared by the Subsquid and RPC paths.
+
+### Changed (prior push — UI/UX polish to v1-ready surface)
 
 - **CLI** gained `doctor`, `tools`, `metrics`, and `version` commands.
   `chainq tools` and `chainq metrics` accept `--verbose` for full

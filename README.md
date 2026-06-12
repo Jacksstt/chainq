@@ -91,14 +91,15 @@ What's **proven working** (in CI / smoke tests / dbt run / live mainnet):
 - **11 curated catalog tables**: `base.logs`, `dex.trades`, `erc20.transfers`, `prices.usd`, `labels.addresses`, `filecoin.deals`, `solana.transfers`, `solana.dex.trades`, `nft.trades`, `lending.events`, `bridge.transfers`
 - **21 semantic-layer metrics**, including cross-table joins (DEX × prices, ERC-20 × labels, sanctioned exposure) and a live-data metric (`base_logs_hourly`)
 - **dbt-duckdb spellbook: 23 working models, 42 dbt tests** — schema constraints (`not_null`, `accepted_values`) enforced at build time, plus a topic0 decoder (raw logs → ERC-20 Transfer events) that closes the loop on live data
-- **Live Base mainnet ingest**: `chainq pull --chain base --from 24000000 --to 24000010` against the public Subsquid archive returned **6,534 logs across 11 blocks** with the expected 2-second cadence and `WETH (0x4200…0006)` + `USDC (0x833589fc…02913)` as the top emitters — full evidence at [docs/LIVE-INGEST-PROOF.md](docs/LIVE-INGEST-PROOF.md)
+- **Live Base mainnet ingest (keyless)**: `chainq pull --chain base --from 24000000 --to 24000020 --source rpc` over a public RPC returned **12,559 logs across 21 blocks** — `WETH (0x4200…0006)`, `USDC (0x833589fc…)` and the `ERC-4337 EntryPoint` as top emitters. (Subsquid's v2 archive now requires an API key, so `pull` auto-falls-back to a keyless public RPC; the original Subsquid run is preserved in the proof doc.) Full evidence at [docs/LIVE-INGEST-PROOF.md](docs/LIVE-INGEST-PROOF.md)
+- **dbt against real data**: the five `live` spellbook models build over the real-pulled `base.logs.parquet` — `dbt run --select live` PASS=5, `dbt test --select live` PASS=17 — and a bilingual report is generated **straight off those views** (rubric 100/100): [docs/reports/08-base-dbt-real.html](docs/reports/08-base-dbt-real.html)
 - **Bilingual single-file HTML reports** (JA / EN / both with CSS toggle, no JS), brand customisation, interactive vega-embed charts, CSV download chips
 - **Per-session cost governor** (`chainq_budget_set/status/clear`) with structured `BUDGET_EXCEEDED` errors and BM25-ranked `chainq_recall`
 - **Benchmark suite** ([BENCHMARKS.md](docs/BENCHMARKS.md)) — P95 0.5 ms - 27 ms across 10 representative queries on a 103.6 MiB dataset
 
 What's **still pending**:
 
-- **dbt against real data**: the 18 spellbook models read seeded synthetic Parquet by default. Pointing them at the live-pulled `base.logs.parquet` is the next milestone (the engine and metric YAMLs already accept it; only the spellbook source mapping needs the swap).
+- **dbt against real data for the *curated* tables**: the `live` models (raw logs → decoded → ERC-20 transfers → hourly → top-emitters) now run on real Base data. The non-live curated tables (`dex.trades`, `nft.trades`, …) still read seeded synthetic Parquet — wiring them to decoded live logs (the Spellbook decoder pattern, already demonstrated by `base_erc20_transfers_derived`) is the next milestone.
 - **Operational reliability**: no 90-day uptime trace yet; reorg-safe head-following is unimplemented (the live archive serves finalised blocks, so the current path is bounded but not stress-tested).
 - **Real Whuffie / Agentic Finance dogfooding**: pending Phase 2 of [docs/ROADMAP.md](docs/ROADMAP.md).
 
@@ -145,17 +146,28 @@ Then in Claude Code:
 The agent will call `chainq_list_tables`, `chainq_describe`, `chainq_estimate_cost`,
 and `chainq_query` in sequence and stream results back.
 
-### The RPC-free path
+### The subscription-free path
 
 If you don't want to pay for an Alchemy / Infura subscription, pull a Parquet
-snapshot from a public Subsquid archive instead:
+snapshot from a public source — no node, no paid key, no monthly bill:
 
 ```bash
-chainq pull --chain base --from 18000000 --to 18001000
+chainq pull --chain base --from 24000000 --to 24000020
 # → writes data/base.logs.parquet
 ```
 
-No node, no RPC key, no monthly bill. See
+`pull` resolves a source automatically:
+
+- **Subsquid v2 archive** first (fastest, all 45 chains). Since 2026 it
+  requires an API key — set `SQD_API_KEY` (from [portal.sqd.dev](https://portal.sqd.dev))
+  and it is used transparently.
+- **Keyless public RPC** as the fallback. With no key, `pull` drops to a
+  public RPC (publicnode / drpc / the official chain RPC) and pulls via
+  `eth_getLogs`, adaptively sizing the block window to each endpoint's
+  limits. Force it with `--source rpc`, or point at your own with
+  `--rpc <url>`.
+
+So the keyless path still works out of the box. See
 [`packages/snapshot`](packages/snapshot) and
 [`docker/`](docker) for the full self-hosted stack.
 

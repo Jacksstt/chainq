@@ -1,4 +1,5 @@
 export * from "./realtime.js";
+export * from "./rpc-logs.js";
 
 /**
  * @chainq/ingest-evm — EVM data ingestion via cryo.

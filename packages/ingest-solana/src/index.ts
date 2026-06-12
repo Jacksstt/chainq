@@ -9,8 +9,10 @@
  *   - /v0/addresses/.../transactions  (Helius enriched format with parsed
  *     SPL token transfers)
  *
- * Realtime via the Yellowstone gRPC firehose is a v0.3.0 target.
+ * Realtime via the Yellowstone gRPC firehose lands here (see ./yellowstone.ts).
  */
+
+export * from "./yellowstone.js";
 
 export interface SolanaTxRow {
   signature: string;

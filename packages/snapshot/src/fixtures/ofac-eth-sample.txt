@@ -1,0 +1,12 @@
+# OFAC SDN sample fixture (offline fallback)
+# A small set of long-public, OFAC-sanctioned Ethereum addresses (Tornado Cash
+# router/pool/relayer contracts, sanctioned 2022-08). Used only when the live
+# 0xB10C list is unreachable so syncLabels still emits real `sanctioned` rows.
+0x8589427373d6d84e98730d7795d8f6f8731fda16
+0x722122df12d4e14e13ac3b6895a86e84145b6967
+0xdd4c48c0b24039969fc16d1cdf626eab821d3384
+0xd90e2f925da726b50c4ed8d0fb90ad053324f31b
+0x910cbd523d972eb0a6f4cae4618ad62622b39dbf
+0xa160cdab225685da1d56aa342ad8841c3b53f291
+0xd96f2b1c14db8458374d9aca76e26c3d18364307
+0x4736dcf1b7a3d580672cce6e7c65cd5cc9cfba9d

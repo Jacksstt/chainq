@@ -17,6 +17,7 @@
   "dependencies": {
     "@chainq/core": "workspace:*",
     "@chainq/ingest-evm": "workspace:*",
+    "@chainq/ingest-solana": "workspace:*",
     "@chainq/mcp-server": "workspace:*",
     "@chainq/snapshot": "workspace:*",
     "@duckdb/node-api": "1.5.2-r.1",

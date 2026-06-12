@@ -183,3 +183,10 @@ const defaultStubVerifier: PaymentVerifier = async (_receipt, _expected) => {
     "no PaymentVerifier configured — pass one in GateOptions that confirms the on-chain transfer.",
   );
 };
+
+// v0.7.0 — production-real surface: Base USDC verifier, persistent replay-proof
+// store, and the named hosted-mode middleware. Appended so existing exports
+// above are untouched.
+export * from "./verify-base.js";
+export * from "./persistent-store.js";
+export * from "./middleware.js";

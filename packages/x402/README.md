@@ -48,9 +48,73 @@ try {
 | `chainq_report` | $0.005 |
 
 See [`RESEARCH.md`](RESEARCH.md) for the design and the migration plan to a
-real Base / Solana verifier in v0.2.0.
+real Base / Solana verifier.
+
+## Real Base USDC verification (v0.7.0)
+
+`createBaseUsdcVerifier` proves a payment by reading the transaction receipt
+over keyless public JSON-RPC and matching an ERC-20 `Transfer` log emitted by
+the canonical Base USDC contract:
+
+```ts
+import {
+  createX402Gate,
+  createBaseUsdcVerifier,
+  FileNonceStore,
+  DEFAULT_PRICING,
+  PaymentRequired,
+} from "@chainq/x402";
+import { PUBLIC_RPCS } from "@chainq/snapshot";
+
+const gate = createX402Gate({
+  pricing: { payTo: { base: process.env.CHAINQ_X402_PAYTO_BASE! }, prices: DEFAULT_PRICING.prices },
+  verify: createBaseUsdcVerifier({ rpcUrls: PUBLIC_RPCS.base, minConfirmations: 1 }),
+  nonceStore: new FileNonceStore("./.chainq/x402-nonces.json"), // survives restarts
+});
+
+try {
+  await gate.guard("chainq_query", incomingReceipt);   // free tools: receipt optional
+  // …run the tool
+} catch (err) {
+  if (err instanceof PaymentRequired) return reply402(err.quote);
+  throw err;
+}
+```
+
+The verifier fails closed (any RPC error / missing matching log → `false`).
+It checks: tx exists and `status == 0x1`, a USDC `Transfer` to the quoted
+`payTo` for at least the quoted amount, and (optionally) confirmation depth.
+
+### Replay & one-tx-one-settlement
+
+`FileNonceStore` persists `seen` / `used` nonces and `usedTx` hashes to a JSON
+file (atomic tmp + rename), so a restarted endpoint still rejects a settled
+nonce. Because a plain ERC-20 transfer carries no memo, the server-issued
+nonce can't be bound on-chain — `consumeTx(txHash)` closes that gap: one real
+transfer settles exactly once even if referenced by multiple nonces.
+
+## Wiring into the MCP server (hosted mode)
+
+The chainq MCP server (`@chainq/mcp-server`) registers each tool individually
+through the MCP SDK's `server.tool(...)`, so there is no single dispatch
+choke point to drop a gate into without touching every paid tool's schema and
+handler. Rather than force a high-risk edit, the gate is exposed here as the
+public surface. A hosted operator wraps each paid tool's handler:
+
+```ts
+// hosted-mode handler wrapper (env-gated; self-hosted stays free)
+const x402Enabled = process.env.CHAINQ_X402_ENABLED === "1" && !!process.env.CHAINQ_X402_PAYTO_BASE;
+async function withGate(tool: string, args: { _payment?: PaymentReceipt }, run: () => Promise<R>) {
+  if (!x402Enabled) return run();                       // local / self-hosted: free
+  try { await gate.guard(tool, args._payment); }        // verify on-chain
+  catch (e) { if (e instanceof PaymentRequired) return reply402(e.quote); throw e; }
+  return run();
+}
+```
 
 ## Status
 
-Pre-alpha. The gate logic works (quote, nonce, replay prevention). The
-default verifier is a stub — wire a real one before billing anyone.
+Beta. Gate logic (quote, nonce, replay prevention), a real Base USDC verifier,
+and a persistent replay-proof store all work and are smoke-tested offline
+(`pnpm test:x402`). Solana verification and the HTTP MCP transport remain
+future work.

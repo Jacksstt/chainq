@@ -191,7 +191,7 @@ export async function runWatch(opts: WatchOptions): Promise<WatchSummary> {
   };
 }
 
-async function appendParquet(
+export async function appendParquet(
   conn: DuckDBConnection,
   outPath: string,
   rows: Array<Record<string, unknown>>,
