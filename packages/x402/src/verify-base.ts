@@ -14,8 +14,10 @@
  *
  * Caveat: on-chain there is no place to bind the server-issued nonce to the
  * transfer (a plain ERC-20 `transfer` carries no memo), so a single tx could
- * in principle be replayed against multiple nonces. That gap is closed at the
- * store layer by {@link FileNonceStore.consumeTx} (one tx settles once).
+ * in principle be replayed against multiple nonces. That gap is closed in
+ * `Gate.settle`, which calls `NonceStore.consumeTx(txHash)` after this
+ * verifier succeeds and rejects when the hash already settled a call (one tx
+ * settles once — persisted across restarts by {@link FileNonceStore}).
  */
 
 import type { PaymentVerifier, PaymentReceipt, PaymentQuote } from "./index.js";

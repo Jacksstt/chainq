@@ -82,6 +82,16 @@ export type PaymentVerifier = (receipt: PaymentReceipt, expected: PaymentQuote) 
 export interface NonceStore {
   consume(nonce: string): boolean;
   remember(nonce: string, expiresAt: number): void;
+  /**
+   * Dedupe by settlement transaction hash: returns true the first time a tx
+   * hash is seen (and records it), false when it already settled a call.
+   * `Gate.settle` invokes this after on-chain verification succeeds, so one
+   * real payment settles exactly once even though a plain ERC-20 transfer
+   * carries no memo to bind it to the server-issued nonce. Optional for
+   * backwards compatibility with custom stores; when absent, the gate skips
+   * the tx-hash dedupe and relies on nonce replay-protection alone.
+   */
+  consumeTx?(txHash: string): boolean;
 }
 
 export class Gate {
@@ -124,8 +134,9 @@ export class Gate {
 
   /**
    * Settle a tool invocation. If the tool is free, returns immediately. If
-   * it is paid, verifies the receipt matches an outstanding quote and that
-   * the nonce has not been used.
+   * it is paid, verifies the receipt matches an outstanding quote, that the
+   * nonce has not been used, and that the settlement tx has not already
+   * settled another call (one on-chain payment redeems exactly once).
    */
   async settle(tool: string, receipt?: PaymentReceipt): Promise<void> {
     const price = this.priceOf(tool);
@@ -141,6 +152,13 @@ export class Gate {
 
     const ok = await this.verify(receipt, expected);
     if (!ok) throw new Error(`payment verification failed`);
+
+    // Tx-hash dedupe runs only AFTER verification succeeds, so a transient
+    // RPC failure does not burn the tx for a later retry. A `false` here
+    // means this on-chain payment already settled a different nonce — reject.
+    if (this.nonces.consumeTx?.(receipt.txHash) === false) {
+      throw new Error(`transaction already settled — one payment redeems exactly once`);
+    }
     this.pending.delete(receipt.nonce);
   }
 }
@@ -157,6 +175,7 @@ export class PaymentRequired extends Error {
 class InMemoryNonceStore implements NonceStore {
   private readonly used = new Set<string>();
   private readonly seen = new Map<string, number>();
+  private readonly usedTx = new Set<string>();
   remember(nonce: string, expiresAt: number): void {
     this.seen.set(nonce, expiresAt);
   }
@@ -164,6 +183,12 @@ class InMemoryNonceStore implements NonceStore {
     if (this.used.has(nonce)) return false;
     if (!this.seen.has(nonce)) return false;
     this.used.add(nonce);
+    return true;
+  }
+  consumeTx(txHash: string): boolean {
+    const key = txHash.toLowerCase();
+    if (this.usedTx.has(key)) return false;
+    this.usedTx.add(key);
     return true;
   }
 }
