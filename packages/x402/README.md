@@ -92,6 +92,10 @@ file (atomic tmp + rename), so a restarted endpoint still rejects a settled
 nonce. Because a plain ERC-20 transfer carries no memo, the server-issued
 nonce can't be bound on-chain — `consumeTx(txHash)` closes that gap: one real
 transfer settles exactly once even if referenced by multiple nonces.
+`Gate.settle` calls it automatically after on-chain verification succeeds and
+rejects the call when the tx hash already settled one, so operators get the
+dedupe without extra wiring (stores lacking `consumeTx` fall back to nonce
+replay-protection alone).
 
 ## Wiring into the MCP server (hosted mode)
 

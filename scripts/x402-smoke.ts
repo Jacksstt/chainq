@@ -9,6 +9,10 @@
  *  - paid tool (chainq_query) without a receipt throws PaymentRequired + quote
  *  - paid tool with a VALID receipt (matching nonce + canned tx) settles
  *  - replay of the same nonce throws
+ *  - replay of the same TX HASH against a fresh nonce throws (one payment
+ *    settles exactly once), case-insensitively, and persists across
+ *    FileNonceStore restarts
+ *  - a store WITHOUT consumeTx (backwards compat) still settles
  *  - an UNDERPAYMENT mock (value < amount) fails verification
  *  - a FAILED-status tx fails verification
  *  - FileNonceStore persistence: a SECOND store on the same file sees the
@@ -30,7 +34,7 @@ import {
   TRANSFER_TOPIC0,
   DEFAULT_PRICING,
 } from "../packages/x402/src/index.ts";
-import type { PaymentReceipt, PaymentQuote, PricingTable } from "../packages/x402/src/index.ts";
+import type { NonceStore, PaymentReceipt, PaymentQuote, PricingTable } from "../packages/x402/src/index.ts";
 
 const PAY_TO = "0x000000000000000000000000000000000000beef";
 const PAYER = "0x00000000000000000000000000000000000000aa";
@@ -168,6 +172,94 @@ async function main() {
     assert.ok(replayCaught instanceof Error, "replay should throw");
     assert.match((replayCaught as Error).message, /already used|not recognized/i, "replay rejected");
     console.log("[x402-smoke] nonce replay rejected ok");
+  }
+
+  // -------------------------------------------------------------------------
+  // tx replay: the SAME tx hash cannot settle a SECOND, fresh nonce
+  // (regression for the PR #11 security-review Medium finding — `consumeTx`
+  // existed but `Gate.settle` never called it, so one on-chain payment could
+  // redeem any number of quotes)
+  // -------------------------------------------------------------------------
+  {
+    const gate = new Gate({
+      pricing: PRICING,
+      verify: createBaseUsdcVerifier({ rpcUrls: ["http://mock"], fetch: makeMockFetch(QUOTE_AMOUNT) }),
+    });
+    const q1 = gate.quote("chainq_query");
+    await gate.settle("chainq_query", receiptFor(q1.nonce, "0xfeed01")); // first settle → ok
+
+    const q2 = gate.quote("chainq_query");
+    let caught: unknown;
+    try {
+      await gate.settle("chainq_query", receiptFor(q2.nonce, "0xfeed01")); // same tx, fresh nonce
+    } catch (e) {
+      caught = e;
+    }
+    assert.ok(caught instanceof Error, "tx replay against a fresh nonce should throw");
+    assert.match((caught as Error).message, /already settled/i, "tx replay rejected");
+
+    // Case-insensitive: a re-cased hash is the same payment.
+    const q3 = gate.quote("chainq_query");
+    let cased: unknown;
+    try {
+      await gate.settle("chainq_query", receiptFor(q3.nonce, "0xFEED01"));
+    } catch (e) {
+      cased = e;
+    }
+    assert.ok(cased instanceof Error, "re-cased tx hash should throw");
+    assert.match((cased as Error).message, /already settled/i, "re-cased tx replay rejected");
+    console.log("[x402-smoke] tx replay against fresh nonce rejected ok");
+  }
+
+  // -------------------------------------------------------------------------
+  // tx replay survives a restart when FileNonceStore is wired in
+  // -------------------------------------------------------------------------
+  {
+    const dir = mkdtempSync(join(tmpdir(), "x402-smoke-txreplay-"));
+    const file = join(dir, "nonces.json");
+    const verify = createBaseUsdcVerifier({ rpcUrls: ["http://mock"], fetch: makeMockFetch(QUOTE_AMOUNT) });
+
+    const gateA = new Gate({ pricing: PRICING, verify, nonceStore: new FileNonceStore(file) });
+    const qA = gateA.quote("chainq_query");
+    await gateA.settle("chainq_query", receiptFor(qA.nonce, "0xfeed02")); // settles once
+
+    // "Restart": a new gate over a new store on the SAME file.
+    const gateB = new Gate({ pricing: PRICING, verify, nonceStore: new FileNonceStore(file) });
+    const qB = gateB.quote("chainq_query");
+    let caught: unknown;
+    try {
+      await gateB.settle("chainq_query", receiptFor(qB.nonce, "0xfeed02"));
+    } catch (e) {
+      caught = e;
+    }
+    assert.ok(caught instanceof Error, "persisted tx replay should throw after restart");
+    assert.match((caught as Error).message, /already settled/i, "persisted tx replay rejected");
+    console.log("[x402-smoke] tx replay rejected across FileNonceStore restart ok");
+  }
+
+  // -------------------------------------------------------------------------
+  // backwards compat: a custom store WITHOUT consumeTx still settles
+  // (the gate feature-detects and falls back to nonce protection alone)
+  // -------------------------------------------------------------------------
+  {
+    const seen = new Map<string, number>();
+    const used = new Set<string>();
+    const minimalStore: NonceStore = {
+      remember: (nonce, expiresAt) => void seen.set(nonce, expiresAt),
+      consume: (nonce) => {
+        if (used.has(nonce) || !seen.has(nonce)) return false;
+        used.add(nonce);
+        return true;
+      },
+    };
+    const gate = new Gate({
+      pricing: PRICING,
+      verify: createBaseUsdcVerifier({ rpcUrls: ["http://mock"], fetch: makeMockFetch(QUOTE_AMOUNT) }),
+      nonceStore: minimalStore,
+    });
+    const quote = gate.quote("chainq_query");
+    await gate.settle("chainq_query", receiptFor(quote.nonce)); // must not throw
+    console.log("[x402-smoke] store without consumeTx settles ok (backwards compat)");
   }
 
   // -------------------------------------------------------------------------

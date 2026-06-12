@@ -11,7 +11,8 @@
  *   - `used`  : nonces already consumed. A consumed nonce can never settle again.
  *   - `usedTx`: settled tx hashes. Closes the gap that an ERC-20 transfer has
  *               no memo to bind the nonce — one real payment settles exactly
- *               once via {@link FileNonceStore.consumeTx}.
+ *               once via {@link FileNonceStore.consumeTx}, which `Gate.settle`
+ *               calls after on-chain verification succeeds.
  */
 
 import type { NonceStore } from "./index.js";

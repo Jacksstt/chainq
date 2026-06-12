@@ -7,6 +7,19 @@ Pre-`v0.1.0` is breaking by default; we only call out highlights.
 
 ## [Unreleased]
 
+### Security
+
+- **x402: one on-chain payment now settles exactly once.** The PR #11
+  security review found that `FileNonceStore.consumeTx` (tx-hash dedupe) was
+  implemented and tested but never called from the live path, so a hosted
+  operator could have accepted one USDC transfer against multiple fresh
+  nonces. `Gate.settle` now calls `NonceStore.consumeTx(txHash)` after
+  on-chain verification succeeds and rejects when the hash already settled a
+  call. `consumeTx` is an optional member of the `NonceStore` contract
+  (custom stores without it keep working, falling back to nonce
+  replay-protection alone), and the default in-memory store implements it
+  too. Regression coverage in `scripts/x402-smoke.ts`.
+
 ### Added (this push — keyless ingest + dbt on real data, v0.1.0 closeout)
 
 - **Keyless public-RPC ingest** (`packages/ingest-evm/src/rpc-logs.ts` —
